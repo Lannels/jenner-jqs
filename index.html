@@ -642,8 +642,8 @@ body {
   <div class="card">
     <div class="card-head">
       <div class="card-head-bar"></div>
-      <div class="card-head-title">A · Job identification</div>
-      <div class="card-head-note">ISO 9001:2015 Cl.8.1 — All fields required before work begins</div>
+      <div class="card-head-title">A · Job identification — Fill in EVERY field before touching the machine</div>
+      <div class="card-head-note">ISO 9001:2015 Cl.8.1 — Enter the job number from Sprint Suite, customer name, part description, drawing number and revision exactly as shown on the drawing. If any field is blank, STOP and ask Colin or Carol.</div>
     </div>
     <div class="card-body">
       <div class="fg fg-2" style="margin-bottom:12px">
@@ -694,7 +694,7 @@ body {
           <input type="date" id="f-delivery" oninput="syncJob()">
         </div>
       </div>
-      <div class="fg fg-3">
+      <div class="fg fg-4">
         <div class="field field-required">
           <label>Material specification / grade</label>
           <input type="text" id="f-material" placeholder="e.g. 316SS, AS3678-350" oninput="syncJob()">
@@ -721,14 +721,37 @@ body {
           <input type="text" id="f-operator" oninput="syncJob()">
         </div>
       </div>
+
+      <!-- ── Job Time Log ─────────────────────────────────────── -->
+      <div style="margin-top:16px">
+        <div style="background:var(--black);padding:6px 12px;border-radius:3px 3px 0 0">
+          <span style="font-size:12px;font-weight:bold;color:var(--gold);text-transform:uppercase;letter-spacing:0.5px">C · Job time log — Record actual time spent on this job</span>
+          <span style="font-size:11px;color:#aaa;margin-left:10px">Every operator clocks on and off each session. Add a row each time you start or stop work.</span>
+        </div>
+        <table class="insp-table" id="hours-table">
+          <thead><tr>
+            <th style="width:18%">Operator name</th>
+            <th style="width:12%;text-align:center">Date</th>
+            <th style="width:12%;text-align:center">Start time</th>
+            <th style="width:12%;text-align:center">Finish time</th>
+            <th style="width:9%;text-align:center">Hours (auto)</th>
+            <th>Operation — what were you doing? (e.g. Setup, Machining Op 1, Deburr, QC)</th>
+          </tr></thead>
+          <tbody id="hours-rows"></tbody>
+        </table>
+        <div style="margin-top:6px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <button class="btn-ghost no-print" style="font-size:11px;padding:4px 12px" onclick="addHoursRow()">+ Add row</button>
+          <span style="font-size:13px;color:var(--grey-dark)">Total hours on this job: <strong id="hours-total" style="color:var(--gold-dark)">0.00</strong></span>
+        </div>
+      </div>
     </div>
   </div>
 
   <div class="card">
     <div class="card-head">
       <div class="card-head-bar"></div>
-      <div class="card-head-title">B · Contract review</div>
-      <div class="card-head-note">ISO 9001:2015 Cl.8.2 — Operator completes before work starts</div>
+      <div class="card-head-title">B · Contract review — Confirm the job is clear before work starts</div>
+      <div class="card-head-note">ISO 9001:2015 Cl.8.2 — Read every item. Hit PASS if confirmed OK, FAIL if there is a problem, N/A if not applicable. Do NOT start machining until all items are PASS or N/A and the overall outcome is ACCEPTED. If any item is FAIL — stop and speak to Colin or Carol immediately.</div>
     </div>
     <div class="card-body">
       <table class="insp-table" style="margin-bottom:12px">
@@ -780,20 +803,19 @@ body {
 <!-- ══════════════════════════════════════════════════════ -->
 <div class="panel" id="panel-inprocess">
 
-  <div class="job-num-display" id="ip-job-banner">
-    <div><div class="jnd-label">Job</div><div class="jnd-value" id="ip-jobnum">—</div></div>
-    <div><div class="jnd-label">Customer</div><div class="jnd-date" id="ip-customer">—</div></div>
-    <div><div class="jnd-label">Part</div><div class="jnd-date" id="ip-part">—</div></div>
-    <div><div class="jnd-label">Drawing</div><div class="jnd-date" id="ip-dwg">—</div></div>
-    <div><div class="jnd-label">Material</div><div class="jnd-date" id="ip-material">—</div></div>
-  </div>
+  <!-- Hidden spans keep syncJob() data binding alive -->
+  <span id="ip-jobnum" style="display:none"></span>
+  <span id="ip-customer" style="display:none"></span>
+  <span id="ip-part" style="display:none"></span>
+  <span id="ip-dwg" style="display:none"></span>
+  <span id="ip-material" style="display:none"></span>
 
   <!-- Setup verification -->
   <div class="card">
     <div class="card-head">
       <div class="card-head-bar"></div>
-      <div class="card-head-title">Stage 1 · Setup verification</div>
-      <div class="card-head-note">Before machining starts — operator confirms setup</div>
+      <div class="card-head-title">Stage 1 · Setup verification — Tick every item before you cut the first part</div>
+      <div class="card-head-note">Hit PASS for each item once physically checked. Hit FAIL if something is wrong — stop and fix it before proceeding. N/A only if the item genuinely does not apply. Do NOT start cutting until all items are PASS or N/A. Write the Cal ID of any measuring instrument in the Notes column.</div>
     </div>
     <div class="card-body">
       <table class="insp-table"><thead><tr>
@@ -811,8 +833,8 @@ body {
   <div class="card">
     <div class="card-head">
       <div class="card-head-bar"></div>
-      <div class="card-head-title">Stage 2 · First-off inspection</div>
-      <div class="card-head-note">Operator completes first-off — full run must NOT proceed until all checks pass</div>
+      <div class="card-head-title">Stage 2 · First-off inspection — Measure the FIRST part before running the full batch</div>
+      <div class="card-head-note">Enter the feature name (e.g. "OD Ø50", "Bore depth"), nominal, tolerances, and your actual measured reading for every dimension. Hit PASS if within tolerance, FAIL if outside. If ANY dimension FAILS — do NOT start the full run. Stop, fix, re-cut and re-measure. The full run must not start until every row shows PASS or N/A.</div>
     </div>
     <div class="card-body">
       <table class="insp-table">
@@ -845,8 +867,8 @@ body {
   <div class="card">
     <div class="card-head">
       <div class="card-head-bar"></div>
-      <div class="card-head-title">Stage 3 · In-process dimensional checks</div>
-      <div class="card-head-note">Operator checks during run — STOP and raise NCR immediately on any FAIL</div>
+      <div class="card-head-title">Stage 3 · In-process dimensional checks — Spot-check dimensions during the run</div>
+      <div class="card-head-note">Check a part every ___ parts (set frequency below). Enter stage/part number, check description, nominal and actual, then hit PASS or FAIL. If any check FAILS — STOP the machine immediately, tag the affected parts, and raise an NCR in Sprint Suite before continuing.</div>
     </div>
     <div class="card-body">
       <div style="background:var(--gold-light);border-radius:3px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:var(--grey-dark)">
@@ -873,8 +895,8 @@ body {
   <div class="card">
     <div class="card-head">
       <div class="card-head-bar"></div>
-      <div class="card-head-title">Stage 4 · NCR log</div>
-      <div class="card-head-note">Raise an NCR in Sprint Suite immediately for every FAIL</div>
+      <div class="card-head-title">Stage 4 · NCR log — Record every non-conformance found during this job</div>
+      <div class="card-head-note">An NCR is anything that does not meet the drawing or customer requirement. For EACH NCR: describe what was found, which stage, the immediate action taken (rework / scrap / use-as-is), and the Sprint Suite NCR number. The "Closed?" column must show YES before the job is released.</div>
     </div>
     <div class="card-body">
       <table class="insp-table">
@@ -903,20 +925,19 @@ body {
 <!-- ══════════════════════════════════════════════════════ -->
 <div class="panel" id="panel-final">
 
-  <div class="job-num-display">
-    <div><div class="jnd-label">Job</div><div class="jnd-value" id="fi-jobnum">—</div></div>
-    <div><div class="jnd-label">Customer</div><div class="jnd-date" id="fi-customer">—</div></div>
-    <div><div class="jnd-label">Part</div><div class="jnd-date" id="fi-part">—</div></div>
-    <div><div class="jnd-label">Qty required</div><div class="jnd-date" id="fi-qty">—</div></div>
-    <div><div class="jnd-label">Required delivery</div><div class="jnd-date" id="fi-delivery">—</div></div>
-  </div>
+  <!-- Hidden spans keep syncJob() data binding alive -->
+  <span id="fi-jobnum" style="display:none"></span>
+  <span id="fi-customer" style="display:none"></span>
+  <span id="fi-part" style="display:none"></span>
+  <span id="fi-qty" style="display:none"></span>
+  <span id="fi-delivery" style="display:none"></span>
 
   <!-- Dimensional -->
   <div class="card">
     <div class="card-head">
       <div class="card-head-bar"></div>
-      <div class="card-head-title">Section 1 · Dimensional inspection</div>
-      <div class="card-head-note">Operator completes — record instrument used and Cal ID from F05</div>
+      <div class="card-head-title">Section 1 · Dimensional inspection — Measure every dimension on the drawing and record the actual reading</div>
+      <div class="card-head-note">Use a calibrated instrument and write the Cal ID in the Cal ID column. Enter the feature, nominal, tolerances, and actual measured value. Hit PASS if within tolerance, FAIL if outside. ALL dimensions must PASS before the job can be released. Any FAIL requires an NCR.</div>
     </div>
     <div class="card-body">
       <table class="insp-table">
@@ -941,7 +962,8 @@ body {
   <div class="card">
     <div class="card-head">
       <div class="card-head-bar"></div>
-      <div class="card-head-title">Section 2 · Visual &amp; surface inspection</div>
+      <div class="card-head-title">Section 2 · Visual &amp; surface inspection — Physically inspect the part before packing</div>
+      <div class="card-head-note">Look at the actual part. For each row check the requirement against what you see or measure, enter what you observed, then hit PASS or FAIL. Burrs — run your finger around all edges, must feel smooth. Threads — use Go/No-Go gauge. Welds — look for cracks, porosity, undercut. Any FAIL must be an NCR.</div>
     </div>
     <div class="card-body">
       <table class="insp-table">
@@ -962,8 +984,8 @@ body {
   <div class="card">
     <div class="card-head">
       <div class="card-head-bar"></div>
-      <div class="card-head-title">Section 3 · Documentation &amp; traceability</div>
-      <div class="card-head-note">All must be Yes before release</div>
+      <div class="card-head-title">Section 3 · Documentation &amp; traceability — Confirm all paperwork is complete before release</div>
+      <div class="card-head-note">Every item must show YES before the job can ship. Hit YES only when you have physically confirmed it is done. The Certificate of Conformance cannot be issued until every item here is YES. Ask Colin if unsure.</div>
     </div>
     <div class="card-body">
       <table class="insp-table">
@@ -981,7 +1003,8 @@ body {
   <div class="card">
     <div class="card-head">
       <div class="card-head-bar"></div>
-      <div class="card-head-title">Section 4 · NCR summary for this job</div>
+      <div class="card-head-title">Section 4 · NCR summary — ALL NCRs must be closed before release</div>
+      <div class="card-head-note">Enter the total NCRs raised during this job. Select "All NCRs closed" only when every NCR has a completed corrective action confirmed by Colin or Carol in Sprint Suite. If NCRs remain open the job CANNOT ship.</div>
     </div>
     <div class="card-body">
       <div class="fg fg-3" style="margin-bottom:12px">
@@ -1027,21 +1050,20 @@ body {
   <div class="card" style="margin-top:12px">
     <div class="card-head">
       <div class="card-head-bar"></div>
-      <div class="card-head-title">Sign-off &amp; release authorisation</div>
+      <div class="card-head-title">Sign-off &amp; release authorisation — Colin or Carol must authorise before anything ships</div>
+      <div class="card-head-note">The release gate above must show CLEARED FOR RELEASE (green). Colin or Carol draws their signature below or uses the remote authorisation QR code. A job without a director signature CANNOT leave the workshop.</div>
     </div>
     <div class="card-body">
       <div class="sign-row" style="grid-template-columns:1fr 2fr">
         <div class="sign-cell"><div class="sign-label">Operator sign-off</div><div style="font-size:12px;color:#888;padding-top:4px">Operator signs the paper form F-FI-01 on completion</div></div>
         <div class="sign-cell">
-          <div class="sign-label">Authorisation — MD or Director (upload signature)</div>
-          <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
-            <div id="fi-auth-sig-preview" style="flex:1;height:52px;border:1px dashed #ccc;background:#fafafa;display:flex;align-items:center;justify-content:center;border-radius:3px;overflow:hidden">
-              <span style="font-size:11px;color:#bbb">No signature uploaded</span>
-            </div>
-            <label class="btn-ghost" style="font-size:11px;padding:6px 12px;white-space:nowrap;cursor:pointer">
-              Upload<input type="file" accept="image/*" style="display:none" onchange="uploadSignature(event,'fi-auth')">
-            </label>
-            <button onclick="clearSignature('fi-auth')" class="btn-ghost" style="font-size:11px;padding:6px 8px;color:var(--red)">Clear</button>
+          <div class="sign-label">Authorisation — MD or Director signature</div>
+          <div style="font-size:11px;color:#888;margin-bottom:6px">Click or tap and draw your signature in the box below</div>
+          <div style="position:relative">
+            <canvas id="fi-auth-sig-canvas" width="420" height="60"
+              style="display:block;width:100%;height:60px;background:#fafafa;border:1px solid #ccc;border-radius:3px;cursor:crosshair;touch-action:none"></canvas>
+            <button onclick="clearCanvas('fi-auth-sig-canvas')" class="btn-ghost no-print"
+              style="position:absolute;top:3px;right:3px;font-size:10px;padding:2px 7px;color:var(--red)">Clear</button>
           </div>
           <div id="fi-auth-name-display" style="font-size:11px;color:#888;margin-top:4px"></div>
         </div>
@@ -1065,7 +1087,7 @@ body {
   <div class="no-print" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
     <div>
       <div style="font-size:18px;font-weight:bold;color:var(--gold)" id="coc-screen-title">Certificate of Conformance</div>
-      <div style="font-size:12px;color:#888;margin-top:2px">Auto-generated from job data — review and sign before printing</div>
+      <div style="font-size:12px;color:#aaa;margin-top:2px">Auto-generated from job data. <strong style="color:var(--gold)">Step 1:</strong> Check all fields. <strong style="color:var(--gold)">Step 2:</strong> Select authoriser. <strong style="color:var(--gold)">Step 3:</strong> Draw signature. <strong style="color:var(--gold)">Step 4:</strong> Draw company stamp. <strong style="color:var(--gold)">Step 5:</strong> Print / Save PDF and include with delivery.</div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button onclick="showPanel('final')" class="btn-ghost">‹ Back to Final Inspection</button>
@@ -1198,33 +1220,24 @@ body {
       <!-- Signature row -->
       <div style="display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #555">
         <div style="padding:10px 14px;border-right:1px solid #F5A81C;background:#1A1A1A;min-height:80px">
-          <div style="font-size:10px;font-weight:bold;color:#FAD27A;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Signature</div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <div id="coc-sig-preview" style="flex:1;height:52px;border:1px dashed #555;background:#111;display:flex;align-items:center;justify-content:center;border-radius:3px;overflow:hidden">
-              <span style="font-size:11px;color:#555">No signature uploaded</span>
-            </div>
-            <label class="btn-ghost no-print" style="font-size:11px;padding:4px 10px;cursor:pointer;white-space:nowrap">
-              Upload<input type="file" accept="image/*" style="display:none" onchange="uploadSignature(event,'coc')">
-            </label>
-            <button onclick="clearSignature('coc')" class="btn-ghost no-print" style="font-size:11px;padding:4px 8px;color:#888">Clear</button>
+          <div style="font-size:10px;font-weight:bold;color:#FAD27A;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Signature — draw below</div>
+          <div style="font-size:10px;color:#888;margin-bottom:6px">Click or tap and draw your signature in the box</div>
+          <div style="position:relative;display:inline-block;width:100%">
+            <canvas id="coc-sig-canvas" width="320" height="64"
+              style="display:block;width:100%;height:64px;background:#111;border:1px solid #555;border-radius:3px;cursor:crosshair;touch-action:none"></canvas>
+            <button onclick="clearCanvas('coc-sig-canvas')" class="btn-ghost no-print"
+              style="position:absolute;top:3px;right:3px;font-size:10px;padding:2px 7px;color:#888;background:#1A1A1A;border-color:#555">Clear</button>
           </div>
           <div id="coc-sig-name-display" style="font-size:11px;color:#FAD27A;margin-top:4px"></div>
         </div>
         <div style="padding:10px 14px;background:#1A1A1A">
-          <div style="font-size:10px;font-weight:bold;color:#FAD27A;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Company stamp</div>
-          <div id="coc-stamp" onclick="applyCompanyStamp()" title="Click to apply stamp"
-            style="border:1px dashed #666;border-radius:3px;min-height:52px;padding:5px 8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color 0.2s">
-            <span id="coc-stamp-placeholder" style="font-size:11px;color:#555;user-select:none">Click to apply company stamp</span>
-            <div id="coc-stamp-content" style="display:none;text-align:center;line-height:1.4">
-              <div style="font-size:12px;font-weight:bold;color:#F5A81C;letter-spacing:0.5px">JENNER ENGINEERING PTY LTD</div>
-              <div style="font-size:10px;color:#FAD27A">ABN 27 632 194 373  ·  Mackay QLD 4740</div>
-              <div id="coc-stamp-datetime" style="font-size:10px;color:#aaa;margin-top:2px"></div>
-              <div id="coc-stamp-ref" style="font-size:10px;color:#FAD27A;font-weight:bold"></div>
-            </div>
-          </div>
-          <div id="coc-stamp-applied" class="no-print" style="display:none;font-size:10px;color:#888;margin-top:3px;display:flex;justify-content:space-between;align-items:center">
-            <span id="coc-stamp-ts" style="font-style:italic"></span>
-            <button onclick="clearCompanyStamp()" style="background:none;border:none;color:#666;font-size:10px;cursor:pointer;padding:0 2px">✕ clear</button>
+          <div style="font-size:10px;font-weight:bold;color:#FAD27A;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Company stamp — draw below</div>
+          <div style="font-size:10px;color:#888;margin-bottom:6px">Click or tap and draw in the box</div>
+          <div style="position:relative;display:inline-block;width:100%">
+            <canvas id="coc-stamp-canvas" width="320" height="64"
+              style="display:block;width:100%;height:64px;background:#111;border:1px solid #555;border-radius:3px;cursor:crosshair;touch-action:none"></canvas>
+            <button onclick="clearCanvas('coc-stamp-canvas')" class="btn-ghost no-print"
+              style="position:absolute;top:3px;right:3px;font-size:10px;padding:2px 7px;color:#888;background:#1A1A1A;border-color:#555">Clear</button>
           </div>
         </div>
       </div>
@@ -1357,7 +1370,7 @@ async function tryGetToken() {
     const ssoUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize' +
       '?client_id=f87cd04b-0db4-4790-be5b-9a3f835aabb4' +
       '&response_type=token' +
-      '&redirect_uri=' + encodeURIComponent('https://lannels.github.io/jenner-jqs/') +
+      '&redirect_uri=' + encodeURIComponent(window.location.href.split('?')[0].split('#')[0]) +
       '&scope=' + encodeURIComponent('https://graph.microsoft.com/Files.ReadWrite.All') +
       '&prompt=none' +      // silent — no popup
       '&response_mode=fragment';
@@ -1794,15 +1807,15 @@ function confirmDelete(id) {
 // STATIC DATA
 // ══════════════════════════════════════════════════════════════════════
 const CR_ITEMS = [
-  "Customer drawings / specs received and verified",
-  "All dimensions, tolerances, and finish requirements are clear",
-  "Material specification confirmed",
-  "Delivery date confirmed and achievable",
-  "Tooling and machine capacity available",
-  "Competent operator identified and allocated",
-  "WPS / WPQ identified (welding jobs — N/A if not applicable)",
-  "Job-specific risks identified and controlled",
-  "CoC requirements confirmed with customer",
+  "Customer drawings / specs received — you have the latest approved revision, not an old copy",
+  "All dimensions, tolerances and finish requirements are readable and clear — nothing is ambiguous",
+  "Material specification confirmed — you have the right grade and it matches the drawing and cert on file",
+  "Delivery date confirmed — the required date is realistic given current workload (if unsure, ask Colin)",
+  "Tooling and machine capacity available — you have the right tooling and the machine is free",
+  "Competent operator identified and allocated — the person doing this job has done it before or has been briefed",
+  "WPS / WPQ identified for welding jobs — procedure and qualification are on file (N/A if no welding)",
+  "Job-specific risks identified — any unusual hazards (thin walls, hard material, tight tolerance) are noted",
+  "CoC requirements confirmed with customer — customer has been asked if a Certificate of Conformance is needed",
 ];
 
 const SETUP_ITEMS = [
@@ -1984,7 +1997,7 @@ function buildFdocRows() {
 function buildAllTables() {
   buildCrRows(); buildSetupRows(); buildFoRows();
   buildIpRows(); buildNcrRows(); buildFdRows();
-  buildFvRows(); buildFdocRows();
+  buildFvRows(); buildFdocRows(); buildHoursRows();
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -2022,10 +2035,6 @@ function updateFdStatus() { const el=document.getElementById('fd-status'); if(el
 function updateFvStatus() { const el=document.getElementById('fv-status'); if(el) setStatusBar(el, calcStatus('fv',8)); updateReleaseGate(); }
 
 function updateReleaseGate() {
-  // Release is based on FINAL inspection results only.
-  // Earlier stage failures (setup, first-off, in-process) are part of the
-  // quality record — they show what happened. If the final inspection passes
-  // and NCRs are closed, the product is cleared regardless of earlier stages.
   const fdOk = calcStatus('fd',8) === 'pass';
   const fvOk = calcStatus('fv',8) === 'pass';
   const ncrClosed = document.getElementById('fi-ncr-closed')?.value || '';
@@ -2034,17 +2043,17 @@ function updateReleaseGate() {
   if (!gate) return;
   if (!fdOk || !fvOk) {
     gate.className='release-gate blocked';
-    gate.textContent='DO NOT RELEASE — Final inspection must pass before release';
+    gate.textContent='DO NOT RELEASE — Inspection failures must be resolved';
   } else if (!ncrOk) {
     gate.className='release-gate blocked';
-    gate.textContent='DO NOT RELEASE — Confirm all NCRs are closed in Sprint Suite';
+    gate.textContent='DO NOT RELEASE — Confirm all NCRs are closed';
   } else if (fdOk && fvOk && ncrOk) {
     gate.className='release-gate cleared';
     gate.textContent='CLEARED FOR RELEASE';
     updateCoc();
   } else {
     gate.className='release-gate pending';
-    gate.textContent='Complete final inspection sections to evaluate release status';
+    gate.textContent='Complete all inspection sections to evaluate release status';
   }
   updateExport();
   scheduleAutoSave();
@@ -2165,33 +2174,26 @@ function updateCoc() {
   // ── Overall result banner ─────────────────────────────────────
   const banner = document.getElementById('coc-overall-banner');
   if (banner) {
-    // Final inspection pass + NCRs closed = cleared for release
-    // Earlier stage failures are recorded in the quality trail but do not block CoC
-    const finalPassed = fdStatus==='pass' && fvStatus==='pass'
-                     && (ncrStatus==='pass' || ncrStatus==='N/A');
-    const finalFailed = fdStatus==='fail' || fvStatus==='fail' || ncrStatus==='fail';
-    const hadEarlierFails = [setupStatus,foStatus,ipStatus].some(s=>s==='fail');
-
-    if (finalPassed && !hadEarlierFails) {
+    const allPass = setupStatus==='pass' && foStatus==='pass' && ipStatus==='pass'
+                 && fdStatus==='pass'    && fvStatus==='pass'
+                 && (ncrStatus==='pass'  || ncrStatus==='N/A');
+    const anyFail = [setupStatus,foStatus,ipStatus,fdStatus,fvStatus].some(s=>s==='fail')
+                 || ncrStatus==='fail';
+    if (allPass) {
       banner.style.background = '#e8f5ee';
       banner.style.color = '#1a7a3c';
       banner.style.borderTop = '2px solid #1a7a3c';
       banner.textContent = 'ALL INSPECTIONS PASSED — Ready to sign and issue';
-    } else if (finalPassed && hadEarlierFails) {
-      banner.style.background = '#e8f5ee';
-      banner.style.color = '#1a7a3c';
-      banner.style.borderTop = '2px solid #1a7a3c';
-      banner.textContent = 'FINAL INSPECTION PASSED — NCRs recorded and closed — Ready to sign and issue';
-    } else if (finalFailed) {
+    } else if (anyFail) {
       banner.style.background = '#fdecea';
       banner.style.color = '#c0001a';
       banner.style.borderTop = '2px solid #c0001a';
-      banner.textContent = 'FINAL INSPECTION FAILED — Resolve before issuing CoC';
+      banner.textContent = 'INSPECTION FAILURES PRESENT — Resolve all fails before issuing CoC';
     } else {
       banner.style.background = '#f3f4f6';
       banner.style.color = '#888';
       banner.style.borderTop = '2px solid #F5A81C';
-      banner.textContent = 'Complete final inspection sections to generate overall result';
+      banner.textContent = 'Inspections in progress — complete all sections to generate overall result';
     }
   }
 }
@@ -2408,7 +2410,6 @@ const _origCapture = captureFormData;
 captureFormData = function() {
   const data = _origCapture();
   data._signatures = captureSignatures();
-  data._stamp      = captureStamp();
   return data;
 };
 
@@ -2417,7 +2418,6 @@ const _origRestore = restoreFormData;
 restoreFormData = function(data) {
   _origRestore(data);
   if (data._signatures) setTimeout(() => restoreSignatures(data._signatures), 150);
-  if (data._stamp)      setTimeout(() => restoreStamp(data._stamp), 200);
 };
 
 // Signature pads initialised via modal — no pre-init needed
@@ -2602,15 +2602,6 @@ function applyRemoteSignature() {
 }
 
 
-// Wire CoC auth name select to update print display
-document.addEventListener('DOMContentLoaded', () => {
-  const sel = document.getElementById('coc-auth-name');
-  if (sel) sel.addEventListener('change', () => {
-    const print = document.getElementById('coc-auth-name-print');
-    if (print) print.textContent = sel.value;
-    scheduleAutoSave();
-  });
-});
 
 // ── Manual refresh from SharePoint ────────────────────────────────────────
 async function refreshFromSP(event) {
@@ -2727,97 +2718,191 @@ function importAllData(event) {
 }
 
 
-function applyCompanyStamp() {
-  const stamped = document.getElementById('coc-stamp-content')?.style.display !== 'none';
-  if (stamped) return; // already applied — use clear button
+// ══════════════════════════════════════════════════════════════════════
+// CANVAS DRAWING — signature & stamp pads
+// ══════════════════════════════════════════════════════════════════════
+const _canvasState = {};
 
-  const now = new Date();
-  const dateStr = now.toLocaleDateString('en-AU', {
-    day:'2-digit', month:'short', year:'numeric'
-  });
-  const timeStr = now.toLocaleTimeString('en-AU', {
-    hour:'2-digit', minute:'2-digit', hour12:true
-  });
-  const cocNum = document.getElementById('coc-num-display')?.textContent || '';
+function initCanvas(canvasId, lineColor) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || _canvasState[canvasId]) return;
+  const color = lineColor || '#F5A81C';
+  const ctx = canvas.getContext('2d');
+  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  _canvasState[canvasId] = { drawing: false, lastX: 0, lastY: 0 };
 
-  // Populate stamp
-  const dtEl = document.getElementById('coc-stamp-datetime');
-  const refEl = document.getElementById('coc-stamp-ref');
-  if (dtEl) dtEl.textContent = dateStr + '  ·  ' + timeStr;
-  if (refEl) refEl.textContent = cocNum ? 'CoC: ' + cocNum : '';
-
-  // Show stamp content, hide placeholder
-  const placeholder = document.getElementById('coc-stamp-placeholder');
-  const content     = document.getElementById('coc-stamp-content');
-  const applied     = document.getElementById('coc-stamp-applied');
-  const tsEl        = document.getElementById('coc-stamp-ts');
-  const stampBox    = document.getElementById('coc-stamp');
-
-  if (placeholder) placeholder.style.display = 'none';
-  if (content)     content.style.display = 'block';
-  if (applied)     applied.style.display = 'flex';
-  if (tsEl)        tsEl.textContent = 'Stamped ' + dateStr + ' at ' + timeStr;
-  if (stampBox) {
-    stampBox.style.borderColor = '#F5A81C';
-    stampBox.style.borderStyle = 'solid';
-    stampBox.style.cursor      = 'default';
-    stampBox.title             = '';
+  function pos(e) {
+    const r = canvas.getBoundingClientRect();
+    const sx = canvas.width / r.width, sy = canvas.height / r.height;
+    if (e.touches) return [(e.touches[0].clientX - r.left)*sx, (e.touches[0].clientY - r.top)*sy];
+    return [(e.clientX - r.left)*sx, (e.clientY - r.top)*sy];
   }
+  function start(e) {
+    e.preventDefault();
+    const [x,y] = pos(e);
+    _canvasState[canvasId].drawing = true;
+    _canvasState[canvasId].lastX = x; _canvasState[canvasId].lastY = y;
+    ctx.beginPath(); ctx.arc(x,y,1,0,Math.PI*2); ctx.fillStyle=color; ctx.fill();
+  }
+  function draw(e) {
+    e.preventDefault();
+    if (!_canvasState[canvasId].drawing) return;
+    const [x,y] = pos(e);
+    ctx.beginPath(); ctx.moveTo(_canvasState[canvasId].lastX, _canvasState[canvasId].lastY);
+    ctx.lineTo(x,y); ctx.stroke();
+    _canvasState[canvasId].lastX = x; _canvasState[canvasId].lastY = y;
+    scheduleAutoSave();
+  }
+  function stop() { _canvasState[canvasId].drawing = false; scheduleAutoSave(); }
+  canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('mouseup', stop);    canvas.addEventListener('mouseleave', stop);
+  canvas.addEventListener('touchstart', start, {passive:false});
+  canvas.addEventListener('touchmove',  draw,  {passive:false});
+  canvas.addEventListener('touchend',   stop);
+}
 
+function clearCanvas(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
   scheduleAutoSave();
 }
 
-function clearCompanyStamp() {
-  const placeholder = document.getElementById('coc-stamp-placeholder');
-  const content     = document.getElementById('coc-stamp-content');
-  const applied     = document.getElementById('coc-stamp-applied');
-  const stampBox    = document.getElementById('coc-stamp');
+function canvasToDataUrl(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return null;
+  const data = canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+  if (!data.some(v => v !== 0)) return null;
+  return canvas.toDataURL('image/png');
+}
 
-  if (placeholder) placeholder.style.display = '';
-  if (content)     content.style.display = 'none';
-  if (applied)     applied.style.display = 'none';
-  if (stampBox) {
-    stampBox.style.borderColor = '#666';
-    stampBox.style.borderStyle = 'dashed';
-    stampBox.style.cursor      = 'pointer';
-    stampBox.title             = 'Click to apply stamp';
+function restoreCanvasFromDataUrl(canvasId, dataUrl) {
+  if (!dataUrl) return;
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const img = new Image();
+  img.onload = () => canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+  img.src = dataUrl;
+}
+
+function initAllCanvases() {
+  initCanvas('coc-sig-canvas',     '#F5A81C');
+  initCanvas('coc-stamp-canvas',   '#F5A81C');
+  initCanvas('fi-auth-sig-canvas', '#1A1A1A');
+}
+
+// Patch captureFormData to save canvases
+const _origCaptureCanvas = captureFormData;
+captureFormData = function() {
+  const data = _origCaptureCanvas();
+  data._canvas_coc_sig   = canvasToDataUrl('coc-sig-canvas');
+  data._canvas_coc_stamp = canvasToDataUrl('coc-stamp-canvas');
+  data._canvas_fi_auth   = canvasToDataUrl('fi-auth-sig-canvas');
+  return data;
+};
+
+// Patch restoreFormData to restore canvases
+const _origRestoreCanvas = restoreFormData;
+restoreFormData = function(data) {
+  _origRestoreCanvas(data);
+  setTimeout(() => {
+    if (data._canvas_coc_sig)   restoreCanvasFromDataUrl('coc-sig-canvas',   data._canvas_coc_sig);
+    if (data._canvas_coc_stamp) restoreCanvasFromDataUrl('coc-stamp-canvas', data._canvas_coc_stamp);
+    if (data._canvas_fi_auth)   restoreCanvasFromDataUrl('fi-auth-sig-canvas', data._canvas_fi_auth);
+  }, 200);
+};
+
+// ── Wire CoC auth name + init canvases on load ────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  initAllCanvases();
+  const sel = document.getElementById('coc-auth-name');
+  if (sel) sel.addEventListener('change', () => {
+    const print = document.getElementById('coc-auth-name-print');
+    if (print) print.textContent = sel.value;
+    const fiName = document.getElementById('fi-auth-name-display');
+    if (fiName) fiName.textContent = sel.value;
+    scheduleAutoSave();
+  });
+});
+
+// ── applyRemoteSignature — draw onto canvases ─────────────────────
+function applyRemoteSignature() {
+  if (!_pendingToken || !currentJobId) return;
+  ['coc-sig-canvas','fi-auth-sig-canvas'].forEach(id => restoreCanvasFromDataUrl(id, _pendingToken.dataUrl));
+  const nd = document.getElementById('coc-sig-name-display');
+  if (nd) nd.textContent = _pendingToken.who + ' · ' + (_pendingToken.tsDisplay || '');
+  const fn = document.getElementById('fi-auth-name-display');
+  if (fn) fn.textContent = _pendingToken.who + ' · ' + (_pendingToken.tsDisplay || '');
+  const sel = document.getElementById('coc-auth-name');
+  if (sel) {
+    const colin = Array.from(sel.options).find(o => o.text.includes('Colin'));
+    const carol = Array.from(sel.options).find(o => o.text.includes('Carol'));
+    if (_pendingToken.who.includes('Colin') && colin) sel.value = colin.value;
+    if (_pendingToken.who.includes('Carol') && carol) sel.value = carol.value;
   }
+  const dateEl = document.getElementById('coc-auth-date');
+  if (dateEl && _pendingToken.timestamp) dateEl.value = _pendingToken.timestamp.split('T')[0];
+  try { localStorage.removeItem(SIG_TOKEN_PREFIX + _authJobId); } catch {}
+  scheduleAutoSave(); closeAuthModal();
+  setTimeout(() => alert('Signature from ' + _pendingToken.who + ' applied to job ' + v('f-jobnum') + '.'), 100);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// HOURS LOG
+// ══════════════════════════════════════════════════════════════════════
+function buildHoursRows(count) {
+  const tbody = document.getElementById('hours-rows');
+  if (!tbody) return;
+  tbody.innerHTML = Array.from({length: count || 6}, (_, i) => `
+    <tr>
+      <td><input type="text" placeholder="Name" oninput="scheduleAutoSave()" style="width:100%"></td>
+      <td><input type="date" oninput="calcHoursTotal()" style="width:100%"></td>
+      <td><input type="time" oninput="calcHoursTotal()" style="width:100%;text-align:center"></td>
+      <td><input type="time" oninput="calcHoursTotal()" style="width:100%;text-align:center"></td>
+      <td><input type="text" readonly id="hours-calc-${i}" placeholder="—"
+            style="width:100%;text-align:center;background:var(--gold-light);font-weight:bold;color:var(--gold-dark)"></td>
+      <td><input type="text" placeholder="e.g. Setup, Machining Op 1, Deburr" oninput="scheduleAutoSave()" style="width:100%"></td>
+    </tr>`).join('');
+}
+
+function addHoursRow() {
+  const tbody = document.getElementById('hours-rows');
+  if (!tbody) return;
+  const i = tbody.rows.length;
+  const row = document.createElement('tr');
+  row.innerHTML = `
+    <td><input type="text" placeholder="Name" oninput="scheduleAutoSave()" style="width:100%"></td>
+    <td><input type="date" oninput="calcHoursTotal()" style="width:100%"></td>
+    <td><input type="time" oninput="calcHoursTotal()" style="width:100%;text-align:center"></td>
+    <td><input type="time" oninput="calcHoursTotal()" style="width:100%;text-align:center"></td>
+    <td><input type="text" readonly id="hours-calc-${i}" placeholder="—"
+          style="width:100%;text-align:center;background:var(--gold-light);font-weight:bold;color:var(--gold-dark)"></td>
+    <td><input type="text" placeholder="e.g. Setup, Machining Op 1, Deburr" oninput="scheduleAutoSave()" style="width:100%"></td>`;
+  tbody.appendChild(row);
+  calcHoursTotal();
+}
+
+function calcHoursTotal() {
+  const tbody = document.getElementById('hours-rows');
+  if (!tbody) return;
+  let total = 0;
+  Array.from(tbody.rows).forEach((row, i) => {
+    const times = row.querySelectorAll('input[type=time]');
+    if (times.length < 2) return;
+    const on = times[0].value, off = times[1].value;
+    const calcEl = document.getElementById('hours-calc-' + i);
+    if (on && off) {
+      const [oh,om] = on.split(':').map(Number), [fh,fm] = off.split(':').map(Number);
+      let mins = (fh*60+fm) - (oh*60+om);
+      if (mins < 0) mins += 1440;
+      const hrs = mins / 60;
+      total += hrs;
+      if (calcEl) calcEl.value = hrs.toFixed(2);
+    } else { if (calcEl) calcEl.value = ''; }
+  });
+  const el = document.getElementById('hours-total');
+  if (el) el.textContent = total.toFixed(2);
   scheduleAutoSave();
-}
-
-// Save/restore stamp state with job data
-function captureStamp() {
-  const content = document.getElementById('coc-stamp-content');
-  const applied = content?.style.display !== 'none';
-  if (!applied) return null;
-  return {
-    datetime: document.getElementById('coc-stamp-datetime')?.textContent || '',
-    ref:      document.getElementById('coc-stamp-ref')?.textContent      || '',
-    ts:       document.getElementById('coc-stamp-ts')?.textContent       || '',
-  };
-}
-
-function restoreStamp(data) {
-  if (!data) return;
-  const dtEl = document.getElementById('coc-stamp-datetime');
-  const refEl = document.getElementById('coc-stamp-ref');
-  const tsEl  = document.getElementById('coc-stamp-ts');
-  if (dtEl) dtEl.textContent = data.datetime;
-  if (refEl) refEl.textContent = data.ref;
-  if (tsEl)  tsEl.textContent = data.ts;
-
-  const placeholder = document.getElementById('coc-stamp-placeholder');
-  const content     = document.getElementById('coc-stamp-content');
-  const applied     = document.getElementById('coc-stamp-applied');
-  const stampBox    = document.getElementById('coc-stamp');
-  if (placeholder) placeholder.style.display = 'none';
-  if (content)     content.style.display = 'block';
-  if (applied)     applied.style.display = 'flex';
-  if (stampBox) {
-    stampBox.style.borderColor = '#F5A81C';
-    stampBox.style.borderStyle = 'solid';
-    stampBox.style.cursor      = 'default';
-  }
 }
 
 
@@ -2865,4 +2950,11 @@ function restoreStamp(data) {
 
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
         <button onclick="checkForSignature()" class="btn-ghost" style="font-size:12px">Check for signature</button>
-        <button onclick="applyRemoteSignature()" id="auth-apply-btn" class="bt
+        <button onclick="applyRemoteSignature()" id="auth-apply-btn" class="btn-print" style="font-size:12px;padding:6px 16px;background:var(--gold);color:#000;border:none;border-radius:3px;cursor:pointer;font-weight:bold">Apply signature</button>
+      </div>
+    </div>
+  </div>
+</div><!-- /auth-modal-overlay -->
+
+</body>
+</html>
