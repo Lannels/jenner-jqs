@@ -6,6 +6,7 @@
 <title>Jenner Engineering QMS v8</title>
 <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAD9ElEQVR4nO2XzU9cVRjGf+fcOwMMl/YOhDEMX6GGFsgsaCW6rLU2YWETP1YY2g1/QmNi0402uGipGzakLFxiE5Om2yZsMIIazZQO8aNGqU5CP5jPlvm6c+fe1wWFYMXGGPVu+uzOe3LyPO+b933OOSoejwsBQgdJ/lwAgKmUClaA67rBCujo6AhUgCoUCoGOoRKRQAWYu/ziAQJo2G1Mhe/7+CJopVBqew1gGAYigud5aK3RWv9hDbA3N/Xk/F4opXYqIMA+0/AX4X8T5g6Lt/EZUvoJffAYKjpG47dPMFSe1dzrfH37VxIjR7DtKMlkkra2Nk6fPk06neb69escP36cRCLBnTt3WF5eZnR0lHA4zObmJpVKBdM0GRwcpL+/H8/zEN+nqbmZ1tZWTFD4j1N4378P9QLSPYGqrOPlVgi90McP3yWZnr7K8ueLVKo18vk8U1NTpFIp2tvbSaVSzM3NcevWLYrFIufPn2dpaYloNMrly5eJRqOUKxVSt1d579w5Hm9tsbX1mK54NxMT7247oXd3DpQJTTFU6AC6bRi8GjRqWG02B9paWV5ZYXBwkKmpKU6dOsWFCxfQWnPlyhVEhNnZWeLxOLFYjMXFRQYGBujq6qJarVAulTh29Cil8haO4+A4dTKZDI7joP38l5BdQhkWyndAPHTna4jzEKo/UyqVyRceceLVE9y8eZNSqcTMzAw3btwgmUwSjUa5ePEi09PT5PN57t+/z/j4OGtra6TTacLhJiqVChsbG3R399LT00Nvbw8jIyNYloXp3726PQE7Har0tggdwqs4DA8P8dH0h2zc28AwDEzTJJFIsLCwQF9fH+VymTNnztBoNIjFYly6dAnHcSgWi5w9e5ZIJEK9XiebzfLmW2//uQnlURJltCDigTLAfYTU7qHEBc+k/8VD3P4xg2VZHD58BBFhdXWVoaEhOjo6MAyDbDbL5OQkhUKBkydPUqvVGBsbo6WlhXK5zLPc1kQZCID4YLQiha9ofDOBeFUM6xAP8i7Xrn1KMvkt6+vr2LZNqVQiEolQrVYJhUKEw2Ecx6GpqQnbtslkMriui9Ya27aZn59HRDBNc58K+HVQoFTzk5AgjS3ELSKxN2hxO3nl5TFC4WYGBgZwXXfXYHzfR0SwLItGo4Hv+0QiEXK5HJZlUa1W6ezs3DWt/aAa6QXxf/kYnCwoEBToMDr+DsbQBygd/tum8k+gRESkdg/JfoHUH4B5EG2/hDqQeFIQwX/KUp/O5mmL3dnfiT/rzaHE9wS138Pof/BhwBQU+D7g79W1PY789xdl8NdxsVgMkh81PDwcbAVyuVyQ/JihUChYAQH3YPA/o+cCfgcjec6qGh+DGAAAAABJRU5ErkJggg==">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --black:#1A1A1A; --gold:#F5A800; --gold2:#FFF8E6; --gold3:#FEF3D0;
@@ -395,6 +396,13 @@ const SP = {
   graph:      'https://graph.microsoft.com/v1.0'
 };
 let _spToken = null, _spEnabled = false, _spSyncTimer = null, _spPending = false;
+
+// ══════════════════════════════════════════════════════════════════════
+// SUPABASE CLIENT
+// ══════════════════════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://nnxepgxqakeoruafbkcg.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ueGVwZ3hxYWtlb3J1YWZia2NnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4OTI4NDgsImV4cCI6MjA5MTQ2ODg0OH0.B4-h4GBv0d6tUW0abFsMkyGjnO1iZ8ENtYgdZr_eXTE';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 async function spGetToken() {
   try {
