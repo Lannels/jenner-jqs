@@ -346,30 +346,30 @@ const USER_PROFILES = {
 // ═══════════════════════════════════
 const PRESTART_DEFAULT = {
   safety:[
-    {text:"Job review & drawing check complete",ok:false,role:"Supervisor",sign:""},
-    {text:"Work area clean and free of hazards",ok:false,role:"Supervisor",sign:""},
-    {text:"Machine in safe working condition",ok:false,role:"Supervisor",sign:""},
-    {text:"Operator briefed on job requirements and PPE",ok:false,role:"Supervisor",sign:""},
-    {text:"Welding safety confirmed (N/A if no welding)",ok:false,role:"Supervisor",sign:""}
+    {text:"Job review & drawing check complete",ok:false,role:"Operator",sign:""},
+    {text:"Work area clean and free of hazards",ok:false,role:"Operator",sign:""},
+    {text:"Machine in safe working condition",ok:false,role:"Operator",sign:""},
+    {text:"Operator briefed on job requirements and PPE",ok:false,role:"Operator",sign:""},
+    {text:"Welding safety confirmed (N/A if no welding)",ok:false,role:"Operator",sign:""}
   ],
   drawing:[
-    {text:"Drawing number and revision confirmed",ok:false,role:"Supervisor",sign:""},
-    {text:"Current approved revision on file — not an old copy",ok:false,role:"Supervisor",sign:""},
-    {text:"Special requirements noted (thread class, surface finish, weld procedure)",ok:false,role:"Supervisor",sign:""},
-    {text:"Material spec matches drawing and cert on file",ok:false,role:"Supervisor",sign:""}
+    {text:"Drawing number and revision confirmed",ok:false,role:"Operator",sign:""},
+    {text:"Current approved revision on file — not an old copy",ok:false,role:"Operator",sign:""},
+    {text:"Special requirements noted (thread class, surface finish, weld procedure)",ok:false,role:"Operator",sign:""},
+    {text:"Material spec matches drawing and cert on file",ok:false,role:"Operator",sign:""}
   ],
   machine:[
-    {text:"Machine and tooling appropriate for this job",ok:false,role:"Supervisor",sign:""},
-    {text:"CNC program number verified (if applicable)",ok:false,role:"Supervisor",sign:""},
-    {text:"Calibrated measuring instruments available",ok:false,role:"Supervisor",sign:""}
+    {text:"Machine and tooling appropriate for this job",ok:false,role:"Operator",sign:""},
+    {text:"CNC program number verified (if applicable)",ok:false,role:"Operator",sign:""},
+    {text:"Calibrated measuring instruments available",ok:false,role:"Operator",sign:""}
   ]
 };
 const INPROCESS_DEFAULT = [
-  {text:"Drawing revision confirmed for this job",ok:false,role:"Supervisor",sign:""},
-  {text:"Material matches spec and cert on file",ok:false,role:"Supervisor",sign:""},
-  {text:"Program / tooling set up correctly",ok:false,role:"Supervisor",sign:""},
-  {text:"Workpiece clamped securely",ok:false,role:"Supervisor",sign:""},
-  {text:"Speeds and feeds set for this job",ok:false,role:"Supervisor",sign:""}
+  {text:"Drawing revision confirmed for this job",ok:false,role:"Operator",sign:""},
+  {text:"Material matches spec and cert on file",ok:false,role:"Operator",sign:""},
+  {text:"Program / tooling set up correctly",ok:false,role:"Operator",sign:""},
+  {text:"Workpiece clamped securely",ok:false,role:"Operator",sign:""},
+  {text:"Speeds and feeds set for this job",ok:false,role:"Operator",sign:""}
 ];
 
 // ═══════════════════════════════════
@@ -854,7 +854,7 @@ function renderPrestartPanel(){
   if(!sectionComplete(j,'job')){el.innerHTML=lockedPanel('Complete Job Information first');return;}
   const locked=j.cocIssued;
   const sects=[{key:'safety',label:'Safety Checks'},{key:'drawing',label:'Drawing & Material Check'},{key:'machine',label:'Machine & Tooling'}];
-  let html=`<div class="warning">⚠️ Completed by Workshop Manager / Supervisor before work commences. F-PS-01 v1.0 · ISO 9001:2015 Cl.8.5.1</div>`;
+  let html=`<div class="warning">⚠️ Completed by the Operator before work commences. Supervisor sign-off required at the bottom. F-PS-01 v1.0 · ISO 9001:2015 Cl.8.5.1</div>`;
   sects.forEach(sec=>{
     html+=`<div class="card"><div class="card-head">${esc(sec.label)}</div>
     <div class="card-body" style="padding:0"><table>
@@ -881,7 +881,7 @@ function renderInspectionsPanel(){
   const el=document.getElementById('inspectionsContent'); if(!el) return;
   if(!sectionComplete(j,'prestart')){el.innerHTML=lockedPanel('Complete Pre-Start Check first');return;}
   const locked=j.cocIssued;
-  let html=`<div class="warning">⚠️ In-Process: Completed by Workshop Manager or Supervisor — NOT the operator. F-IP/FI-01 v2.0 · ISO 9001:2015 Cl.8.5.1/8.6</div>
+  let html=`<div class="warning">⚠️ In-Process: Completed by the Operator. Supervisor sign-off required at the bottom before proceeding. F-IP/FI-01 v2.0 · ISO 9001:2015 Cl.8.5.1/8.6</div>
   <div class="card"><div class="card-head">In-Process Inspection</div>
   <div class="card-body" style="padding:0"><table>
   <thead><tr><th>Check Item</th><th style="width:60px;text-align:center">OK</th><th style="width:105px">Role</th></tr></thead><tbody>`;
@@ -1719,7 +1719,7 @@ window.downloadBlankPDF=()=>{
         doc.setDrawColor(220,220,220); doc.rect(10,y,190,7);
         doc.setFontSize(8); doc.setTextColor(34,34,34); doc.setFont('helvetica','normal');
         doc.text(item.substring(0,80),12,y+4.5);
-        doc.rect(166,y,12,7); doc.rect(178,y,22,7); doc.text('Supervisor',179,y+4.5);
+        doc.rect(166,y,12,7); doc.rect(178,y,22,7); doc.text('Operator',179,y+4.5);
         y+=7;
       }); y+=3;
     });
@@ -1730,7 +1730,7 @@ window.downloadBlankPDF=()=>{
     doc.text('Name:',13,y+10); doc.line(25,y+10,100,y+10);
     doc.text('Date:',13,y+16); doc.line(25,y+16,60,y+16); doc.text('Time:',65,y+16); doc.line(75,y+16,100,y+16);
     doc.setFillColor(255,248,220); doc.rect(107,y,93,20,'F'); doc.setDrawColor(200,140,0); doc.rect(107,y,93,20);
-    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF ★',110,y+4);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF *',110,y+4);
     doc.setTextColor(80,80,80); doc.setFont('helvetica','normal'); doc.setFontSize(7);
     doc.text('Name:',110,y+10); doc.line(122,y+10,197,y+10);
     doc.text('Date:',110,y+16); doc.line(122,y+16,157,y+16); doc.text('Time:',162,y+16); doc.line(172,y+16,197,y+16);
@@ -1738,14 +1738,14 @@ window.downloadBlankPDF=()=>{
 
     // ── Page 3: In-Process / Progress ──
     doc.addPage(); pdfHeader(doc,'In-Process Inspection & Progress','F-IP/FI-01',3,PAGES); y=22;
-    y=pdfSectionHead(doc,'IN-PROCESS INSPECTION — Supervisor only, NOT the operator',y);
+    y=pdfSectionHead(doc,'IN-PROCESS INSPECTION — Completed by Operator, approved by Supervisor',y);
     doc.setFontSize(7); doc.setTextColor(110,110,110); doc.setFont('helvetica','bold');
     doc.text('CHECK ITEM',12,y+2); doc.text('OK',168,y+2); doc.text('ROLE',178,y+2); y+=5;
     ['Drawing revision confirmed for this job','Material matches spec and cert on file','Program / tooling set up correctly','Workpiece clamped securely','Speeds and feeds set for this job'].forEach(item=>{
       doc.setDrawColor(220,220,220); doc.rect(10,y,190,7);
       doc.setFontSize(8); doc.setTextColor(34,34,34); doc.setFont('helvetica','normal');
       doc.text(item,12,y+4.5); doc.rect(166,y,12,7); doc.rect(178,y,22,7);
-      doc.text('Supervisor',179,y+4.5); y+=7;
+      doc.text('Operator',179,y+4.5); y+=7;
     });
     y+=3;
     // Two sign-off boxes: Operator + Supervisor
@@ -1755,7 +1755,7 @@ window.downloadBlankPDF=()=>{
     doc.text('Name:',13,y+10); doc.line(25,y+10,100,y+10);
     doc.text('Date:',13,y+15); doc.line(25,y+15,60,y+15); doc.text('Time:',65,y+15); doc.line(75,y+15,100,y+15);
     doc.setFillColor(255,248,220); doc.rect(107,y,93,18,'F'); doc.setDrawColor(200,140,0); doc.rect(107,y,93,18);
-    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF ★',110,y+4);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF *',110,y+4);
     doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
     doc.text('Name:',110,y+10); doc.line(122,y+10,197,y+10);
     doc.text('Date:',110,y+15); doc.line(122,y+15,157,y+15); doc.text('Time:',162,y+15); doc.line(172,y+15,197,y+15);
@@ -1782,7 +1782,7 @@ window.downloadBlankPDF=()=>{
     doc.text('Name:',13,y+9); doc.line(25,y+9,100,y+9);
     doc.text('Date:',13,y+14); doc.line(25,y+14,60,y+14); doc.text('Time:',65,y+14); doc.line(75,y+14,100,y+14);
     doc.setFillColor(255,248,220); doc.rect(107,y,93,16,'F'); doc.setDrawColor(200,140,0); doc.rect(107,y,93,16);
-    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF ★',110,y+4);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF *',110,y+4);
     doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
     doc.text('Name:',110,y+9); doc.line(122,y+9,197,y+9);
     doc.text('Date:',110,y+14); doc.line(122,y+14,157,y+14); doc.text('Time:',162,y+14); doc.line(172,y+14,197,y+14);
@@ -1880,7 +1880,7 @@ window.downloadCompletedPDF=()=>{
     doc.text('Name: '+(pso.operatorName||''),13,y+10);
     doc.text('Date: '+(pso.operatorDate||''),13,y+15);
     doc.setFillColor(255,248,220); doc.rect(107,y,93,18,'F'); doc.setDrawColor(200,140,0); doc.rect(107,y,93,18);
-    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF ★',110,y+4);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF *',110,y+4);
     doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
     doc.text('Name: '+(pso.name||''),110,y+10);
     if(pso.signatureKey&&SIG_IMAGES[pso.signatureKey]){try{doc.addImage(SIG_IMAGES[pso.signatureKey],'PNG',150,y+2,40,14);}catch(e){}}
@@ -1906,7 +1906,7 @@ window.downloadCompletedPDF=()=>{
     doc.text('Name: '+(ips.operatorName||''),13,y+10);
     doc.text('Date: '+(ips.operatorDate||''),13,y+15);
     doc.setFillColor(255,248,220); doc.rect(107,y,93,18,'F'); doc.setDrawColor(200,140,0); doc.rect(107,y,93,18);
-    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF ★',110,y+4);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF *',110,y+4);
     doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
     doc.text('Name: '+(ips.name||''),110,y+10);
     if(ips.signatureKey&&SIG_IMAGES[ips.signatureKey]){try{doc.addImage(SIG_IMAGES[ips.signatureKey],'PNG',150,y+2,40,14);}catch(e){}}
@@ -1964,7 +1964,7 @@ window.downloadCompletedPDF=()=>{
     doc.text('Name: '+(fs.operatorName||''),13,y+10);
     doc.text('Date: '+(fs.operatorDate||''),13,y+15);
     doc.setFillColor(255,248,220); doc.rect(107,y,93,18,'F'); doc.setDrawColor(200,140,0); doc.rect(107,y,93,18);
-    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF ★',110,y+4);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF *',110,y+4);
     doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
     doc.text('Name: '+(fs.name||''),110,y+10);
     if(fs.signatureKey&&SIG_IMAGES[fs.signatureKey]){try{doc.addImage(SIG_IMAGES[fs.signatureKey],'PNG',150,y+2,40,14);}catch(e){}}
