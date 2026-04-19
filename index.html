@@ -1714,30 +1714,52 @@ window.downloadBlankPDF=()=>{
     psSections.forEach(sec=>{
       y=pdfSectionHead(doc,sec.label,y);
       doc.setFontSize(7); doc.setTextColor(110,110,110); doc.setFont('helvetica','bold');
-      doc.text('CHECK ITEM',12,y+2); doc.text('OK',145,y+2); doc.text('ROLE',158,y+2); doc.text('SIGNED BY',177,y+2); y+=5;
+      doc.text('CHECK ITEM',12,y+2); doc.text('OK',168,y+2); doc.text('ROLE',178,y+2); y+=5;
       sec.items.forEach(item=>{
         doc.setDrawColor(220,220,220); doc.rect(10,y,190,7);
         doc.setFontSize(8); doc.setTextColor(34,34,34); doc.setFont('helvetica','normal');
-        doc.text(item.substring(0,68),12,y+4.5);
-        doc.rect(143,y,12,7); doc.rect(156,y,20,7); doc.text('Supervisor',157,y+4.5); doc.rect(176,y,24,7);
+        doc.text(item.substring(0,80),12,y+4.5);
+        doc.rect(166,y,12,7); doc.rect(178,y,22,7); doc.text('Supervisor',179,y+4.5);
         y+=7;
       }); y+=3;
     });
-    pdfBox(doc,'SIGNED BY','',10,y,60,14); pdfBox(doc,'DATE','',72,y,60,14); pdfBox(doc,'TIME','',134,y,66,14);
+    // Two sign-off boxes: Operator + Supervisor
+    doc.setFillColor(247,237,208); doc.rect(10,y,93,20,'F'); doc.setDrawColor(216,163,24); doc.rect(10,y,93,20);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('OPERATOR SIGN-OFF',13,y+4);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal'); doc.setFontSize(7);
+    doc.text('Name:',13,y+10); doc.line(25,y+10,100,y+10);
+    doc.text('Date:',13,y+16); doc.line(25,y+16,60,y+16); doc.text('Time:',65,y+16); doc.line(75,y+16,100,y+16);
+    doc.setFillColor(255,248,220); doc.rect(107,y,93,20,'F'); doc.setDrawColor(200,140,0); doc.rect(107,y,93,20);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF ★',110,y+4);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal'); doc.setFontSize(7);
+    doc.text('Name:',110,y+10); doc.line(122,y+10,197,y+10);
+    doc.text('Date:',110,y+16); doc.line(122,y+16,157,y+16); doc.text('Time:',162,y+16); doc.line(172,y+16,197,y+16);
     pdfFooter(doc,'F-PS-01',2,PAGES);
 
     // ── Page 3: In-Process / Progress ──
     doc.addPage(); pdfHeader(doc,'In-Process Inspection & Progress','F-IP/FI-01',3,PAGES); y=22;
     y=pdfSectionHead(doc,'IN-PROCESS INSPECTION — Supervisor only, NOT the operator',y);
     doc.setFontSize(7); doc.setTextColor(110,110,110); doc.setFont('helvetica','bold');
-    doc.text('CHECK ITEM',12,y+2); doc.text('OK',145,y+2); doc.text('ROLE',158,y+2); doc.text('SIGNED BY',177,y+2); y+=5;
+    doc.text('CHECK ITEM',12,y+2); doc.text('OK',168,y+2); doc.text('ROLE',178,y+2); y+=5;
     ['Drawing revision confirmed for this job','Material matches spec and cert on file','Program / tooling set up correctly','Workpiece clamped securely','Speeds and feeds set for this job'].forEach(item=>{
       doc.setDrawColor(220,220,220); doc.rect(10,y,190,7);
       doc.setFontSize(8); doc.setTextColor(34,34,34); doc.setFont('helvetica','normal');
-      doc.text(item,12,y+4.5); doc.rect(143,y,12,7); doc.rect(156,y,20,7);
-      doc.text('Supervisor',157,y+4.5); doc.rect(176,y,24,7); y+=7;
+      doc.text(item,12,y+4.5); doc.rect(166,y,12,7); doc.rect(178,y,22,7);
+      doc.text('Supervisor',179,y+4.5); y+=7;
     });
-    pdfBox(doc,'SIGNED BY','',10,y,60,12); pdfBox(doc,'DATE','',72,y,60,12); y+=15;
+    y+=3;
+    // Two sign-off boxes: Operator + Supervisor
+    doc.setFillColor(247,237,208); doc.rect(10,y,93,18,'F'); doc.setDrawColor(216,163,24); doc.rect(10,y,93,18);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('OPERATOR SIGN-OFF',13,y+4);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
+    doc.text('Name:',13,y+10); doc.line(25,y+10,100,y+10);
+    doc.text('Date:',13,y+15); doc.line(25,y+15,60,y+15); doc.text('Time:',65,y+15); doc.line(75,y+15,100,y+15);
+    doc.setFillColor(255,248,220); doc.rect(107,y,93,18,'F'); doc.setDrawColor(200,140,0); doc.rect(107,y,93,18);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF ★',110,y+4);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
+    doc.text('Name:',110,y+10); doc.line(122,y+10,197,y+10);
+    doc.text('Date:',110,y+15); doc.line(122,y+15,157,y+15); doc.text('Time:',162,y+15); doc.line(172,y+15,197,y+15);
+    y+=22;
     y=pdfSectionHead(doc,'PROGRESS INSPECTION — DIMENSIONS TO DRAWING (Record PASS or FAIL only)',y);
     doc.setFontSize(7); doc.setTextColor(110,110,110); doc.setFont('helvetica','bold');
     doc.text('#',12,y+2); doc.text('DIMENSION / FEATURE',20,y+2); doc.text('PASS',142,y+2); doc.text('FAIL',158,y+2); doc.text('NOTES',172,y+2); y+=5;
@@ -1754,7 +1776,17 @@ window.downloadBlankPDF=()=>{
     doc.setFontSize(8); doc.setTextColor(34,34,34); doc.setFont('helvetica','normal'); y+=4;
     doc.rect(10,y,5,5); doc.text('ALL PASS — approved for release',17,y+3.8); y+=7;
     doc.rect(10,y,5,5); doc.text('FAIL — NCR raised (F-CAR-01 attached)',17,y+3.8); y+=10;
-    pdfBox(doc,'SIGNED BY','',10,y,60,14); pdfBox(doc,'DATE','',72,y,60,14); pdfBox(doc,'TIME','',134,y,66,14); y+=18;
+    doc.setFillColor(247,237,208); doc.rect(10,y,93,16,'F'); doc.setDrawColor(216,163,24); doc.rect(10,y,93,16);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('OPERATOR SIGN-OFF',13,y+4);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
+    doc.text('Name:',13,y+9); doc.line(25,y+9,100,y+9);
+    doc.text('Date:',13,y+14); doc.line(25,y+14,60,y+14); doc.text('Time:',65,y+14); doc.line(75,y+14,100,y+14);
+    doc.setFillColor(255,248,220); doc.rect(107,y,93,16,'F'); doc.setDrawColor(200,140,0); doc.rect(107,y,93,16);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF ★',110,y+4);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
+    doc.text('Name:',110,y+9); doc.line(122,y+9,197,y+9);
+    doc.text('Date:',110,y+14); doc.line(122,y+14,157,y+14); doc.text('Time:',162,y+14); doc.line(172,y+14,197,y+14);
+    y+=20;
     y=pdfSectionHead(doc,'INSPECTION RESULTS SUMMARY',y);
     [['Setup Result',''],['First-Off Result',''],['In-Process Result',''],['Final Dimensional',''],['Visual Result',''],['Delivered On Time','']].forEach(([l,v],i)=>pdfBox(doc,l,v,10+(i%3)*63.3,y+Math.floor(i/3)*15,63,13));
     y+=33;
@@ -1842,9 +1874,17 @@ window.downloadCompletedPDF=()=>{
       }); y+=2;
     });
     const pso=j.prestartSignoff||{};
-    pdfBox(doc,'SIGNED BY',pso.name||'',10,y,60,14);
-    if(pso.signatureKey&&SIG_IMAGES[pso.signatureKey]){try{doc.addImage(SIG_IMAGES[pso.signatureKey],'PNG',72,y+1,30,11);}catch(e){}}
-    pdfBox(doc,'DATE',pso.date||'',104,y,50,14); pdfBox(doc,'TIME',pso.time||'',156,y,44,14);
+    doc.setFillColor(247,237,208); doc.rect(10,y,93,18,'F'); doc.setDrawColor(216,163,24); doc.rect(10,y,93,18);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('OPERATOR SIGN-OFF',13,y+4);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
+    doc.text('Name: '+(pso.operatorName||''),13,y+10);
+    doc.text('Date: '+(pso.operatorDate||''),13,y+15);
+    doc.setFillColor(255,248,220); doc.rect(107,y,93,18,'F'); doc.setDrawColor(200,140,0); doc.rect(107,y,93,18);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF ★',110,y+4);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
+    doc.text('Name: '+(pso.name||''),110,y+10);
+    if(pso.signatureKey&&SIG_IMAGES[pso.signatureKey]){try{doc.addImage(SIG_IMAGES[pso.signatureKey],'PNG',150,y+2,40,14);}catch(e){}}
+    doc.text('Date: '+(pso.date||''),110,y+15);
     pdfFooter(doc,'F-PS-01',2,PAGES);
 
     // ── Page 3: In-Process ──
@@ -1853,16 +1893,25 @@ window.downloadCompletedPDF=()=>{
     j.inProcess.forEach(row=>{
       doc.setDrawColor(220,220,220); doc.rect(10,y,190,7);
       doc.setFontSize(8); doc.setTextColor(34,34,34); doc.setFont('helvetica','normal');
-      doc.text(row.text.substring(0,68),12,y+4.5);
-      if(row.ok){doc.setTextColor(11,122,75);doc.setFont('helvetica','bold');doc.text('✓ OK',144,y+4.5);}
+      doc.text(row.text.substring(0,80),12,y+4.5);
+      if(row.ok){doc.setTextColor(11,122,75);doc.setFont('helvetica','bold');doc.text('✓ OK',170,y+4.5);}
       doc.setTextColor(34,34,34); doc.setFont('helvetica','normal');
-      if(row.sign) doc.text(row.sign.substring(0,14),177,y+4.5);
       y+=7;
     });
     const ips=j.inProcessSignoff||{};
-    pdfBox(doc,'SIGNED BY',ips.name||'',10,y,60,12);
-    if(ips.signatureKey&&SIG_IMAGES[ips.signatureKey]){try{doc.addImage(SIG_IMAGES[ips.signatureKey],'PNG',72,y+1,28,10);}catch(e){}}
-    pdfBox(doc,'DATE',ips.date||'',104,y,50,12); y+=15;
+    y+=2;
+    doc.setFillColor(247,237,208); doc.rect(10,y,93,18,'F'); doc.setDrawColor(216,163,24); doc.rect(10,y,93,18);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('OPERATOR SIGN-OFF',13,y+4);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
+    doc.text('Name: '+(ips.operatorName||''),13,y+10);
+    doc.text('Date: '+(ips.operatorDate||''),13,y+15);
+    doc.setFillColor(255,248,220); doc.rect(107,y,93,18,'F'); doc.setDrawColor(200,140,0); doc.rect(107,y,93,18);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF ★',110,y+4);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
+    doc.text('Name: '+(ips.name||''),110,y+10);
+    if(ips.signatureKey&&SIG_IMAGES[ips.signatureKey]){try{doc.addImage(SIG_IMAGES[ips.signatureKey],'PNG',150,y+2,40,14);}catch(e){}}
+    doc.text('Date: '+(ips.date||''),110,y+15);
+    y+=22;
     y=pdfSectionHead(doc,'PROGRESS INSPECTION — DIMENSIONS TO DRAWING',y);
     doc.setFontSize(7); doc.setTextColor(110,110,110); doc.setFont('helvetica','bold');
     doc.text('#',12,y+2); doc.text('DIMENSION / FEATURE',20,y+2);
@@ -1909,9 +1958,17 @@ window.downloadCompletedPDF=()=>{
     if(fs.allPass){doc.setTextColor(11,122,75);doc.setFont('helvetica','bold');doc.text('✓ ALL PASS — Approved for release',12,y);}
     else if(fs.failNcr){doc.setTextColor(180,35,24);doc.setFont('helvetica','bold');doc.text('⚠ FAIL — NCR raised, F-CAR-01 attached',12,y);}
     y+=8;
-    pdfBox(doc,'SIGNED BY',fs.name||'',10,y,60,14);
-    if(fs.signatureKey&&SIG_IMAGES[fs.signatureKey]){try{doc.addImage(SIG_IMAGES[fs.signatureKey],'PNG',72,y+1,32,12);}catch(e){}}
-    pdfBox(doc,'DATE',fs.date||'',106,y,50,14); pdfBox(doc,'TIME',fs.time||'',158,y,42,14);
+    doc.setFillColor(247,237,208); doc.rect(10,y,93,18,'F'); doc.setDrawColor(216,163,24); doc.rect(10,y,93,18);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('OPERATOR SIGN-OFF',13,y+4);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
+    doc.text('Name: '+(fs.operatorName||''),13,y+10);
+    doc.text('Date: '+(fs.operatorDate||''),13,y+15);
+    doc.setFillColor(255,248,220); doc.rect(107,y,93,18,'F'); doc.setDrawColor(200,140,0); doc.rect(107,y,93,18);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF ★',110,y+4);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
+    doc.text('Name: '+(fs.name||''),110,y+10);
+    if(fs.signatureKey&&SIG_IMAGES[fs.signatureKey]){try{doc.addImage(SIG_IMAGES[fs.signatureKey],'PNG',150,y+2,40,14);}catch(e){}}
+    doc.text('Date: '+(fs.date||''),110,y+15);
     pdfFooter(doc,'F-FI-01',4,PAGES);
 
     // ── Page 5: CoC ──
