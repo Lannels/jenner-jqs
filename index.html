@@ -766,45 +766,72 @@ window.viewDrawing=()=>{const j=jobs[currentJobId];if(j?.drawingPdf){const w=win
 
 // ═══════════════════════════════════
 // SIGN-OFF BOX HELPER
+// Two sign-offs: Operator + Supervisor
+// Only supervisor sign-off is required to unlock next section
 // ═══════════════════════════════════
 function signoffBox(field, j, label, locked){
   const so=j[field]||{};
   const canSign=currentUser&&(currentUser.role==='supervisor'||currentUser.role==='admin');
   const sigImg=so.signatureKey&&SIG_IMAGES[so.signatureKey]
     ? `<img class="sig-preview" src="${SIG_IMAGES[so.signatureKey]}" alt="Signature">`:'';
-  const complete=!!(so.name&&so.date);
+  const supComplete=!!(so.name&&so.date);
   return `<div class="signoff-box">
-    <div style="font-size:11px;font-weight:700;color:#7a5c00;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">
-      ✍ Sign-Off: Workshop Manager / Supervisor
+    <div style="font-size:11px;font-weight:700;color:#7a5c00;text-transform:uppercase;letter-spacing:.4px;margin-bottom:12px">
+      ✍ Section Sign-Off
     </div>
-    <div class="grid-2" style="gap:10px">
-      <div class="field">
-        <label>Name</label>
-        <input value="${esc(so.name||'')}" ${locked?'disabled':''} oninput="so_set('${field}','name',this.value)" placeholder="Full name">
-      </div>
-      <div>
-        <label style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:4px">Signature</label>
-        <div class="sig-select">
-          <select ${(!canSign||locked)?'disabled':''} onchange="so_sig('${field}',this.value)">
-            <option value="">— Select —</option>
-            <option value="carol" ${so.signatureKey==='carol'?'selected':''}>Carol Norris</option>
-            <option value="colin" ${so.signatureKey==='colin'?'selected':''}>Colin Norris</option>
-          </select>
-          ${sigImg}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+
+      <!-- OPERATOR SIGN-OFF -->
+      <div style="background:#fff;border:1px solid #e0c96a;border-radius:8px;padding:12px">
+        <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Operator</div>
+        <div class="field" style="margin-bottom:8px">
+          <label>Name</label>
+          <input value="${esc(so.operatorName||'')}" ${locked?'disabled':''} oninput="so_set('${field}','operatorName',this.value)" placeholder="Operator name">
         </div>
+        <div class="grid-2" style="gap:8px">
+          <div class="field"><label>Date</label><input type="date" value="${esc(so.operatorDate||'')}" ${locked?'disabled':''} oninput="so_set('${field}','operatorDate',this.value)"></div>
+          <div class="field"><label>Time</label><input type="time" value="${esc(so.operatorTime||'')}" ${locked?'disabled':''} oninput="so_set('${field}','operatorTime',this.value)"></div>
+        </div>
+        ${so.operatorName?`<div style="margin-top:6px;font-size:11px;color:var(--green);font-weight:700">✓ Signed</div>`:'<div style="margin-top:6px;font-size:11px;color:#aaa">Not yet signed</div>'}
       </div>
-      <div class="field"><label>Date</label><input type="date" value="${esc(so.date||'')}" ${locked?'disabled':''} oninput="so_set('${field}','date',this.value)"></div>
-      <div class="field"><label>Time</label><input type="time" value="${esc(so.time||'')}" ${locked?'disabled':''} oninput="so_set('${field}','time',this.value)"></div>
+
+      <!-- SUPERVISOR SIGN-OFF (required) -->
+      <div style="background:#fff;border:2px solid var(--gold);border-radius:8px;padding:12px">
+        <div style="font-size:10px;font-weight:700;color:#7a5c00;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Workshop Supervisor / Manager <span style="color:var(--red)">★ Required</span></div>
+        <div class="field" style="margin-bottom:8px">
+          <label>Name</label>
+          <input value="${esc(so.name||'')}" ${locked?'disabled':''} oninput="so_set('${field}','name',this.value)" placeholder="Supervisor name">
+        </div>
+        <div style="margin-bottom:8px">
+          <label style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:4px">Signature</label>
+          <div class="sig-select">
+            <select ${(!canSign||locked)?'disabled':''} onchange="so_sig('${field}',this.value)">
+              <option value="">— Select —</option>
+              <option value="carol" ${so.signatureKey==='carol'?'selected':''}>Carol Norris</option>
+              <option value="colin" ${so.signatureKey==='colin'?'selected':''}>Colin Norris</option>
+            </select>
+            ${sigImg}
+          </div>
+        </div>
+        <div class="grid-2" style="gap:8px">
+          <div class="field"><label>Date</label><input type="date" value="${esc(so.date||'')}" ${locked?'disabled':''} oninput="so_set('${field}','date',this.value)"></div>
+          <div class="field"><label>Time</label><input type="time" value="${esc(so.time||'')}" ${locked?'disabled':''} oninput="so_set('${field}','time',this.value)"></div>
+        </div>
+        ${supComplete&&!locked?'<div style="margin-top:6px;font-size:11px;font-weight:700;color:var(--green)">✅ Section approved</div>':'<div style="margin-top:6px;font-size:11px;color:#aaa">Awaiting supervisor sign-off</div>'}
+      </div>
+
     </div>
-    ${complete&&!locked?'<div style="margin-top:6px;font-size:11px;font-weight:700;color:var(--green)">✅ Section signed off</div>':''}
   </div>`;
 }
 window.so_set=(field,key,val)=>{
   const j=jobs[currentJobId]; if(!j) return;
   if(!j[field]) j[field]={};
   j[field][key]=val;
+  // Auto-fill date/time when name is entered
   if(key==='name'&&!j[field].date) j[field].date=today();
   if(key==='name'&&!j[field].time) j[field].time=nowTime();
+  if(key==='operatorName'&&!j[field].operatorDate) j[field].operatorDate=today();
+  if(key==='operatorName'&&!j[field].operatorTime) j[field].operatorTime=nowTime();
   scheduleSave();
 };
 window.so_sig=(field,val)=>{
