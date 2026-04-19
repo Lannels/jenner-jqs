@@ -831,13 +831,12 @@ function renderPrestartPanel(){
   sects.forEach(sec=>{
     html+=`<div class="card"><div class="card-head">${esc(sec.label)}</div>
     <div class="card-body" style="padding:0"><table>
-    <thead><tr><th>Check Item</th><th style="width:60px;text-align:center">OK</th><th style="width:105px">Role</th><th>Signed By</th></tr></thead><tbody>`;
+    <thead><tr><th>Check Item</th><th style="width:60px;text-align:center">OK</th><th style="width:105px">Role</th></tr></thead><tbody>`;
     j.prestart[sec.key].forEach((row,i)=>{
       html+=`<tr>
         <td>${esc(row.text)}</td>
         <td style="text-align:center"><input type="checkbox" ${row.ok?'checked':''} ${locked?'disabled':''} onchange="ps_check('${sec.key}',${i},this.checked)"></td>
         <td>${esc(row.role)}</td>
-        <td><input value="${esc(row.sign)}" placeholder="Name" ${locked?'disabled':''} oninput="ps_sign('${sec.key}',${i},this.value)" style="width:100%;border:none;background:transparent"></td>
       </tr>`;
     });
     html+=`</tbody></table></div></div>`;
@@ -846,7 +845,6 @@ function renderPrestartPanel(){
   el.innerHTML=html;
 }
 window.ps_check=(sec,i,v)=>{const j=jobs[currentJobId];if(j){j.prestart[sec][i].ok=v;scheduleSave();}};
-window.ps_sign=(sec,i,v)=>{const j=jobs[currentJobId];if(j){j.prestart[sec][i].sign=v;scheduleSave();}};
 
 // ═══════════════════════════════════
 // INSPECTIONS PANEL
@@ -859,13 +857,12 @@ function renderInspectionsPanel(){
   let html=`<div class="warning">⚠️ In-Process: Completed by Workshop Manager or Supervisor — NOT the operator. F-IP/FI-01 v2.0 · ISO 9001:2015 Cl.8.5.1/8.6</div>
   <div class="card"><div class="card-head">In-Process Inspection</div>
   <div class="card-body" style="padding:0"><table>
-  <thead><tr><th>Check Item</th><th style="width:60px;text-align:center">OK</th><th style="width:105px">Role</th><th>Signed By</th></tr></thead><tbody>`;
+  <thead><tr><th>Check Item</th><th style="width:60px;text-align:center">OK</th><th style="width:105px">Role</th></tr></thead><tbody>`;
   j.inProcess.forEach((row,i)=>{
     html+=`<tr>
       <td>${esc(row.text)}</td>
       <td style="text-align:center"><input type="checkbox" ${row.ok?'checked':''} ${locked?'disabled':''} onchange="ip_check(${i},this.checked)"></td>
       <td>${esc(row.role)}</td>
-      <td><input value="${esc(row.sign)}" ${locked?'disabled':''} oninput="ip_sign(${i},this.value)" style="width:100%;border:none;background:transparent"></td>
     </tr>`;
   });
   html+=`</tbody></table></div></div>`;
@@ -890,7 +887,6 @@ function renderInspectionsPanel(){
   el.innerHTML=html;
 }
 window.ip_check=(i,v)=>{const j=jobs[currentJobId];if(j){j.inProcess[i].ok=v;scheduleSave();}};
-window.ip_sign=(i,v)=>{const j=jobs[currentJobId];if(j){j.inProcess[i].sign=v;scheduleSave();}};
 window.prog_feat=(i,v)=>{const j=jobs[currentJobId];if(j){j.progress[i].feature=v;scheduleSave();}};
 window.prog_result=(i,r)=>{const j=jobs[currentJobId];if(j){j.progress[i].pass=(r==='pass');j.progress[i].fail=(r==='fail');scheduleSave();}};
 window.prog_note=(i,v)=>{const j=jobs[currentJobId];if(j){j.progress[i].notes=v;scheduleSave();}};
@@ -983,9 +979,12 @@ function renderCoCPanel(){
       <div>Certificate of Conformance Issued
         <small>CoC No: ${esc(j.coc.number)} · By: ${esc(j.cocIssuedBy)} · Date: ${esc((j.cocIssuedAt||'').split('T')[0])}</small>
       </div>
-      <button class="btn-green btn-sm" style="margin-left:auto" onclick="downloadCoCPDF()">Download CoC PDF</button>
     </div>
-    ${buildCoCReadOnly(j)}`;
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn-green" style="padding:11px 22px;font-size:14px" onclick="openCoCPage()">🏆 View Full Certificate</button>
+      <button class="btn-white" onclick="downloadCoCPDF()">⬇ Download PDF</button>
+    </div>
+    ${buildCoCSummary(j)}`;
     return;
   }
   // Auto-fill
@@ -1006,12 +1005,12 @@ function renderCoCPanel(){
         <div class="field"><label>Certified By</label><input value="${esc(j.coc.certifiedBy)}" ${currentUser.coc_authority?'':'readonly'} oninput="coc_set('certifiedBy',this.value)"></div>
         <div class="field"><label>Customer</label><input value="${esc(j.customer)}" readonly></div>
         <div class="field"><label>Drawing / Rev</label><input value="${esc(j.drawingRev)}" readonly></div>
-        <div class="field"><label>Reference</label><input value="${esc(j.coc.reference)}" oninput="coc_set('reference',this.value)"></div>
+        <div class="field"><label>Reference (PO / Order No)</label><input value="${esc(j.coc.reference)}" oninput="coc_set('reference',this.value)"></div>
       </div>
       <div class="field" style="margin-top:10px"><label>Certificate Note</label>
         <textarea oninput="coc_set('note',this.value)">${esc(j.coc.note)}</textarea></div>
       <div style="margin-top:12px">
-        <label style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">Signature</label>
+        <label style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:6px">Authorising Signature</label>
         <div class="sig-select">
           <select ${!currentUser.coc_authority?'disabled':''} onchange="coc_sig(this.value)">
             <option value="">— Select —</option>
@@ -1036,7 +1035,7 @@ function renderCoCPanel(){
         <button class="btn-green" style="padding:13px 30px;font-size:14px" onclick="promptIssueCoC()">
           🏆 Issue &amp; Lock Certificate — ${currentUser.name}
         </button>
-        <p style="font-size:11px;color:#888;margin-top:8px">This will lock all job data permanently. Cannot be undone.</p>
+        <p style="font-size:11px;color:#888;margin-top:8px">This will lock all job data permanently and open the certificate for printing. Cannot be undone.</p>
       </div>`
     :currentUser.coc_authority
       ?`<div class="warning">Complete all sections and close all NCRs to enable CoC issuance.</div>`
@@ -1046,25 +1045,154 @@ function renderCoCPanel(){
 window.coc_set=(k,v)=>{const j=jobs[currentJobId];if(j){j.coc[k]=v;scheduleSave();}};
 window.coc_sig=(v)=>{const j=jobs[currentJobId];if(j){j.coc.signatureKey=v;scheduleSave();renderCoCPanel();}};
 
-function buildCoCReadOnly(j){
-  const sigImg=j.coc.signatureKey&&SIG_IMAGES[j.coc.signatureKey]
-    ?`<img src="${SIG_IMAGES[j.coc.signatureKey]}" style="height:50px">`:esc(j.coc.certifiedBy||'');
-  return `<div class="card"><div class="card-head">Certificate of Conformance — LOCKED &amp; ISSUED</div><div class="card-body">
-  <table><tbody>
-    <tr><th style="width:180px">CoC Number</th><td><strong style="color:var(--green)">${esc(j.coc.number)}</strong></td></tr>
-    <tr><th>Customer</th><td>${esc(j.customer)}</td></tr>
-    <tr><th>Part Description</th><td>${esc(j.partDescription)}</td></tr>
-    <tr><th>Drawing / Rev</th><td>${esc(j.drawingRev)}</td></tr>
-    <tr><th>Qty Supplied</th><td>${esc(j.qtySupplied)}</td></tr>
-    <tr><th>Issued</th><td>${esc(j.coc.issued)}</td></tr>
-    <tr><th>Certified By</th><td>${esc(j.coc.certifiedBy)}</td></tr>
-    <tr><th>Signature</th><td>${sigImg}</td></tr>
-    <tr><th>Reference</th><td>${esc(j.coc.reference)}</td></tr>
-    <tr><th>Note</th><td>${esc(j.coc.note)}</td></tr>
-  </tbody></table>
-  ${j.coc.useCompanyStamp?`<div style="margin-top:12px"><img src="${IMG_STAMP}" style="height:90px"></div>`:''}
+function buildCoCSummary(j){
+  return `<div class="card"><div class="card-head">Certificate Details — Locked &amp; Issued</div><div class="card-body">
+  <div class="grid-2" style="gap:10px;font-size:13px">
+    <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:2px">CoC Number</span><strong style="color:var(--green);font-size:15px">${esc(j.coc.number)}</strong></div>
+    <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:2px">Issued Date</span>${esc(j.coc.issued)}</div>
+    <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:2px">Customer</span>${esc(j.customer)}</div>
+    <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:2px">Drawing / Rev</span>${esc(j.drawingRev)}</div>
+    <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:2px">Part</span>${esc(j.partDescription)}</div>
+    <div><span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:2px">Certified By</span>${esc(j.coc.certifiedBy)}</div>
+  </div>
   </div></div>`;
 }
+
+// Opens a full-page printable Certificate of Conformance in a new tab
+window.openCoCPage=()=>{
+  const j=jobs[currentJobId]; if(!j||!j.cocIssued) return;
+  const coc=j.coc||{};
+  const sigImg=coc.signatureKey&&SIG_IMAGES[coc.signatureKey]
+    ?`<img src="${SIG_IMAGES[coc.signatureKey]}" style="height:60px;display:block;margin-top:6px" alt="Signature">`
+    :`<div style="margin-top:6px;font-size:14px;color:#333">${esc(coc.certifiedBy||'')}</div>`;
+  const stampHtml=coc.useCompanyStamp
+    ?`<div style="margin-top:20px"><img src="${IMG_STAMP}" style="height:100px" alt="Company Stamp"></div>`:'' ;
+  const itemRows=j.items.filter(it=>it.qty||it.partNumber||it.description).map(it=>
+    `<tr><td style="width:80px;padding:8px 12px">${esc(it.qty)}</td><td style="padding:8px 12px;width:160px">${esc(it.partNumber)}</td><td style="padding:8px 12px">${esc(it.description)}</td></tr>`
+  ).join('');
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+  <title>Certificate of Conformance — ${esc(coc.number)}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#222;font-size:14px}
+    .page{max-width:800px;margin:0 auto;padding:32px 40px;min-height:100vh;display:flex;flex-direction:column}
+    .header{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:3px solid #d8a318;padding-bottom:16px;margin-bottom:24px}
+    .header-left img{height:52px;display:block;margin-bottom:8px}
+    .header-left .company{font-size:13px;color:#444;line-height:1.5}
+    .header-right{text-align:right}
+    .header-right .doc-code{font-size:11px;color:#888;margin-bottom:4px}
+    .coc-title{font-size:22px;font-weight:700;color:#171717;letter-spacing:.5px}
+    .coc-number{font-size:14px;font-weight:700;color:#d8a318;margin-top:4px}
+    .section{margin-bottom:18px}
+    .section-title{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;border-bottom:1px solid #eee;padding-bottom:4px}
+    .data-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px}
+    .data-field .label{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
+    .data-field .value{font-size:14px;color:#111;font-weight:600}
+    .items-table{width:100%;border-collapse:collapse;font-size:13px}
+    .items-table th{background:#171717;color:#d8a318;padding:7px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.3px}
+    .items-table td{border:1px solid #ddd;padding:6px 12px}
+    .items-table tr:nth-child(even) td{background:#f7edd0}
+    .note-box{background:#f7edd0;border-left:4px solid #d8a318;padding:12px 16px;font-size:13px;line-height:1.6;color:#444;border-radius:0 6px 6px 0}
+    .sig-block{display:flex;align-items:flex-start;justify-content:space-between;margin-top:auto;padding-top:24px;border-top:1px solid #eee}
+    .sig-left .sig-label{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+    .sig-left .sig-name{font-size:14px;font-weight:700;color:#111;margin-top:8px}
+    .sig-left .sig-title{font-size:11px;color:#888}
+    .footer{margin-top:24px;padding-top:12px;border-top:1px solid #e0e0e0;font-size:10px;color:#aaa;display:flex;justify-content:space-between}
+    .pass-badge{display:inline-block;background:#d4edda;color:#0b7a4b;font-weight:700;font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid #0b7a4b;margin-top:4px}
+    @media print{
+      body{background:#fff}
+      .no-print{display:none!important}
+      .page{padding:20px 28px}
+    }
+  </style>
+  </head><body>
+  <div class="page">
+
+    <!-- HEADER -->
+    <div class="header">
+      <div class="header-left">
+        <img src="${IMG_LOGO}" alt="Jenner Engineering" onerror="this.style.display='none'">
+        <div class="company">
+          Jenner Engineering Pty Ltd<br>
+          13 David Muir Street, Slade Point QLD 4740<br>
+          ABN 27 632 194 373
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="doc-code">F-CoC-01 · ISO 9001:2015 Cl.8.6</div>
+        <div class="coc-title">Certificate of<br>Conformance</div>
+        <div class="coc-number">${esc(coc.number)}</div>
+        <div class="pass-badge">✓ ALL PASS</div>
+      </div>
+    </div>
+
+    <!-- JOB DETAILS -->
+    <div class="section">
+      <div class="section-title">Job Details</div>
+      <div class="data-grid">
+        <div class="data-field"><div class="label">Customer</div><div class="value">${esc(j.customer)}</div></div>
+        <div class="data-field"><div class="label">Issued Date</div><div class="value">${esc(coc.issued)}</div></div>
+        <div class="data-field"><div class="label">Part Description</div><div class="value">${esc(j.partDescription)}</div></div>
+        <div class="data-field"><div class="label">Job Number</div><div class="value">${esc(j.jobNumber)}</div></div>
+        <div class="data-field"><div class="label">Drawing / Revision</div><div class="value">${esc(j.drawingRev)}</div></div>
+        <div class="data-field"><div class="label">Customer PO / Reference</div><div class="value">${esc(coc.reference||'—')}</div></div>
+        <div class="data-field"><div class="label">Material</div><div class="value">${esc(j.material)}</div></div>
+        <div class="data-field"><div class="label">Qty Supplied</div><div class="value">${esc(j.qtySupplied||j.qtyOrdered)}</div></div>
+      </div>
+    </div>
+
+    ${itemRows?`<div class="section">
+      <div class="section-title">Items Supplied</div>
+      <table class="items-table">
+        <thead><tr><th>Qty</th><th>Part Number</th><th>Description</th></tr></thead>
+        <tbody>${itemRows}</tbody>
+      </table>
+    </div>`:''}
+
+    <!-- CERTIFICATE NOTE -->
+    <div class="section">
+      <div class="section-title">Certification Statement</div>
+      <div class="note-box">${esc(coc.note||'We certify that the parts listed on this job conform to the applicable drawing, customer requirements, and final inspection status recorded in this job pack.')}</div>
+    </div>
+
+    <!-- INSPECTION SUMMARY -->
+    <div class="section">
+      <div class="section-title">Inspection Summary</div>
+      <div class="data-grid">
+        ${[['Setup',j.results?.setupResult],['First-Off',j.results?.firstOffResult],['In-Process',j.results?.inProcessResult],['Final Dimensional',j.results?.finalDimensional],['Visual',j.results?.visualResult]].map(([l,v])=>
+          `<div class="data-field"><div class="label">${l}</div><div class="value" style="color:${v==='PASS'?'#0b7a4b':v==='FAIL'?'#b42318':'#555'}">${v||'—'}</div></div>`
+        ).join('')}
+        <div class="data-field"><div class="label">NCRs</div><div class="value" style="color:${j.results?.ncrCount>0?'#b42318':'#0b7a4b'}">${j.results?.ncrCount||0} raised · ${(j.ncrs||[]).filter(n=>n.status==='closed').length} closed</div></div>
+      </div>
+    </div>
+
+    <!-- SIGNATURE BLOCK -->
+    <div class="sig-block">
+      <div class="sig-left">
+        <div class="sig-label">Authorised By</div>
+        ${sigImg}
+        <div class="sig-name">${esc(coc.certifiedBy||'')}</div>
+        <div class="sig-title">Workshop Manager · Jenner Engineering Pty Ltd</div>
+        <div style="font-size:11px;color:#888;margin-top:4px">Date: ${esc(coc.issued)}</div>
+      </div>
+      ${coc.useCompanyStamp?`<div style="text-align:right">${stampHtml}</div>`:'<div></div>'}
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+      <span>F-CoC-01 · JEN.QMS.01 v2.0 · ISO 9001:2015 · Retain 7 years (Cl.7.5)</span>
+      <span>Issued: ${new Date(j.cocIssuedAt||'').toLocaleDateString('en-AU')}</span>
+    </div>
+
+  </div>
+  <div class="no-print" style="position:fixed;top:16px;right:16px;display:flex;gap:8px">
+    <button onclick="window.print()" style="padding:10px 20px;background:#d8a318;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;font-family:inherit">🖨 Print / Save PDF</button>
+    <button onclick="window.close()" style="padding:10px 16px;background:#eee;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;font-family:inherit">✕ Close</button>
+  </div>
+  </body></html>`);
+  w.document.close();
+};
 
 window.promptIssueCoC=()=>{
   const j=jobs[currentJobId]; if(!j) return;
@@ -1091,7 +1219,7 @@ window.confirmIssueCoC=async()=>{
   await syncToServer();
   await writeAudit(j.id,'coc_issued','coc',`Certificate ${j.coc.number} issued by ${currentUser.name}`);
   renderAll();
-  setTimeout(()=>downloadCoCPDF(),800);
+  setTimeout(()=>openCoCPage(),600);
 };
 window.closeModal=(id)=>document.getElementById(id).classList.remove('open');
 </script>
@@ -1861,6 +1989,7 @@ window.toggleSidebar  = toggleSidebar;
 window.renderReports  = renderReports;
 window.exportFYCSV    = exportFYCSV;
 window.exportISOReport= exportISOReport;
+window.openCoCPage    = openCoCPage;
 window.closeModal     = (id)=>document.getElementById(id).classList.remove('open');
 window.promptIssueCoC = ()=>{
   const j=jobs[currentJobId]; if(!j) return;
