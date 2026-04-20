@@ -523,6 +523,7 @@ async function doLogin(){
 }
 
 async function doLogout(){
+  if(pollInterval) clearInterval(pollInterval);
   await sb.auth.signOut();
   currentUser=null; jobs={}; currentJobId=null;
   document.getElementById('appRoot').style.display='none';
@@ -540,6 +541,7 @@ function showApp(){
   if(currentUser.role==='admin') document.getElementById('btnReports').style.display='';
   loadLocal();
   syncFromServer();
+  startPolling();
 }
 
 // ═══════════════════════════════════
@@ -558,9 +560,13 @@ function sortedJobs(){ return Object.values(jobs).sort((a,b)=>String(b.savedAt||
 function scheduleSave(){
   if(saveTimer) clearTimeout(saveTimer);
   saveTimer=setTimeout(()=>{
+    const j=jobs[currentJobId];
+    if(j) j.savedAt=new Date().toISOString();
     saveLocal();
-    setStatus('Saved locally ✓');
+    setStatus('Saved ✓');
     renderJobList(); renderHero(); renderTabs();
+    // Auto-push to server so other users see changes immediately
+    if(currentJobId) pushJob(currentJobId);
   },600);
 }
 function setStatus(msg){ document.getElementById('statusBox').textContent=msg; }
@@ -576,7 +582,8 @@ async function syncFromServer(){
       const srv=normalizeJob(row.data||{},row.job_id);
       srv.savedAt=row.saved_at||srv.savedAt;
       const loc=jobs[row.job_id];
-      if(!loc||new Date(srv.savedAt)>=new Date(loc.savedAt||0)) jobs[row.job_id]=srv;
+      // Always take server version unless local is strictly newer
+      if(!loc||new Date(srv.savedAt)>new Date(loc.savedAt||0)) jobs[row.job_id]=srv;
     });
     saveLocal();
     if(!currentJobId||!jobs[currentJobId])
@@ -588,7 +595,7 @@ async function syncFromServer(){
 
 async function syncToServer(){
   try{
-    setStatus('Syncing to server…');
+    setStatus('Syncing…');
     const rows=sortedJobs().map(j=>({
       job_id:j.id, job_number:j.jobNumber||'', customer:j.customer||'',
       saved_at:j.savedAt||new Date().toISOString(), data:j
@@ -598,6 +605,41 @@ async function syncToServer(){
     if(error) throw error;
     setStatus(`Synced ${rows.length} job(s) ✓`);
   }catch(e){setStatus('Sync failed — check connection.');console.error(e);}
+}
+
+// Auto-push a single job to server immediately after any change
+async function pushJob(jobId){
+  const j=jobs[jobId]; if(!j) return;
+  try{
+    await sb.from('qms_jobs').upsert([{
+      job_id:j.id, job_number:j.jobNumber||'', customer:j.customer||'',
+      saved_at:j.savedAt, data:j
+    }],{onConflict:'job_id'});
+  }catch(e){ console.warn('Auto-push failed, will retry on next sync',e); }
+}
+
+// Auto-poll server every 30 seconds for changes by other users
+let pollInterval=null;
+function startPolling(){
+  if(pollInterval) clearInterval(pollInterval);
+  pollInterval=setInterval(async()=>{
+    if(!currentUser||!sb) return;
+    try{
+      const {data,error}=await sb.from('qms_jobs')
+        .select('job_id,saved_at')
+        .order('saved_at',{ascending:false});
+      if(error) return;
+      // Check if any server job is newer than our local copy
+      const hasNew=(data||[]).some(row=>{
+        const loc=jobs[row.job_id];
+        return !loc||new Date(row.saved_at)>new Date(loc.savedAt||0);
+      });
+      if(hasNew){
+        await syncFromServer();
+        setStatus('Updated from server ✓');
+      }
+    }catch(e){}
+  },30000);
 }
 
 async function writeAudit(jobId,action,section,detail){
@@ -696,9 +738,27 @@ function showTab(id){
   activeTab=id;
   activateTab(id);
   renderTabs();
-  if(id==='reports') renderReports();
+  if(id==='reports'){ showReports(); return; }
 }
-function showReports(){ showTab('reports'); }
+function showReports(){
+  activeTab='reports';
+  activateTab('reports');
+  renderTabs();
+  // Show loading state immediately
+  const el=document.getElementById('reportsContent');
+  if(el) el.innerHTML=`<div style="text-align:center;padding:60px 20px;color:#888">
+    <div style="font-size:32px;margin-bottom:12px">🔄</div>
+    <div style="font-weight:700;font-size:14px">Fetching latest data from server…</div>
+    <div style="font-size:12px;margin-top:6px">Making sure all jobs from all users are included</div>
+  </div>`;
+  // Pull latest from server then render
+  syncFromServer().then(()=>{
+    renderReports();
+  }).catch(()=>{
+    // If offline, just render what we have
+    renderReports();
+  });
+}
 
 function activateTab(id){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
