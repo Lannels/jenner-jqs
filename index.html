@@ -1810,9 +1810,15 @@ window.downloadJobPackPDF=()=>{
         }
       });
     }
+    // ── RED TIMEKEEPING BANNER ──
+    y+=4;
+    doc.setFillColor(180,35,24); doc.rect(10,y,190,18,'F');
+    doc.setDrawColor(180,35,24); doc.rect(10,y,190,18);
+    doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+    doc.text('⚠  ALL TIME ON THIS JOB MUST BE RECORDED — NO EXCEPTIONS',13,y+7);
+    doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(255,220,220);
+    doc.text('Clock on and clock off for every operation.  Job timekeeping is on PAGE 5 of this pack.  Unrecorded time cannot be charged.',13,y+14);
     pdfFooter(doc,'JEN-INFO-01',1,PAGES);
-
-    // ── PAGE 2: Pre-Start (header filled, checks blank) ──
     doc.addPage(); pdfHeader(doc,'Pre-Start Check','F-PS-01',2,PAGES); y=22;
     y=jobHeader(y);
     doc.setFontSize(8); doc.setFont('helvetica','italic'); doc.setTextColor(80,80,80);
