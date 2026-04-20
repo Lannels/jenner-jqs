@@ -199,6 +199,7 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
       </div>
       <div class="main-actions">
         <button class="btn-white btn-sm" onclick="downloadBlankPDF()">📄 Blank Forms PDF</button>
+        <button class="btn-gold btn-sm" onclick="downloadJobPackPDF()" id="btnJobPackPDF" disabled>🖨 Print Job Pack</button>
         <button class="btn-white btn-sm" onclick="downloadCompletedPDF()" id="btnCompletedPDF" disabled>📋 Completed Pack</button>
         <button class="btn-white btn-sm" onclick="downloadCoCPDF()" id="btnCoCPDF" disabled>🏆 CoC PDF</button>
       </div>
@@ -645,6 +646,7 @@ function renderHero(){
     `${j.customer||'No customer'} — ${j.partDescription||'No description'} · FY ${j.financialYear||'—'}`:
     'Create a new job or load from server.';
   document.getElementById('btnCompletedPDF').disabled=!j;
+  document.getElementById('btnJobPackPDF').disabled=!j||!sectionComplete(j,'job');
   document.getElementById('btnCoCPDF').disabled=!(j&&j.cocIssued);
 }
 
@@ -1676,6 +1678,187 @@ function pdfSectionHead(doc,text,y){
   return y+8;
 }
 
+
+// ═══════════════════════════════════
+// PRINT JOB PACK PDF
+// Page 1: Job details fully filled in
+// Pages 2-5: Header filled, forms blank
+// ═══════════════════════════════════
+window.downloadJobPackPDF=()=>{
+  const j=jobs[currentJobId];
+  if(!j){alert('No job selected.');return;}
+  if(!sectionComplete(j,'job')){alert('Please complete the Job Information fields first.');return;}
+  try{
+    const {jsPDF}=window.jspdf;
+    const PAGES=5;
+    const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+
+    // Helper: small job header strip on every page after page 1
+    function jobHeader(y){
+      doc.setFillColor(247,237,208); doc.rect(10,y,190,10,'F');
+      doc.setDrawColor(216,163,24); doc.rect(10,y,190,10);
+      doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(23,23,23);
+      doc.text(`JOB: ${j.jobNumber||'—'}`,13,y+4);
+      doc.text(`CUSTOMER: ${j.customer||'—'}`,60,y+4);
+      doc.text(`DRAWING: ${j.drawingRev||'—'}`,130,y+4);
+      doc.text(`OPERATOR: ${j.operator||'—'}`,13,y+8.5);
+      doc.text(`MATERIAL: ${j.material||'—'}`,60,y+8.5);
+      doc.text(`DUE: ${j.requiredDelivery||'—'}`,130,y+8.5);
+      doc.setTextColor(34,34,34);
+      return y+14;
+    }
+
+    // ── PAGE 1: Job Information (fully filled) ──
+    pdfHeader(doc,'Job Information — Before You Start','JEN-INFO-01',1,PAGES);
+    let y=22;
+    doc.setFillColor(216,163,24); doc.rect(10,y,190,8,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(23,23,23);
+    doc.text(`JOB: ${j.jobNumber||'—'}   CUSTOMER: ${j.customer||'—'}`,12,y+5.5); y+=10;
+    const infoGrid=[
+      ['Drawing / Rev',j.drawingRev],['Required Delivery',j.requiredDelivery],['Operator',j.operator],
+      ['Machine / Operation',j.machineOperation],['Material',j.material],['Qty Ordered',j.qtyOrdered],
+      ['Qty Supplied',j.qtySupplied||''],['Date Started',j.dateStarted],['Financial Year',j.financialYear]
+    ];
+    infoGrid.forEach(([l,v],i)=>pdfBox(doc,l,v,10+(i%3)*63.3,y+Math.floor(i/3)*15,63,13)); y+=50;
+    pdfBox(doc,'Part Description',j.partDescription,10,y,190,13); y+=15;
+    pdfBox(doc,'Notes / Special Requirements',j.notes||'',10,y,190,20); y+=22;
+    if(j.items.some(it=>it.qty||it.partNumber||it.description)){
+      y=pdfSectionHead(doc,'ITEMS / BILL OF MATERIALS',y);
+      doc.setFontSize(7); doc.setTextColor(110,110,110); doc.setFont('helvetica','bold');
+      doc.text('QTY',12,y+2); doc.text('PART NUMBER',34,y+2); doc.text('DESCRIPTION',90,y+2); y+=5;
+      j.items.forEach(it=>{
+        if(it.qty||it.partNumber||it.description){
+          doc.setDrawColor(220,220,220); doc.rect(10,y,190,7);
+          doc.setFontSize(8); doc.setTextColor(34,34,34); doc.setFont('helvetica','normal');
+          doc.text(String(it.qty||''),12,y+4.5);
+          doc.text(String(it.partNumber||''),34,y+4.5);
+          doc.text(String(it.description||'').substring(0,70),90,y+4.5);
+          y+=7;
+        }
+      });
+    }
+    pdfFooter(doc,'JEN-INFO-01',1,PAGES);
+
+    // ── PAGE 2: Pre-Start (header filled, checks blank) ──
+    doc.addPage(); pdfHeader(doc,'Pre-Start Check','F-PS-01',2,PAGES); y=22;
+    y=jobHeader(y);
+    doc.setFontSize(8); doc.setFont('helvetica','italic'); doc.setTextColor(80,80,80);
+    doc.text('Completed by Operator before work commences. Supervisor sign-off required at bottom.',12,y); y+=6;
+    const psSections=[
+      {label:'SAFETY CHECKS',items:['Job review & drawing check complete','Work area clean and free of hazards','Machine in safe working condition','Operator briefed on job requirements and PPE','Welding safety confirmed (N/A if no welding)']},
+      {label:'DRAWING & MATERIAL CHECK',items:['Drawing number and revision confirmed','Current approved revision on file — not an old copy','Special requirements noted (thread class, surface finish, weld procedure)','Material spec matches drawing and cert on file']},
+      {label:'MACHINE & TOOLING',items:['Machine and tooling appropriate for this job','CNC program number verified (if applicable)','Calibrated measuring instruments available']}
+    ];
+    psSections.forEach(sec=>{
+      y=pdfSectionHead(doc,sec.label,y);
+      doc.setFontSize(7); doc.setTextColor(110,110,110); doc.setFont('helvetica','bold');
+      doc.text('CHECK ITEM',12,y+2); doc.text('OK',168,y+2); doc.text('ROLE',178,y+2); y+=5;
+      sec.items.forEach(item=>{
+        doc.setDrawColor(220,220,220); doc.rect(10,y,190,7);
+        doc.setFontSize(8); doc.setTextColor(34,34,34); doc.setFont('helvetica','normal');
+        doc.text(item.substring(0,80),12,y+4.5);
+        doc.rect(166,y,12,7); doc.rect(178,y,22,7); doc.text('Operator',179,y+4.5); y+=7;
+      }); y+=2;
+    });
+    y+=2;
+    doc.setFillColor(247,237,208); doc.rect(10,y,93,18,'F'); doc.setDrawColor(216,163,24); doc.rect(10,y,93,18);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('OPERATOR SIGN-OFF',13,y+4);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
+    doc.text('Name:',13,y+10); doc.line(25,y+10,100,y+10);
+    doc.text('Date:',13,y+15); doc.line(25,y+15,60,y+15); doc.text('Time:',65,y+15); doc.line(75,y+15,100,y+15);
+    doc.setFillColor(255,248,220); doc.rect(107,y,93,18,'F'); doc.setDrawColor(200,140,0); doc.rect(107,y,93,18);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF *',110,y+4);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
+    doc.text('Name:',110,y+10); doc.line(122,y+10,197,y+10);
+    doc.text('Date:',110,y+15); doc.line(122,y+15,157,y+15); doc.text('Time:',162,y+15); doc.line(172,y+15,197,y+15);
+    pdfFooter(doc,'F-PS-01',2,PAGES);
+
+    // ── PAGE 3: In-Process + Progress (header filled, checks blank) ──
+    doc.addPage(); pdfHeader(doc,'In-Process Inspection & Progress','F-IP/FI-01',3,PAGES); y=22;
+    y=jobHeader(y);
+    y=pdfSectionHead(doc,'IN-PROCESS INSPECTION — Completed by Operator, approved by Supervisor',y);
+    doc.setFontSize(7); doc.setTextColor(110,110,110); doc.setFont('helvetica','bold');
+    doc.text('CHECK ITEM',12,y+2); doc.text('OK',168,y+2); doc.text('ROLE',178,y+2); y+=5;
+    ['Drawing revision confirmed for this job','Material matches spec and cert on file','Program / tooling set up correctly','Workpiece clamped securely','Speeds and feeds set for this job'].forEach(item=>{
+      doc.setDrawColor(220,220,220); doc.rect(10,y,190,7);
+      doc.setFontSize(8); doc.setTextColor(34,34,34); doc.setFont('helvetica','normal');
+      doc.text(item,12,y+4.5); doc.rect(166,y,12,7); doc.rect(178,y,22,7);
+      doc.text('Operator',179,y+4.5); y+=7;
+    });
+    y+=3;
+    doc.setFillColor(247,237,208); doc.rect(10,y,93,16,'F'); doc.setDrawColor(216,163,24); doc.rect(10,y,93,16);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('OPERATOR SIGN-OFF',13,y+4);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
+    doc.text('Name:',13,y+9); doc.line(25,y+9,100,y+9);
+    doc.text('Date:',13,y+14); doc.line(25,y+14,60,y+14); doc.text('Time:',65,y+14); doc.line(75,y+14,100,y+14);
+    doc.setFillColor(255,248,220); doc.rect(107,y,93,16,'F'); doc.setDrawColor(200,140,0); doc.rect(107,y,93,16);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF *',110,y+4);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
+    doc.text('Name:',110,y+9); doc.line(122,y+9,197,y+9);
+    doc.text('Date:',110,y+14); doc.line(122,y+14,157,y+14); doc.text('Time:',162,y+14); doc.line(172,y+14,197,y+14);
+    y+=20;
+    y=pdfSectionHead(doc,'PROGRESS INSPECTION — DIMENSIONS TO DRAWING (Record PASS or FAIL only)',y);
+    doc.setFontSize(7); doc.setTextColor(110,110,110); doc.setFont('helvetica','bold');
+    doc.text('#',12,y+2); doc.text('DIMENSION / FEATURE',20,y+2); doc.text('PASS',142,y+2); doc.text('FAIL',158,y+2); doc.text('NOTES',172,y+2); y+=5;
+    for(let r=1;r<=10;r++){
+      doc.setDrawColor(220,220,220); doc.rect(10,y,190,8);
+      doc.setFontSize(8); doc.setTextColor(100,100,100); doc.setFont('helvetica','bold'); doc.text(String(r),13,y+5);
+      doc.rect(140,y,12,8); doc.rect(156,y,12,8); y+=8;
+    }
+    pdfFooter(doc,'F-IP/FI-01',3,PAGES);
+
+    // ── PAGE 4: Final Inspection (header filled, results blank) ──
+    doc.addPage(); pdfHeader(doc,'Final Inspection & Results','F-FI-01',4,PAGES); y=22;
+    y=jobHeader(y);
+    y=pdfSectionHead(doc,'FINAL INSPECTION — ALL DIMENSIONS TO DRAWING',y);
+    doc.setFontSize(7); doc.setTextColor(110,110,110); doc.setFont('helvetica','bold');
+    doc.text('#',12,y+2); doc.text('DIMENSION / FEATURE',20,y+2); doc.text('PASS',142,y+2); doc.text('FAIL',158,y+2); doc.text('NOTES',172,y+2); y+=5;
+    for(let r=1;r<=10;r++){
+      doc.setDrawColor(220,220,220); doc.rect(10,y,190,8);
+      doc.setFontSize(8); doc.setTextColor(100,100,100); doc.setFont('helvetica','bold'); doc.text(String(r),13,y+5);
+      doc.rect(140,y,12,8); doc.rect(156,y,12,8); y+=8;
+    }
+    y+=3;
+    y=pdfSectionHead(doc,'INSPECTION RESULTS SUMMARY',y);
+    [['Setup Result',''],['First-Off Result',''],['In-Process Result',''],['Final Dimensional',''],['Visual Result',''],['Delivered On Time','']].forEach(([l,v],i)=>pdfBox(doc,l,v,10+(i%3)*63.3,y+Math.floor(i/3)*15,63,13)); y+=33;
+    y=pdfSectionHead(doc,'FINAL SIGN-OFF DECLARATION',y); y+=4;
+    doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(34,34,34);
+    doc.rect(10,y,5,5); doc.text('ALL PASS — approved for release',17,y+3.8); y+=8;
+    doc.rect(10,y,5,5); doc.text('FAIL — NCR raised (F-CAR-01 attached)',17,y+3.8); y+=10;
+    doc.setFillColor(247,237,208); doc.rect(10,y,93,16,'F'); doc.setDrawColor(216,163,24); doc.rect(10,y,93,16);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('OPERATOR SIGN-OFF',13,y+4);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
+    doc.text('Name:',13,y+9); doc.line(25,y+9,100,y+9);
+    doc.text('Date:',13,y+14); doc.line(25,y+14,60,y+14); doc.text('Time:',65,y+14); doc.line(75,y+14,100,y+14);
+    doc.setFillColor(255,248,220); doc.rect(107,y,93,16,'F'); doc.setDrawColor(200,140,0); doc.rect(107,y,93,16);
+    doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('SUPERVISOR SIGN-OFF *',110,y+4);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
+    doc.text('Name:',110,y+9); doc.line(122,y+9,197,y+9);
+    doc.text('Date:',110,y+14); doc.line(122,y+14,157,y+14); doc.text('Time:',162,y+14); doc.line(172,y+14,197,y+14);
+    pdfFooter(doc,'F-FI-01',4,PAGES);
+
+    // ── PAGE 5: Time Sheet (header filled, rows blank) ──
+    doc.addPage(); pdfHeader(doc,'Time on Job & Lost Time','JEN.QMS.01',5,PAGES); y=22;
+    y=jobHeader(y);
+    y=pdfSectionHead(doc,'TIME ON JOB',y);
+    doc.setFontSize(7); doc.setTextColor(110,110,110); doc.setFont('helvetica','bold');
+    ['OPERATOR','DATE','CLOCK IN','CLOCK OUT','HRS','CHARGEABLE','STAGE / OPERATION'].forEach((h,i)=>{
+      doc.text(h,[12,48,75,94,112,128,150][i],y+2);
+    }); y+=5;
+    for(let r=0;r<12;r++){doc.setDrawColor(210,210,210);doc.rect(10,y,190,7);y+=7;}
+    y+=4;
+    y=pdfSectionHead(doc,'LOST / UNPRODUCTIVE TIME (W=Waiting  M=Machine  R=Rework  S=Setup  O=Other)',y);
+    doc.setFontSize(7); doc.setTextColor(110,110,110); doc.setFont('helvetica','bold');
+    ['OPERATOR','DATE','HOURS','CATEGORY','REASON / DESCRIPTION'].forEach((h,i)=>{
+      doc.text(h,[12,48,75,94,112][i],y+2);
+    }); y+=5;
+    for(let r=0;r<6;r++){doc.setDrawColor(210,210,210);doc.rect(10,y,190,7);y+=7;}
+    pdfFooter(doc,'JEN.QMS.01',5,PAGES);
+
+    doc.save(`Jenner-JobPack-${j.jobNumber||'Job'}-${(j.customer||'').replace(/[^a-z0-9]/gi,'-')}.pdf`);
+  }catch(e){console.error('Job Pack PDF error:',e);alert('PDF failed: '+e.message);}
+};
+
 // ═══════════════════════════════════
 // BLANK FORMS PDF
 // ═══════════════════════════════════
@@ -2074,6 +2257,7 @@ window.renderReports  = renderReports;
 window.exportFYCSV    = exportFYCSV;
 window.exportISOReport= exportISOReport;
 window.openCoCPage    = openCoCPage;
+window.downloadJobPackPDF = downloadJobPackPDF;
 window.closeModal     = (id)=>document.getElementById(id).classList.remove('open');
 window.promptIssueCoC = ()=>{
   const j=jobs[currentJobId]; if(!j) return;
