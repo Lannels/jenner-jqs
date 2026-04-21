@@ -1801,12 +1801,16 @@ window.downloadJobPackPDF=()=>{
       doc.text('QTY',12,y+2); doc.text('PART NUMBER',34,y+2); doc.text('DESCRIPTION',90,y+2); y+=5;
       j.items.forEach(it=>{
         if(it.qty||it.partNumber||it.description){
-          doc.setDrawColor(220,220,220); doc.rect(10,y,190,7);
-          doc.setFontSize(8); doc.setTextColor(34,34,34); doc.setFont('helvetica','normal');
-          doc.text(String(it.qty||''),12,y+4.5);
-          doc.text(String(it.partNumber||''),34,y+4.5);
-          doc.text(String(it.description||'').substring(0,70),90,y+4.5);
-          y+=7;
+          doc.setFontSize(8); doc.setFont('helvetica','normal');
+          const descLines=doc.splitTextToSize(String(it.description||''),108);
+          const pnLines=doc.splitTextToSize(String(it.partNumber||''),54);
+          const rowH=Math.max(descLines.length,pnLines.length)*5+4;
+          doc.setDrawColor(220,220,220); doc.rect(10,y,190,rowH);
+          doc.setTextColor(34,34,34);
+          doc.text(String(it.qty||''),12,y+5);
+          doc.text(pnLines,34,y+5);
+          doc.text(descLines,90,y+5);
+          y+=rowH;
         }
       });
     }
@@ -1815,7 +1819,7 @@ window.downloadJobPackPDF=()=>{
     doc.setFillColor(180,35,24); doc.rect(10,y,190,18,'F');
     doc.setDrawColor(180,35,24); doc.rect(10,y,190,18);
     doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
-    doc.text('⚠  ALL TIME ON THIS JOB MUST BE RECORDED — NO EXCEPTIONS',13,y+7);
+    doc.text('!! ALL TIME ON THIS JOB MUST BE RECORDED - NO EXCEPTIONS',13,y+7);
     doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(255,220,220);
     doc.text('Clock on and clock off for every operation.  Job timekeeping is on PAGE 5 of this pack.  Unrecorded time cannot be charged.',13,y+14);
     pdfFooter(doc,'JEN-INFO-01',1,PAGES);
@@ -2109,12 +2113,16 @@ window.downloadCompletedPDF=()=>{
       doc.text('QTY',12,y+2); doc.text('PART NUMBER',34,y+2); doc.text('DESCRIPTION',90,y+2); y+=5;
       j.items.forEach(it=>{
         if(it.qty||it.partNumber||it.description){
-          doc.setDrawColor(220,220,220); doc.rect(10,y,190,7);
-          doc.setFontSize(8); doc.setTextColor(34,34,34); doc.setFont('helvetica','normal');
-          doc.text(String(it.qty||''),12,y+4.5);
-          doc.text(String(it.partNumber||''),34,y+4.5);
-          doc.text(String(it.description||'').substring(0,70),90,y+4.5);
-          y+=7;
+          doc.setFontSize(8); doc.setFont('helvetica','normal');
+          const descLines=doc.splitTextToSize(String(it.description||''),108);
+          const pnLines=doc.splitTextToSize(String(it.partNumber||''),54);
+          const rowH=Math.max(descLines.length,pnLines.length)*5+4;
+          doc.setDrawColor(220,220,220); doc.rect(10,y,190,rowH);
+          doc.setTextColor(34,34,34);
+          doc.text(String(it.qty||''),12,y+5);
+          doc.text(pnLines,34,y+5);
+          doc.text(descLines,90,y+5);
+          y+=rowH;
         }
       });
     }
@@ -2218,7 +2226,7 @@ window.downloadCompletedPDF=()=>{
     const fs=j.finalSignoff||{};
     doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(34,34,34);
     if(fs.allPass){doc.setTextColor(11,122,75);doc.setFont('helvetica','bold');doc.text('✓ ALL PASS — Approved for release',12,y);}
-    else if(fs.failNcr){doc.setTextColor(180,35,24);doc.setFont('helvetica','bold');doc.text('⚠ FAIL — NCR raised, F-CAR-01 attached',12,y);}
+    else if(fs.failNcr){doc.setTextColor(180,35,24);doc.setFont('helvetica','bold');doc.text('FAIL - NCR raised, F-CAR-01 attached',12,y);}
     y+=8;
     doc.setFillColor(247,237,208); doc.rect(10,y,93,18,'F'); doc.setDrawColor(216,163,24); doc.rect(10,y,93,18);
     doc.setFontSize(7); doc.setTextColor(130,100,0); doc.setFont('helvetica','bold'); doc.text('OPERATOR SIGN-OFF',13,y+4);
