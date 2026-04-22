@@ -1768,17 +1768,36 @@ window.downloadJobPackPDF=()=>{
 
     // Helper: small job header strip on every page after page 1
     function jobHeader(y){
-      doc.setFillColor(247,237,208); doc.rect(10,y,190,10,'F');
-      doc.setDrawColor(216,163,24); doc.rect(10,y,190,10);
-      doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(23,23,23);
-      doc.text(`JOB: ${j.jobNumber||'—'}`,13,y+4);
-      doc.text(`CUSTOMER: ${j.customer||'—'}`,60,y+4);
-      doc.text(`DRAWING: ${j.drawingRev||'—'}`,130,y+4);
-      doc.text(`OPERATOR: ${j.operator||'—'}`,13,y+8.5);
-      doc.text(`MATERIAL: ${j.material||'—'}`,60,y+8.5);
-      doc.text(`DUE: ${j.requiredDelivery||'—'}`,130,y+8.5);
+      // Draw 6 individual labeled boxes — each wraps its own content
+      const fields=[
+        {l:'JOB',v:j.jobNumber||'—',x:10,w:38},
+        {l:'CUSTOMER',v:j.customer||'—',x:50,w:48},
+        {l:'DRAWING / REV',v:j.drawingRev||'—',x:100,w:60},
+        {l:'OPERATOR',v:j.operator||'—',x:162,w:38},
+        {l:'MATERIAL',v:j.material||'—',x:10,w:80},
+        {l:'DUE DATE',v:j.requiredDelivery||'—',x:92,w:38},
+        {l:'MACHINE',v:j.machineOperation||'—',x:132,w:68},
+      ];
+      // Calculate row heights based on content
+      doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+      let maxH=12;
+      fields.forEach(f=>{
+        const lines=doc.splitTextToSize(String(f.v),f.w-4);
+        const h=lines.length*4.5+7;
+        if(h>maxH) maxH=h;
+      });
+      // Draw boxes
+      fields.forEach(f=>{
+        doc.setFillColor(247,237,208); doc.rect(f.x,y,f.w,maxH,'F');
+        doc.setDrawColor(216,163,24); doc.rect(f.x,y,f.w,maxH);
+        doc.setFontSize(6.5); doc.setFont('helvetica','bold'); doc.setTextColor(130,100,0);
+        doc.text(f.l,f.x+2,y+3.5);
+        doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(23,23,23);
+        const lines=doc.splitTextToSize(String(f.v),f.w-4);
+        doc.text(lines,f.x+2,y+8);
+      });
       doc.setTextColor(34,34,34);
-      return y+14;
+      return y+maxH+2;
     }
 
     // ── PAGE 1: Job Information (fully filled) ──
@@ -1786,7 +1805,7 @@ window.downloadJobPackPDF=()=>{
     let y=22;
     doc.setFillColor(216,163,24); doc.rect(10,y,190,8,'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(23,23,23);
-    doc.text(`JOB: ${j.jobNumber||'—'}   CUSTOMER: ${j.customer||'—'}`,12,y+5.5); y+=10;
+    doc.setFontSize(9); const bannerLines=doc.splitTextToSize(`JOB: ${j.jobNumber||'—'}   CUSTOMER: ${j.customer||'—'}`,186); doc.text(bannerLines,12,y+5); y+=8+(bannerLines.length>1?5:0);
     const infoGrid=[
       ['Drawing / Rev',j.drawingRev],['Required Delivery',j.requiredDelivery],['Operator',j.operator],
       ['Machine / Operation',j.machineOperation],['Material',j.material],['Qty Ordered',j.qtyOrdered],
@@ -2098,7 +2117,7 @@ window.downloadCompletedPDF=()=>{
     pdfHeader(doc,'Job Pack — Job Information','JEN-INFO-01',1,PAGES); y=22;
     doc.setFillColor(216,163,24); doc.rect(10,y,190,8,'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(23,23,23);
-    doc.text(`JOB: ${j.jobNumber||'—'}   CUSTOMER: ${j.customer||'—'}`,12,y+5.5); y+=10;
+    doc.setFontSize(9); const bannerLines=doc.splitTextToSize(`JOB: ${j.jobNumber||'—'}   CUSTOMER: ${j.customer||'—'}`,186); doc.text(bannerLines,12,y+5); y+=8+(bannerLines.length>1?5:0);
     const infoGrid=[
       ['Drawing / Rev',j.drawingRev],['Required Delivery',j.requiredDelivery],['Operator',j.operator],
       ['Machine / Operation',j.machineOperation],['Material',j.material],['Qty Ordered',j.qtyOrdered],
