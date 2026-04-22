@@ -1768,36 +1768,50 @@ window.downloadJobPackPDF=()=>{
 
     // Helper: small job header strip on every page after page 1
     function jobHeader(y){
-      // Draw 6 individual labeled boxes — each wraps its own content
-      const fields=[
-        {l:'JOB',v:j.jobNumber||'—',x:10,w:38},
-        {l:'CUSTOMER',v:j.customer||'—',x:50,w:48},
-        {l:'DRAWING / REV',v:j.drawingRev||'—',x:100,w:60},
-        {l:'OPERATOR',v:j.operator||'—',x:162,w:38},
-        {l:'MATERIAL',v:j.material||'—',x:10,w:80},
-        {l:'DUE DATE',v:j.requiredDelivery||'—',x:92,w:38},
-        {l:'MACHINE',v:j.machineOperation||'—',x:132,w:68},
-      ];
-      // Calculate row heights based on content
       doc.setFontSize(7.5); doc.setFont('helvetica','normal');
-      let maxH=12;
-      fields.forEach(f=>{
-        const lines=doc.splitTextToSize(String(f.v),f.w-4);
-        const h=lines.length*4.5+7;
-        if(h>maxH) maxH=h;
-      });
-      // Draw boxes
-      fields.forEach(f=>{
-        doc.setFillColor(247,237,208); doc.rect(f.x,y,f.w,maxH,'F');
-        doc.setDrawColor(216,163,24); doc.rect(f.x,y,f.w,maxH);
-        doc.setFontSize(6.5); doc.setFont('helvetica','bold'); doc.setTextColor(130,100,0);
-        doc.text(f.l,f.x+2,y+3.5);
-        doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(23,23,23);
-        const lines=doc.splitTextToSize(String(f.v),f.w-4);
-        doc.text(lines,f.x+2,y+8);
-      });
+
+      // ROW 1: Job No | Customer | Drawing/Rev
+      const row1=[
+        {l:'JOB NO',      v:j.jobNumber||'—',    x:10,  w:45},
+        {l:'CUSTOMER',    v:j.customer||'—',     x:55,  w:70},
+        {l:'DRAWING / REV',v:j.drawingRev||'—', x:125, w:75},
+      ];
+      // ROW 2: Operator | Material | Due Date | Machine
+      const row2=[
+        {l:'OPERATOR',    v:j.operator||'—',         x:10,  w:45},
+        {l:'MATERIAL',    v:j.material||'—',          x:55,  w:70},
+        {l:'DUE DATE',    v:j.requiredDelivery||'—',  x:125, w:35},
+        {l:'MACHINE',     v:j.machineOperation||'—',  x:160, w:40},
+      ];
+
+      // Calculate height needed for each row
+      function rowHeight(fields){
+        let max=10;
+        fields.forEach(f=>{
+          const lines=doc.splitTextToSize(String(f.v),f.w-4);
+          const h=lines.length*4.5+8;
+          if(h>max) max=h;
+        });
+        return max;
+      }
+      function drawRow(fields,ry,rh){
+        fields.forEach(f=>{
+          doc.setFillColor(247,237,208); doc.rect(f.x,ry,f.w,rh,'F');
+          doc.setDrawColor(216,163,24);  doc.rect(f.x,ry,f.w,rh);
+          doc.setFontSize(6); doc.setFont('helvetica','bold'); doc.setTextColor(130,100,0);
+          doc.text(f.l,f.x+2,ry+3.5);
+          doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(23,23,23);
+          const lines=doc.splitTextToSize(String(f.v),f.w-4);
+          doc.text(lines,f.x+2,ry+8);
+        });
+      }
+
+      const h1=rowHeight(row1);
+      const h2=rowHeight(row2);
+      drawRow(row1,y,h1);
+      drawRow(row2,y+h1,h2);
       doc.setTextColor(34,34,34);
-      return y+maxH+2;
+      return y+h1+h2+2;
     }
 
     // ── PAGE 1: Job Information (fully filled) ──
@@ -1811,7 +1825,28 @@ window.downloadJobPackPDF=()=>{
       ['Machine / Operation',j.machineOperation],['Material',j.material],['Qty Ordered',j.qtyOrdered],
       ['Qty Supplied',j.qtySupplied||''],['Date Started',j.dateStarted],['Financial Year',j.financialYear]
     ];
-    infoGrid.forEach(([l,v],i)=>pdfBox(doc,l,v,10+(i%3)*63.3,y+Math.floor(i/3)*15,63,13)); y+=50;
+    // Draw info grid with auto-height rows — 3 columns, each row height fits tallest cell
+    for(let row=0;row<3;row++){
+      const rowFields=infoGrid.slice(row*3,(row+1)*3);
+      let maxH=13;
+      rowFields.forEach(([l,v])=>{
+        doc.setFontSize(8.5); doc.setFont('helvetica','normal');
+        const lines=doc.splitTextToSize(String(v||'—'),59);
+        const h=lines.length*5+9;
+        if(h>maxH) maxH=h;
+      });
+      rowFields.forEach(([l,v],i)=>{
+        const bx=10+(i*63.3);
+        doc.setFillColor(255,255,255); doc.setDrawColor(210,210,210); doc.rect(bx,y,63,maxH,'FD');
+        doc.setFontSize(6.5); doc.setTextColor(130,130,130); doc.setFont('helvetica','bold');
+        doc.text(l.toUpperCase(),bx+2,y+4);
+        doc.setFontSize(8.5); doc.setTextColor(34,34,34); doc.setFont('helvetica','normal');
+        const lines=doc.splitTextToSize(String(v||'—'),59);
+        doc.text(lines,bx+2,y+9);
+      });
+      y+=maxH;
+    }
+    y+=3;
     pdfBox(doc,'Part Description',j.partDescription,10,y,190,13); y+=15;
     pdfBox(doc,'Notes / Special Requirements',j.notes||'',10,y,190,20); y+=22;
     if(j.items.some(it=>it.qty||it.partNumber||it.description)){
@@ -2123,7 +2158,27 @@ window.downloadCompletedPDF=()=>{
       ['Machine / Operation',j.machineOperation],['Material',j.material],['Qty Ordered',j.qtyOrdered],
       ['Qty Supplied',j.qtySupplied],['Date Started',j.dateStarted],['Financial Year',j.financialYear]
     ];
-    infoGrid.forEach(([l,v],i)=>pdfBox(doc,l,v,10+(i%3)*63.3,y+Math.floor(i/3)*15,63,13)); y+=50;
+    for(let row=0;row<3;row++){
+      const rowFields=infoGrid.slice(row*3,(row+1)*3);
+      let maxH=13;
+      rowFields.forEach(([l,v])=>{
+        doc.setFontSize(8.5); doc.setFont('helvetica','normal');
+        const lines=doc.splitTextToSize(String(v||'—'),59);
+        const h=lines.length*5+9;
+        if(h>maxH) maxH=h;
+      });
+      rowFields.forEach(([l,v],i)=>{
+        const bx=10+(i*63.3);
+        doc.setFillColor(255,255,255); doc.setDrawColor(210,210,210); doc.rect(bx,y,63,maxH,'FD');
+        doc.setFontSize(6.5); doc.setTextColor(130,130,130); doc.setFont('helvetica','bold');
+        doc.text(l.toUpperCase(),bx+2,y+4);
+        doc.setFontSize(8.5); doc.setTextColor(34,34,34); doc.setFont('helvetica','normal');
+        const lines=doc.splitTextToSize(String(v||'—'),59);
+        doc.text(lines,bx+2,y+9);
+      });
+      y+=maxH;
+    }
+    y+=3;
     pdfBox(doc,'Part Description',j.partDescription,10,y,190,13); y+=15;
     pdfBox(doc,'Notes / Special Requirements',j.notes,10,y,190,20); y+=22;
     if(j.items.some(it=>it.qty||it.partNumber||it.description)){
