@@ -4,7 +4,6 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Jenner Engineering QMS</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -156,12 +155,23 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
     <img id="loginLogo" alt="Jenner Engineering">
     <h2>Jenner Engineering QMS</h2>
     <div class="sub">Quality Management System — ISO 9001:2015</div>
-    <div class="field"><label>Email</label><input type="email" id="loginEmail" placeholder="name@jennerengineering.com.au"></div>
-    <div class="field"><label>Password</label><input type="password" id="loginPassword" placeholder="Password"></div>
+    <div class="field" style="margin-bottom:10px">
+      <label>Who are you?</label>
+      <select id="loginUser" style="width:100%;padding:10px;background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:7px;font-size:14px">
+        <option value="">— Select your name —</option>
+        <option value="admin">Admin</option>
+        <option value="workshop">Workshop</option>
+        <option value="colin">Colin Norris</option>
+        <option value="carol">Carol Norris</option>
+      </select>
+    </div>
+    <div class="field"><label>Password</label><input type="password" id="loginPassword" placeholder="Workshop password"></div>
     <button class="btn-gold" style="width:100%;margin-top:4px;padding:11px" onclick="doLogin()">Sign In</button>
     <div class="login-err" id="loginErr"></div>
   </div>
 </div>
+
+<!-- MAIN APP --></div>
 
 <!-- MAIN APP -->
 <div id="appRoot" class="app" style="display:none">
@@ -177,8 +187,8 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
     <div class="sb-status" id="statusBox">Initialising…</div>
     <div class="sb-tools">
       <button class="btn-gold btn-sm" onclick="createJob()" id="btnNewJob">+ New Job</button>
-      <button class="btn-dark btn-sm" onclick="syncFromServer()">↓ Load</button>
-      <button class="btn-dark btn-sm" onclick="syncToServer()">↑ Sync</button>
+      <button class="btn-dark btn-sm" onclick="syncFromServer()" title="Import jobs from a backup file">↓ Import</button>
+      <button class="btn-dark btn-sm" onclick="syncToServer()" title="Export all jobs to a backup file">↑ Export</button>
       <button class="btn-dark btn-sm" onclick="showReports()" id="btnReports" style="display:none">📊 Reports</button>
       <button class="btn-dark btn-sm" onclick="doLogout()">Sign Out</button>
     </div>
@@ -241,12 +251,12 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
         </div>
       </div>
       <div class="card">
-        <div class="card-head">Drawing Attachment
+        <div class="card-head">Drawing Attachments
           <label style="background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer">
-            📎 Attach Drawing PDF <input type="file" accept=".pdf" style="display:none" onchange="attachDrawing(event)">
+            📎 Add Drawing PDF <input type="file" accept=".pdf" multiple style="display:none" onchange="attachDrawing(event)">
           </label>
         </div>
-        <div class="card-body"><div id="drawingAttachInfo" style="color:var(--muted);font-size:12px">No drawing attached.</div></div>
+        <div class="card-body"><div id="drawingAttachInfo" style="color:var(--muted);font-size:12px">No drawings attached.</div></div>
       </div>
 
       <div style="background:#b42318;border-radius:10px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:14px">
@@ -260,6 +270,8 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
           </div>
         </div>
       </div>
+
+      <div id="jobStatusBar"></div>
 
     </section>
 
@@ -318,11 +330,10 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
 
 <script>
 // ═══════════════════════════════════
-// CONFIG
+// CONFIG  (no Supabase — local storage only)
 // ═══════════════════════════════════
-const SUPABASE_URL  = "https://nnxepgxqakeoruafbkcg.supabase.co";
-const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ueGVwZ3hxYWtlb3J1YWZia2NnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4OTI4NDgsImV4cCI6MjA5MTQ2ODg0OH0.B4-h4GBv0d6tUW0abFsMkyGjnO1iZ8ENtYgdZr_eXTE";
-const STORAGE_KEY   = "jenner_qms_v3";
+const STORAGE_KEY = "jenner_qms_v3";
+const WORKSHOP_PASSWORD = "jenner2025"; // Change this to your preferred passwordconst STORAGE_KEY   = "jenner_qms_v3";
 
 // ═══════════════════════════════════
 // IMAGES — inserted by build script
@@ -336,7 +347,7 @@ const SIG_IMAGES = { carol: IMG_CAROL, colin: IMG_COLIN };
 // ═══════════════════════════════════
 // GLOBAL STATE
 // ═══════════════════════════════════
-let sb = null;
+let sb = null; // unused — Supabase removed
 let currentUser = null;
 let jobs = {};
 let currentJobId = null;
@@ -410,7 +421,7 @@ function defaultJob(id){
       {qty:'',partNumber:'',description:''},
       {qty:'',partNumber:'',description:''}
     ],
-    drawingPdf:null, drawingPdfName:'',
+    drawings:[], // array of {name, data} — supports multiple drawings
     prestart:deepClone(PRESTART_DEFAULT),
     prestartSignoff:{name:'',signatureKey:'',date:'',time:''},
     inProcess:deepClone(INPROCESS_DEFAULT),
@@ -443,7 +454,7 @@ function normalizeJob(raw, idFallback=''){
   }
   Object.assign(j,raw);
   j.id=raw.id||idFallback||j.id;
-  j.items=raw.items||j.items;
+  j.items=(raw.items&&raw.items.length)?raw.items:j.items;
   j.prestart=raw.prestart||j.prestart;
   j.prestartSignoff=raw.prestartSignoff||j.prestartSignoff;
   j.inProcess=raw.inProcess||
@@ -458,6 +469,10 @@ function normalizeJob(raw, idFallback=''){
   j.lostEntries=raw.lostEntries||raw.inspections?.lost||j.lostEntries;
   j.ncrs=raw.ncrs||[];
   j.auditLog=raw.auditLog||[];
+  // migrate old single drawing to array
+  if(raw.drawings) j.drawings=raw.drawings;
+  else if(raw.drawingPdf) j.drawings=[{name:raw.drawingPdfName||'drawing.pdf',data:raw.drawingPdf}];
+  else j.drawings=j.drawings||[];
   j.cocIssued=raw.cocIssued||false;
   j.cocIssuedAt=raw.cocIssuedAt||'';
   j.cocIssuedBy=raw.cocIssuedBy||'';
@@ -507,30 +522,34 @@ function jobStatusLabel(j){
 // ═══════════════════════════════════
 // AUTH
 // ═══════════════════════════════════
-async function doLogin(){
-  const email=document.getElementById('loginEmail').value.trim().toLowerCase();
+function doLogin(){
+  const userKey=document.getElementById('loginUser').value;
   const pass=document.getElementById('loginPassword').value;
   const errEl=document.getElementById('loginErr');
-  errEl.textContent='Signing in…';
-  try{
-    const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
-    if(error) throw error;
-    const profile=USER_PROFILES[email];
-    if(!profile){errEl.textContent='Account not authorised for this system.';return;}
-    currentUser={email,...profile};
-    showApp();
-  }catch(e){errEl.textContent=e.message||'Sign in failed. Check your email and password.';}
+  if(!userKey){errEl.textContent='Please select your name.';return;}
+  if(pass!==WORKSHOP_PASSWORD){errEl.textContent='Incorrect password. Please try again.';return;}
+  const profileMap={
+    'admin':   {email:'admin@jennerengineering.com.au',   name:'Admin',        role:'admin',      coc_authority:false, signature_file:null},
+    'workshop':{email:'workshop@jennerengineering.com.au',name:'Workshop',      role:'supervisor', coc_authority:false, signature_file:null},
+    'colin':   {email:'colin@jennerengineering.com.au',   name:'Colin Norris', role:'supervisor', coc_authority:true,  signature_file:'colin'},
+    'carol':   {email:'carol@jennerengineering.com.au',   name:'Carol Norris', role:'supervisor', coc_authority:true,  signature_file:'carol'}
+  };
+  currentUser=profileMap[userKey];
+  try{sessionStorage.setItem('qms_user',userKey);}catch(e){}
+  showApp();
 }
 
-async function doLogout(){
-  if(pollInterval) clearInterval(pollInterval);
-  await sb.auth.signOut();
+
+function doLogout(){
   currentUser=null; jobs={}; currentJobId=null;
+  try{sessionStorage.removeItem('qms_user');}catch(e){}
   document.getElementById('appRoot').style.display='none';
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('loginPassword').value='';
   document.getElementById('loginErr').textContent='';
+  document.getElementById('loginUser').value='';
 }
+
 
 function showApp(){
   document.getElementById('loginScreen').style.display='none';
@@ -540,9 +559,10 @@ function showApp(){
     currentUser.role+(currentUser.coc_authority?' · CoC Authority':'');
   if(currentUser.role==='admin') document.getElementById('btnReports').style.display='';
   loadLocal();
-  syncFromServer();
-  startPolling();
+  renderAll();
+  setStatus('Ready — data saved on this device');
 }
+
 
 // ═══════════════════════════════════
 // PERSISTENCE
@@ -565,84 +585,68 @@ function scheduleSave(){
     saveLocal();
     setStatus('Saved ✓');
     renderJobList(); renderHero(); renderTabs();
-    // Auto-push to server so other users see changes immediately
+    // Re-render job status bar so missing fields update live
+    const jj=jobs[currentJobId];
+    if(jj&&activeTab==='job') renderJobStatus(jj);
     if(currentJobId) pushJob(currentJobId);
   },600);
 }
 function setStatus(msg){ document.getElementById('statusBox').textContent=msg; }
 
-async function syncFromServer(){
-  try{
-    setStatus('Loading from server…');
-    const {data,error}=await sb.from('qms_jobs')
-      .select('job_id,job_number,customer,saved_at,data')
-      .order('saved_at',{ascending:false});
-    if(error) throw error;
-    (data||[]).forEach(row=>{
-      const srv=normalizeJob(row.data||{},row.job_id);
-      srv.savedAt=row.saved_at||srv.savedAt;
-      const loc=jobs[row.job_id];
-      // Always take server version unless local is strictly newer
-      if(!loc||new Date(srv.savedAt)>new Date(loc.savedAt||0)) jobs[row.job_id]=srv;
-    });
-    saveLocal();
-    if(!currentJobId||!jobs[currentJobId])
-      currentJobId=sortedJobs()[0]?.id||null;
-    renderAll();
-    setStatus(`Loaded ${Object.keys(jobs).length} job(s) ✓`);
-  }catch(e){ setStatus('Load failed — working offline'); renderAll(); }
+function syncFromServer(){
+  // Import jobs from a JSON file (exported from another device)
+  const input=document.createElement('input');
+  input.type='file'; input.accept='.json';
+  input.onchange=e=>{
+    const file=e.target.files[0]; if(!file) return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const imported=JSON.parse(ev.target.result);
+        if(!imported||typeof imported!=='object'){alert('Invalid QMS backup file.');return;}
+        let count=0;
+        Object.entries(imported).forEach(([k,v])=>{
+          const srv=normalizeJob(v,k);
+          const loc=jobs[k];
+          // Take imported version if newer or not present locally
+          if(!loc||new Date(srv.savedAt)>=new Date(loc.savedAt||0)){
+            jobs[k]=srv; count++;
+          }
+        });
+        saveLocal();
+        if(!currentJobId||!jobs[currentJobId]) currentJobId=sortedJobs()[0]?.id||null;
+        renderAll();
+        setStatus(`Imported ${count} job(s) ✓`);
+      }catch(err){alert('Could not read backup file: '+err.message);}
+    };
+    reader.readAsText(file);
+  };
+  input.click();
 }
 
-async function syncToServer(){
-  try{
-    setStatus('Syncing…');
-    const rows=sortedJobs().map(j=>({
-      job_id:j.id, job_number:j.jobNumber||'', customer:j.customer||'',
-      saved_at:j.savedAt||new Date().toISOString(), data:j
-    }));
-    if(!rows.length){setStatus('Nothing to sync.');return;}
-    const {error}=await sb.from('qms_jobs').upsert(rows,{onConflict:'job_id'});
-    if(error) throw error;
-    setStatus(`Synced ${rows.length} job(s) ✓`);
-  }catch(e){setStatus('Sync failed — check connection.');console.error(e);}
+
+function syncToServer(){
+  // Export all jobs to a JSON backup file
+  const data=JSON.stringify(jobs, null, 2);
+  const blob=new Blob([data],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`JennerQMS-backup-${today()}.json`;
+  a.click();
+  setStatus('Jobs exported ✓ — share this file to sync with other devices');
 }
 
-// Auto-push a single job to server immediately after any change
-async function pushJob(jobId){
-  const j=jobs[jobId]; if(!j) return;
-  try{
-    await sb.from('qms_jobs').upsert([{
-      job_id:j.id, job_number:j.jobNumber||'', customer:j.customer||'',
-      saved_at:j.savedAt, data:j
-    }],{onConflict:'job_id'});
-  }catch(e){ console.warn('Auto-push failed, will retry on next sync',e); }
-}
 
-// Auto-poll server every 30 seconds for changes by other users
+// No server push needed — local only
+function pushJob(jobId){ /* local save only */ }
+
+
+// No server polling needed
 let pollInterval=null;
-function startPolling(){
-  if(pollInterval) clearInterval(pollInterval);
-  pollInterval=setInterval(async()=>{
-    if(!currentUser||!sb) return;
-    try{
-      const {data,error}=await sb.from('qms_jobs')
-        .select('job_id,saved_at')
-        .order('saved_at',{ascending:false});
-      if(error) return;
-      // Check if any server job is newer than our local copy
-      const hasNew=(data||[]).some(row=>{
-        const loc=jobs[row.job_id];
-        return !loc||new Date(row.saved_at)>new Date(loc.savedAt||0);
-      });
-      if(hasNew){
-        await syncFromServer();
-        setStatus('Updated from server ✓');
-      }
-    }catch(e){}
-  },30000);
-}
+function startPolling(){ /* no-op */ }
 
-async function writeAudit(jobId,action,section,detail){
+
+function writeAudit(jobId,action,section,detail){
   const entry={
     id:Date.now()+'_'+Math.random().toString(36).slice(2),
     user_email:currentUser.email, user_name:currentUser.name,
@@ -653,8 +657,8 @@ async function writeAudit(jobId,action,section,detail){
     jobs[jobId].auditLog.unshift(entry);
     saveLocal();
   }
-  try{ await sb.from('qms_audit').insert([{job_id:jobId,...entry}]); }catch(e){}
 }
+
 
 // ═══════════════════════════════════
 // JOB MANAGEMENT
@@ -708,8 +712,8 @@ function renderHero(){
 const TAB_DEFS=[
   {id:'job',     label:'Job Info',           needs:null},
   {id:'prestart',label:'Pre-Start',          needs:'job'},
-  {id:'inspections',label:'In-Process',      needs:'prestart'},
-  {id:'final',   label:'Final Inspection',   needs:'inspections'},
+  {id:'inspections',label:'In-Process',      needs:'job'},
+  {id:'final',   label:'Final Inspection',   needs:'job'},
   {id:'coc',     label:'CoC',                needs:'final'},
   {id:'time',    label:'Time / Lost Time',   needs:'job'},
   {id:'ncr',     label:'NCRs',               needs:null},
@@ -727,8 +731,11 @@ function renderTabs(){
       const hasIssue=t.id==='ncr'&&j&&openNCRs(j).length>0;
       const pillClass=hasIssue?'tp-issue':done?'tp-done':locked?'tp-locked':'';
       const pillText=hasIssue?'⚠':done?'✓':locked?'🔒':'';
+      const lockedTitle=locked?`Complete "${TAB_DEFS.find(td=>td.id===t.needs)?.label||t.needs}" first`:'';
       return `<button class="tab ${activeTab===t.id?'active':''} ${locked?'locked':''}"
-        onclick="${locked?'':("showTab('"+t.id+"')")}">
+        onclick="${locked?'':("showTab('"+t.id+"')")}"
+        title="${locked?lockedTitle:''}"
+        style="${locked?'cursor:not-allowed;opacity:.4':''}">
         ${t.label}${(done||locked||hasIssue)?` <span class="tab-pill ${pillClass}">${pillText}</span>`:''}
       </button>`;
     }).join('');
@@ -744,20 +751,7 @@ function showReports(){
   activeTab='reports';
   activateTab('reports');
   renderTabs();
-  // Show loading state immediately
-  const el=document.getElementById('reportsContent');
-  if(el) el.innerHTML=`<div style="text-align:center;padding:60px 20px;color:#888">
-    <div style="font-size:32px;margin-bottom:12px">🔄</div>
-    <div style="font-weight:700;font-size:14px">Fetching latest data from server…</div>
-    <div style="font-size:12px;margin-top:6px">Making sure all jobs from all users are included</div>
-  </div>`;
-  // Pull latest from server then render
-  syncFromServer().then(()=>{
-    renderReports();
-  }).catch(()=>{
-    // If offline, just render what we have
-    renderReports();
-  });
+  renderReports();
 }
 
 function activateTab(id){
@@ -780,8 +774,13 @@ function bind(id,getter,setter){
   const el=document.getElementById(id); if(!el) return;
   el.value=getter()??'';
   const j=jobs[currentJobId];
-  if(j?.cocIssued) el.disabled=true;
-  else el.oninput=e=>{setter(e.target.value); scheduleSave();};
+  if(j?.cocIssued){
+    el.disabled=true;
+    el.oninput=null;
+  } else {
+    el.disabled=false;
+    el.oninput=e=>{setter(e.target.value); scheduleSave();};
+  }
 }
 
 function renderJobPanel(){
@@ -801,10 +800,44 @@ function renderJobPanel(){
   bind('actualDelivery',()=>j.actualDelivery,v=>j.actualDelivery=v);
   renderItemsTable(j);
   renderDrawingInfo(j);
+  renderJobStatus(j);
+}
+
+function renderJobStatus(j){
+  const el=document.getElementById('jobStatusBar'); if(!el) return;
+  const required=[
+    {key:'jobNumber',label:'Job Number'},
+    {key:'customer',label:'Customer'},
+    {key:'drawingRev',label:'Drawing / Rev'},
+    {key:'operator',label:'Operator'},
+    {key:'machineOperation',label:'Machine / Operation'},
+    {key:'material',label:'Material'},
+    {key:'qtyOrdered',label:'Qty Ordered'},
+    {key:'requiredDelivery',label:'Required Delivery'}
+  ];
+  const missing=required.filter(f=>!j[f.key]);
+  if(missing.length===0){
+    el.innerHTML=`<div style="background:#d4edda;border:2px solid var(--green);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;margin-bottom:14px">
+      <span style="font-size:24px">✅</span>
+      <div>
+        <div style="font-weight:700;color:var(--green);font-size:14px">Job Information complete — Pre-Start tab is now unlocked</div>
+        <div style="font-size:12px;color:#555;margin-top:2px">Click the <strong>Pre-Start</strong> tab above to continue.</div>
+      </div>
+    </div>`;
+  } else {
+    el.innerHTML=`<div style="background:#fff8e1;border:2px solid var(--gold);border-left:6px solid var(--gold);border-radius:10px;padding:14px 18px;margin-bottom:14px">
+      <div style="font-weight:700;color:#7a5c00;font-size:13px;margin-bottom:8px">⚠ Fill in all required fields (*) to unlock the next step:</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${missing.map(f=>`<span style="background:#fff3cd;border:1px solid #e0a800;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;color:#7a5c00">✗ ${f.label}</span>`).join('')}
+      </div>
+    </div>`;
+  }
 }
 
 function renderItemsTable(j){
   const body=document.getElementById('itemsBody'); if(!body) return;
+  // Ensure at least 3 rows always visible
+  while(j.items.length<3) j.items.push({qty:'',partNumber:'',description:''});
   body.innerHTML=j.items.map((it,i)=>`<tr>
     <td><input value="${esc(it.qty)}" ${j.cocIssued?'disabled':''} oninput="j_item(${i},'qty',this.value)"></td>
     <td><input value="${esc(it.partNumber)}" ${j.cocIssued?'disabled':''} oninput="j_item(${i},'partNumber',this.value)"></td>
@@ -818,26 +851,50 @@ window.removeItem=(i)=>{const j=jobs[currentJobId];if(j&&j.items.length>1){j.ite
 
 function renderDrawingInfo(j){
   const el=document.getElementById('drawingAttachInfo'); if(!el) return;
-  if(j.drawingPdf){
-    el.innerHTML=`<span style="font-weight:700">📎 ${esc(j.drawingPdfName||'drawing.pdf')}</span>
-      &nbsp;<button class="btn-white btn-sm" onclick="viewDrawing()">View</button>
-      ${!j.cocIssued?`<button class="btn-red btn-sm" style="margin-left:4px" onclick="removeDrawing()">Remove</button>`:''}`;
-  } else { el.textContent='No drawing attached. Attach the customer drawing PDF for inclusion in the job pack.'; }
+  const drawings=j.drawings||[];
+  if(!drawings.length){
+    el.innerHTML=`<div style="color:var(--muted);font-size:12px">No drawings attached. Use the <strong>Add Drawing PDF</strong> button to attach one or more drawings. Multiple drawings supported.</div>`;
+    return;
+  }
+  el.innerHTML=drawings.map((d,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0f0f0">
+      <span style="font-size:18px">📄</span>
+      <span style="font-weight:700;font-size:13px;flex:1">${esc(d.name)}</span>
+      <button class="btn-white btn-sm" onclick="viewDrawing(${i})">View</button>
+      ${!j.cocIssued?`<button class="btn-red btn-sm" onclick="removeDrawing(${i})">Remove</button>`:''}
+    </div>`).join('');
 }
 window.attachDrawing=(evt)=>{
-  const f=evt.target.files[0]; if(!f) return;
+  const files=[...evt.target.files]; if(!files.length) return;
   const j=jobs[currentJobId]; if(!j) return;
-  if(f.size>10*1024*1024){alert('File is over 10MB. Please reduce the PDF size first.');return;}
-  const reader=new FileReader();
-  reader.onload=()=>{
-    j.drawingPdf=reader.result.split(',')[1]; j.drawingPdfName=f.name;
-    scheduleSave(); renderDrawingInfo(j);
-    writeAudit(j.id,'drawing_attached','job','Drawing attached: '+f.name);
-  };
-  reader.readAsDataURL(f); evt.target.value='';
+  if(!j.drawings) j.drawings=[];
+  let loaded=0;
+  files.forEach(f=>{
+    if(f.size>15*1024*1024){alert(f.name+' is over 15MB — please compress before attaching.');return;}
+    const reader=new FileReader();
+    reader.onload=()=>{
+      j.drawings.push({name:f.name, data:reader.result.split(',')[1]});
+      loaded++;
+      if(loaded===files.length){scheduleSave();renderDrawingInfo(j);}
+      writeAudit(j.id,'drawing_attached','job','Drawing attached: '+f.name);
+    };
+    reader.readAsDataURL(f);
+  });
+  evt.target.value='';
 };
-window.removeDrawing=()=>{const j=jobs[currentJobId];if(j){j.drawingPdf=null;j.drawingPdfName='';scheduleSave();renderDrawingInfo(j);}};
-window.viewDrawing=()=>{const j=jobs[currentJobId];if(j?.drawingPdf){const w=window.open();w.document.write(`<iframe src="data:application/pdf;base64,${j.drawingPdf}" width="100%" height="100%" style="border:none;margin:0"></iframe>`);w.document.close();}};
+window.removeDrawing=(i)=>{
+  const j=jobs[currentJobId];
+  if(j&&j.drawings){j.drawings.splice(i,1);scheduleSave();renderDrawingInfo(j);}
+};
+window.viewDrawing=(i)=>{
+  const j=jobs[currentJobId];
+  const d=j?.drawings?.[i];
+  if(d){
+    const w=window.open();
+    w.document.write(`<title>${d.name}</title><iframe src="data:application/pdf;base64,${d.data}" width="100%" height="100%" style="border:none;margin:0"></iframe>`);
+    w.document.close();
+  }
+};
 
 // ═══════════════════════════════════
 // SIGN-OFF BOX HELPER
@@ -954,9 +1011,11 @@ window.ps_check=(sec,i,v)=>{const j=jobs[currentJobId];if(j){j.prestart[sec][i].
 function renderInspectionsPanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('inspectionsContent'); if(!el) return;
-  if(!sectionComplete(j,'prestart')){el.innerHTML=lockedPanel('Complete Pre-Start Check first');return;}
+  if(!sectionComplete(j,'job')){el.innerHTML=lockedPanel('Complete Job Information first');return;}
   const locked=j.cocIssued;
-  let html=`<div class="warning">⚠️ In-Process: Completed by the Operator. Supervisor sign-off required at the bottom before proceeding. F-IP/FI-01 v2.0 · ISO 9001:2015 Cl.8.5.1/8.6</div>
+  const prestartDone=sectionComplete(j,'prestart');
+  let html=prestartDone?``:`<div class="warning" style="background:#fff3e0;border-color:#e07000;border-left-color:#e07000;color:#7a3c00">📋 Pre-Start not yet signed off — you can enter data here now, but it must be completed before the CoC can be issued.</div>`;
+  html+=`<div class="warning">⚠️ In-Process: Completed by the Operator. Supervisor sign-off required at the bottom before proceeding. F-IP/FI-01 v2.0 · ISO 9001:2015 Cl.8.5.1/8.6</div>
   <div class="card"><div class="card-head">In-Process Inspection</div>
   <div class="card-body" style="padding:0"><table>
   <thead><tr><th>Check Item</th><th style="width:60px;text-align:center">OK</th><th style="width:105px">Role</th></tr></thead><tbody>`;
@@ -999,10 +1058,12 @@ window.prog_note=(i,v)=>{const j=jobs[currentJobId];if(j){j.progress[i].notes=v;
 function renderFinalPanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('finalContent'); if(!el) return;
-  if(!sectionComplete(j,'inspections')){el.innerHTML=lockedPanel('Complete In-Process Inspection first');return;}
+  if(!sectionComplete(j,'job')){el.innerHTML=lockedPanel('Complete Job Information first');return;}
   const locked=j.cocIssued;
+  const inspectionsDone=sectionComplete(j,'inspections');
   const anyFail=j.progress.some(r=>r.fail);
-  let html=`<div class="card"><div class="card-head">Final Inspection — All Inspections Must Pass Before Release <span style="font-size:10px;font-weight:400;color:#aaa">F-FI-01 · ISO 9001:2015 Cl.8.6</span></div>
+  let html=inspectionsDone?``:`<div class="warning" style="background:#fff3e0;border-color:#e07000;border-left-color:#e07000;color:#7a3c00">📋 In-Process section is not yet fully signed off — you can enter results here now, but it must be completed before the CoC can be issued.</div>`;
+  html+=`<div class="card"><div class="card-head">Final Inspection — All Inspections Must Pass Before Release <span style="font-size:10px;font-weight:400;color:#aaa">F-FI-01 · ISO 9001:2015 Cl.8.6</span></div>
   <div class="card-body" style="padding:0"><table>
   <thead><tr><th style="width:30px">#</th><th>Dimension / Feature</th><th style="width:80px;text-align:center">PASS</th><th style="width:80px;text-align:center">FAIL</th><th>Notes</th></tr></thead><tbody>`;
   j.progress.forEach((row,i)=>{
@@ -1516,10 +1577,8 @@ function renderAuditPanel(){
 function renderReports(){
   const el=document.getElementById('reportsContent'); if(!el) return;
 
-  // Build FY list
   const allFYs=[...new Set(Object.values(jobs).map(j=>j.financialYear||'').filter(Boolean))].sort().reverse();
   const curFY=allFYs[0]||fyLabel(new Date());
-  // Try to keep selected FY across re-renders
   const prevSel=document.getElementById('reportFY')?.value;
   const selFY=(prevSel&&allFYs.includes(prevSel))?prevSel:curFY;
 
@@ -1528,68 +1587,169 @@ function renderReports(){
   const inprog=fjobs.filter(j=>!j.cocIssued&&sectionComplete(j,'job'));
   const allNcrs=fjobs.flatMap(j=>j.ncrs||[]);
   const openNcrs=allNcrs.filter(n=>n.status==='open');
-  const onTime=completed.filter(j=>j.actualDelivery&&j.requiredDelivery&&j.actualDelivery<=j.requiredDelivery).length;
-  const onTimePct=completed.length?Math.round((onTime/completed.length)*100):0;
   const ncrClosed=allNcrs.filter(n=>n.status==='closed').length;
-  const ncrClosurePct=allNcrs.length?Math.round((ncrClosed/allNcrs.length)*100):100;
+
+  // On-time delivery — only jobs where both dates recorded
+  const withDelivery=completed.filter(j=>j.actualDelivery&&j.requiredDelivery);
+  const onTime=withDelivery.filter(j=>j.actualDelivery<=j.requiredDelivery).length;
+  const onTimePct=withDelivery.length?Math.round((onTime/withDelivery.length)*100):0;
+
+  // Pass rates — from results fields, only completed jobs
+  function passPct(field){
+    const withResult=completed.filter(j=>j.results&&j.results[field]&&j.results[field]!=='N/A');
+    const passed=withResult.filter(j=>j.results[field]==='PASS').length;
+    return withResult.length?Math.round((passed/withResult.length)*100):null;
+  }
+  const firstOffPct   = passPct('firstOffResult');
+  const setupPct      = passPct('setupResult');
+  const inProcPct     = passPct('inProcessResult');
+  const finalDimPct   = passPct('finalDimensional');
+  const visualPct     = passPct('visualResult');
+  const ncrClosurePct = allNcrs.length?Math.round((ncrClosed/allNcrs.length)*100):100;
+  const ncrsPerJob    = completed.length?(allNcrs.length/completed.length).toFixed(2):0;
+
+  // ISO 9001 target colours
+  function kpiColour(val, greenThreshold, redThreshold){
+    if(val===null) return '';
+    return val>=greenThreshold?'green':val<=redThreshold?'red':'gold';
+  }
+  function pct(v){ return v===null?'—':v+'%'; }
 
   el.innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-    <h2 style="font-size:15px;font-weight:700">Quality Management Reports</h2>
+    <h2 style="font-size:15px;font-weight:700">Quality Management Dashboard — ISO 9001:2015 Cl.9.1</h2>
     <select id="reportFY" onchange="renderReports()" style="padding:7px 12px;border:1px solid #ccc;border-radius:7px;font-weight:700">
       ${allFYs.map(f=>`<option value="${f}"${f===selFY?' selected':''}>${f}</option>`).join('')}
     </select>
     <button class="btn-gold" onclick="exportFYCSV('${selFY}')">⬇ Export CSV</button>
     <button class="btn-dark" onclick="exportISOReport('${selFY}')">📋 ISO 9001 Report</button>
   </div>
-  <div class="kpi-grid">
+
+  <!-- ROW 1: TOP KPIs matching Excel workbook -->
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:10px">
+    <div class="kpi-card ${kpiColour(onTimePct,95,80)}">
+      <div class="kv">${pct(onTimePct)}</div>
+      <div class="kl">On-Time Delivery</div>
+      <div style="font-size:10px;color:#888;margin-top:4px">Target ≥ 95%</div>
+    </div>
+    <div class="kpi-card ${kpiColour(firstOffPct,90,70)}">
+      <div class="kv">${pct(firstOffPct)}</div>
+      <div class="kl">First-Off Pass Rate</div>
+      <div style="font-size:10px;color:#888;margin-top:4px">Target ≥ 90%</div>
+    </div>
+    <div class="kpi-card ${kpiColour(finalDimPct,98,90)}">
+      <div class="kv">${pct(finalDimPct)}</div>
+      <div class="kl">Final Dimensional Pass</div>
+      <div style="font-size:10px;color:#888;margin-top:4px">Target ≥ 98%</div>
+    </div>
+  </div>
+
+  <!-- ROW 2: SECONDARY KPIs -->
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
+    <div class="kpi-card ${openNcrs.length>0?'red':'green'}">
+      <div class="kv">${openNcrs.length}</div>
+      <div class="kl">Open NCRs</div>
+      <div style="font-size:10px;color:#888;margin-top:4px">Target: 0</div>
+    </div>
+    <div class="kpi-card ${kpiColour(ncrClosurePct,100,80)}">
+      <div class="kv">${pct(ncrClosurePct)}</div>
+      <div class="kl">NCR Closure Rate</div>
+      <div style="font-size:10px;color:#888;margin-top:4px">Target: 100%</div>
+    </div>
+    <div class="kpi-card ${Number(ncrsPerJob)>0.5?'red':'green'}">
+      <div class="kv">${ncrsPerJob}</div>
+      <div class="kl">NCRs per Job</div>
+      <div style="font-size:10px;color:#888;margin-top:4px">Target ≤ 0.5</div>
+    </div>
+  </div>
+
+  <!-- ROW 3: VOLUMES -->
+  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
     <div class="kpi-card gold"><div class="kv">${fjobs.length}</div><div class="kl">Total Jobs FY ${selFY}</div></div>
     <div class="kpi-card green"><div class="kv">${completed.length}</div><div class="kl">CoC Issued</div></div>
     <div class="kpi-card"><div class="kv">${inprog.length}</div><div class="kl">In Progress</div></div>
-    <div class="kpi-card ${onTimePct<80?'red':'green'}"><div class="kv">${onTimePct}%</div><div class="kl">On-Time Delivery</div></div>
-    <div class="kpi-card ${openNcrs.length>0?'red':''}"><div class="kv">${openNcrs.length}</div><div class="kl">Open NCRs</div></div>
-    <div class="kpi-card ${ncrClosurePct<80?'red':'green'}"><div class="kv">${ncrClosurePct}%</div><div class="kl">NCR Closure Rate</div></div>
+    <div class="kpi-card ${kpiColour(setupPct,90,70)}"><div class="kv">${pct(setupPct)}</div><div class="kl">Setup Pass Rate</div></div>
   </div>
-  <div class="chart-wrap"><h3>Monthly Quality Summary — FY ${selFY}</h3><canvas id="chartQuality" height="80"></canvas></div>
-  <div class="card"><div class="card-head">Jobs Register — FY ${selFY}</div><div class="card-body" style="padding:0">
+
+  <!-- SECONDARY PASS RATES -->
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
+    <div class="kpi-card ${kpiColour(inProcPct,95,80)}">
+      <div class="kv">${pct(inProcPct)}</div><div class="kl">In-Process Pass Rate</div>
+      <div style="font-size:10px;color:#888;margin-top:4px">Target ≥ 95%</div>
+    </div>
+    <div class="kpi-card ${kpiColour(visualPct,98,90)}">
+      <div class="kv">${pct(visualPct)}</div><div class="kl">Visual Pass Rate</div>
+      <div style="font-size:10px;color:#888;margin-top:4px">Target ≥ 98%</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kv">${allNcrs.length}</div><div class="kl">Total NCRs Raised</div>
+      <div style="font-size:10px;color:#888;margin-top:4px">${ncrClosed} closed</div>
+    </div>
+  </div>
+
+  <div class="chart-wrap"><h3>Monthly Quality Summary — FY ${selFY}</h3><canvas id="chartQuality" height="100"></canvas></div>
+
+  <!-- JOBS REGISTER -->
+  <div class="card"><div class="card-head">Jobs Register — FY ${selFY}
+    <span style="font-size:10px;font-weight:400;color:#aaa">ISO 9001:2015 Cl.8.1 / 8.6 · Click any row to open job</span>
+  </div><div class="card-body" style="padding:0">
     <table><thead><tr>
       <th>Job No</th><th>Customer</th><th>Description</th><th>Drawing</th><th>Operator</th>
-      <th style="width:90px">Due</th><th style="width:90px">Status</th><th>CoC No</th><th style="width:60px">On Time</th>
+      <th style="width:90px">Due</th><th style="width:80px">Status</th>
+      <th style="width:55px">Setup</th><th style="width:55px">1st-Off</th>
+      <th style="width:55px">Final</th><th style="width:55px">On Time</th>
+      <th style="width:40px">NCRs</th><th>CoC No</th>
     </tr></thead><tbody>
-    ${fjobs.map(j=>{
+    ${fjobs.sort((a,b)=>String(b.requiredDelivery||'').localeCompare(String(a.requiredDelivery||''))).map(j=>{
       const sl=jobStatusLabel(j);
+      const r=j.results||{};
       const ot=j.cocIssued&&j.actualDelivery&&j.requiredDelivery
-        ?(j.actualDelivery<=j.requiredDelivery?'<span style="color:var(--green);font-weight:700">✓ Yes</span>':'<span style="color:var(--red);font-weight:700">✗ No</span>'):'—';
+        ?(j.actualDelivery<=j.requiredDelivery?'<span style="color:var(--green);font-weight:700">✓</span>':'<span style="color:var(--red);font-weight:700">✗</span>'):'—';
+      function resultBadge(v){
+        if(!v||v==='—') return '<span style="color:#aaa">—</span>';
+        return v==='PASS'?'<span style="color:var(--green);font-weight:700">P</span>':'<span style="color:var(--red);font-weight:700">F</span>';
+      }
+      const ncrCount=(j.ncrs||[]).length;
       return `<tr onclick="selectJob('${j.id}');showTab('job')" style="cursor:pointer">
         <td><strong>${esc(j.jobNumber||'—')}</strong></td>
         <td>${esc(j.customer)}</td><td>${esc(j.partDescription)}</td>
-        <td>${esc(j.drawingRev)}</td><td>${esc(j.operator)}</td>
+        <td style="font-size:11px">${esc(j.drawingRev)}</td><td>${esc(j.operator)}</td>
         <td>${esc(j.requiredDelivery)}</td>
         <td><span class="jstatus js-${sl}">${sl}</span></td>
-        <td>${esc(j.coc?.number||'—')}</td><td>${ot}</td>
+        <td style="text-align:center">${resultBadge(r.setupResult)}</td>
+        <td style="text-align:center">${resultBadge(r.firstOffResult)}</td>
+        <td style="text-align:center">${resultBadge(r.finalDimensional)}</td>
+        <td style="text-align:center">${ot}</td>
+        <td style="text-align:center;font-weight:700;color:${ncrCount>0?'var(--red)':'#888'}">${ncrCount||'—'}</td>
+        <td style="font-size:11px">${esc(j.coc?.number||'—')}</td>
       </tr>`;
     }).join('')}
     </tbody></table>
   </div></div>
-  <div class="card"><div class="card-head">NCR Register — FY ${selFY}</div><div class="card-body" style="padding:0">
+
+  <!-- NCR REGISTER -->
+  <div class="card"><div class="card-head">NCR Register — FY ${selFY}
+    <span style="font-size:10px;font-weight:400;color:#aaa">ISO 9001:2015 Cl.8.7 / 10.2</span>
+  </div><div class="card-body" style="padding:0">
     <table><thead><tr>
       <th>NCR No</th><th>Job No</th><th>Customer</th><th>Date Raised</th>
-      <th>Description</th><th style="width:70px">Status</th><th style="width:90px">Closed</th>
+      <th>Description</th><th>Root Cause</th><th style="width:70px">Status</th><th style="width:90px">Closed</th>
     </tr></thead><tbody>
     ${allNcrs.length?allNcrs.map(n=>{
       const jj=Object.values(jobs).find(x=>(x.ncrs||[]).some(nn=>nn.id===n.id));
       return `<tr>
-        <td>${esc(n.ncr_number)}</td><td>${esc(jj?.jobNumber||'—')}</td><td>${esc(jj?.customer||'—')}</td>
-        <td>${esc(n.date_raised)}</td><td>${esc(n.description)}</td>
+        <td><strong>${esc(n.ncr_number)}</strong></td><td>${esc(jj?.jobNumber||'—')}</td>
+        <td>${esc(jj?.customer||'—')}</td><td>${esc(n.date_raised)}</td>
+        <td>${esc(n.description)}</td><td style="font-size:11px">${esc(n.root_cause||'—')}</td>
         <td style="color:${n.status==='closed'?'var(--green)':'var(--red)'};font-weight:700">${n.status}</td>
         <td>${esc(n.actual_close_date||'—')}</td>
       </tr>`;
     }).join(''):
-    '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px">No NCRs for this financial year</td></tr>'}
+    '<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px">No NCRs for this financial year</td></tr>'}
     </tbody></table>
   </div></div>`;
 
-  // Draw chart
+  // Monthly chart
   setTimeout(()=>{
     const ctx=document.getElementById('chartQuality'); if(!ctx) return;
     if(reportChart){reportChart.destroy();reportChart=null;}
@@ -1598,26 +1758,44 @@ function renderReports(){
     const monthData=months.map((_,idx)=>{
       const mo=idx<6?idx+7:idx-5;
       const yr=idx<6?fyStart:fyStart+1;
-      return fjobs.filter(j=>{const d=new Date(j.savedAt||'');return d.getFullYear()===yr&&d.getMonth()+1===mo;});
+      return fjobs.filter(j=>{
+        const d=new Date(j.savedAt||'');
+        return d.getFullYear()===yr&&d.getMonth()+1===mo;
+      });
     });
+    // Pass rate per month for completed jobs
+    function monthPassPct(mJobs, field){
+      const c=mJobs.filter(j=>j.cocIssued&&j.results&&j.results[field]);
+      const p=c.filter(j=>j.results[field]==='PASS').length;
+      return c.length?Math.round((p/c.length)*100):null;
+    }
     reportChart=new Chart(ctx,{
       type:'bar',
       data:{
         labels:months,
         datasets:[
-          {label:'Jobs Started',data:monthData.map(jj=>jj.length),backgroundColor:'#d8a318'},
-          {label:'CoC Issued',data:monthData.map(jj=>jj.filter(j=>j.cocIssued).length),backgroundColor:'#0b7a4b'},
-          {label:'NCRs',data:monthData.map(jj=>jj.flatMap(j=>j.ncrs||[]).length),backgroundColor:'#b42318'}
+          {label:'Jobs',data:monthData.map(jj=>jj.length),backgroundColor:'#d8a318',yAxisID:'y'},
+          {label:'CoC Issued',data:monthData.map(jj=>jj.filter(j=>j.cocIssued).length),backgroundColor:'#0b7a4b',yAxisID:'y'},
+          {label:'NCRs',data:monthData.map(jj=>jj.flatMap(j=>j.ncrs||[]).length),backgroundColor:'#b42318',yAxisID:'y'},
+          {type:'line',label:'First-Off Pass %',data:monthData.map(jj=>monthPassPct(jj,'firstOffResult')),
+           borderColor:'#175cd3',backgroundColor:'transparent',pointRadius:4,yAxisID:'y2',spanGaps:true},
+          {type:'line',label:'Final Dim Pass %',data:monthData.map(jj=>monthPassPct(jj,'finalDimensional')),
+           borderColor:'#0b7a4b',backgroundColor:'transparent',pointRadius:4,borderDash:[4,2],yAxisID:'y2',spanGaps:true}
         ]
       },
       options:{
         responsive:true,
         plugins:{legend:{position:'top'}},
-        scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}
+        scales:{
+          y:{beginAtZero:true,ticks:{stepSize:1},title:{display:true,text:'Count'}},
+          y2:{beginAtZero:true,max:100,position:'right',ticks:{callback:v=>v+'%'},
+              title:{display:true,text:'Pass %'},grid:{drawOnChartArea:false}}
+        }
       }
     });
   },150);
 }
+
 
 function exportFYCSV(fy){
   const fjobs=Object.values(jobs).filter(j=>j.financialYear===fy);
@@ -1763,7 +1941,7 @@ window.downloadJobPackPDF=()=>{
   if(!sectionComplete(j,'job')){alert('Please complete the Job Information fields first.');return;}
   try{
     const {jsPDF}=window.jspdf;
-    const PAGES=5;
+    const PAGES=5+(j.drawings?.length||0);
     const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
 
     // Helper: small job header strip on every page after page 1
@@ -2144,7 +2322,7 @@ window.downloadCompletedPDF=()=>{
   const j=jobs[currentJobId]; if(!j){alert('No job selected.');return;}
   try{
     const {jsPDF}=window.jspdf;
-    const PAGES=j.drawingPdf?7:6;
+    const PAGES=6+(j.drawings?.length||0);
     const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
     let y;
 
@@ -2356,16 +2534,18 @@ window.downloadCompletedPDF=()=>{
     });
     pdfFooter(doc,'JEN.QMS.01',6,PAGES);
 
-    // ── Page 7: Drawing (if attached) ──
-    if(j.drawingPdf){
+    // ── Pages 7+: Drawings (if attached) ──
+    const drawings=j.drawings||[];
+    drawings.forEach((d,di)=>{
       try{
         doc.addPage();
-        pdfHeader(doc,`Customer Drawing — ${j.drawingPdfName||'drawing.pdf'}`,'DRAWING',7,PAGES);
+        pdfHeader(doc,`Customer Drawing ${drawings.length>1?'('+(di+1)+' of '+drawings.length+') — ':'— '}${d.name}`,'DRAWING',7+di,PAGES+drawings.length-1);
         doc.setFontSize(9);doc.setTextColor(100,100,100);
         doc.text('Customer drawing attached — refer to original file for full detail.',10,60);
-        pdfFooter(doc,'DRAWING',7,PAGES);
+        doc.text('File: '+d.name,10,70);
+        pdfFooter(doc,'DRAWING',7+di,PAGES+drawings.length-1);
       }catch(e){}
-    }
+    });
 
     doc.save(`Jenner-JobPack-${j.jobNumber||'Job'}-${(j.customer||'').replace(/[^a-z0-9]/gi,'-')}.pdf`);
   }catch(e){console.error('PDF Error:',e);alert('PDF failed: '+e.message);}
@@ -2464,31 +2644,24 @@ document.getElementById('sidebarLogo').src  = IMG_LOGO;
 // ═══════════════════════════════════
 // INIT SUPABASE + SESSION RESTORE
 // ═══════════════════════════════════
-(async function init(){
+(function init(){
+  // Restore session from sessionStorage (survives page refresh, not tab close)
+  const profileMap={
+    'admin':   {email:'admin@jennerengineering.com.au',   name:'Admin',        role:'admin',      coc_authority:false, signature_file:null},
+    'workshop':{email:'workshop@jennerengineering.com.au',name:'Workshop',      role:'supervisor', coc_authority:false, signature_file:null},
+    'colin':   {email:'colin@jennerengineering.com.au',   name:'Colin Norris', role:'supervisor', coc_authority:true,  signature_file:'colin'},
+    'carol':   {email:'carol@jennerengineering.com.au',   name:'Carol Norris', role:'supervisor', coc_authority:true,  signature_file:'carol'}
+  };
   try{
-    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-  }catch(e){
-    console.error('Supabase init failed:',e);
-    document.getElementById('loginErr').textContent='Connection error. Please check internet.';
-    return;
-  }
-
-  // Restore existing session (so refresh doesn't log you out)
-  try{
-    const {data:{session}} = await sb.auth.getSession();
-    if(session?.user){
-      const profile = USER_PROFILES[session.user.email];
-      if(profile){
-        currentUser = {email:session.user.email, ...profile};
-        showApp();
-        return;
-      }
+    const saved=sessionStorage.getItem('qms_user');
+    if(saved&&profileMap[saved]){
+      currentUser=profileMap[saved];
+      showApp();
+      return;
     }
-  }catch(e){ console.warn('Session restore failed:',e); }
-
-  // No session — show login
+  }catch(e){}
   document.getElementById('loginScreen').style.display='flex';
-})();
+})();})();
 </script>
 </body>
 </html>
