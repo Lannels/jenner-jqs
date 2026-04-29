@@ -226,8 +226,8 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
             <div class="field"><label>Customer *</label><input id="customer" placeholder="Customer name"></div>
             <div class="field"><label>Drawing / Rev *</label><input id="drawingRev" placeholder="e.g. NMQ-4754-0405-011 Rev 0"></div>
             <div class="field"><label>Required Delivery *</label><input id="requiredDelivery" type="date"></div>
-            <div class="field"><label>Operator *</label><input id="operator" placeholder="Operator name"></div>
-            <div class="field"><label>Machine / Operation *</label><input id="machineOperation" placeholder="e.g. Lathe, CNC Mill"></div>
+            <div class="field"><label>Operator(s) *</label><input id="operator" placeholder="e.g. Chris / Gary / Todd"></div>
+            <div class="field"><label>Machine(s) / Operation *</label><input id="machineOperation" placeholder="e.g. Manual Lathe, CNC Mill, Victor"></div>
             <div class="field"><label>Qty Ordered *</label><input id="qtyOrdered" type="number" min="0"></div>
             <div class="field"><label>Qty Supplied</label><input id="qtySupplied" type="number" min="0"></div>
             <div class="field"><label>Material *</label><input id="material" placeholder="e.g. Ø60 K1045 Round Bar"></div>
@@ -489,7 +489,7 @@ function sectionComplete(j, sec){
   if(!j) return false;
   switch(sec){
     case 'job':
-      return !!(j.jobNumber&&j.customer&&j.drawingRev&&j.operator&&j.machineOperation&&j.material&&j.qtyOrdered&&j.requiredDelivery);
+      return !!(j.jobNumber?.trim()&&j.customer?.trim()&&j.drawingRev?.trim()&&j.operator?.trim()&&j.machineOperation?.trim()&&j.material?.trim()&&j.qtyOrdered?.toString().trim()&&j.requiredDelivery?.trim());
     case 'prestart':{
       const allChecked=['safety','drawing','machine'].every(s=>j.prestart[s].every(r=>r.ok));
       return allChecked&&!!(j.prestartSignoff.name&&j.prestartSignoff.date);
@@ -579,18 +579,7 @@ function saveLocal(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(jobs)); }
 function sortedJobs(){ return Object.values(jobs).sort((a,b)=>String(b.savedAt||'').localeCompare(String(a.savedAt||''))); }
 
 function saveNow(){
-  const j=jobs[currentJobId];
-  if(j) j.savedAt=new Date().toISOString();
-  saveLocal();
-  setStatus('Saved ✓');
-  renderJobList(); renderHero(); renderTabs();
-  const jj=jobs[currentJobId];
-  if(jj) renderJobStatus(jj);
-  // Only do full renderAll if not actively typing in a field
-  if(!document.activeElement||document.activeElement.tagName==='BODY'||
-     document.activeElement.tagName==='BUTTON'||document.activeElement.id===''){
-    renderAll();
-  }
+  flushAndRender();
   if(currentJobId) pushJob(currentJobId);
 }
 function scheduleSave(){
@@ -750,9 +739,30 @@ function renderTabs(){
 function showTab(id){
   activeTab=id;
   if(id==='reports'){ showReports(); return; }
-  // Save then do a full renderAll so the target panel sees fresh data
+  flushAndRender();
+}
+
+function flushAndRender(){
+  // Read current values from ALL job info inputs into the job object
+  // This ensures typed-but-not-saved values are captured before rendering
   const j=jobs[currentJobId];
-  if(j){ j.savedAt=new Date().toISOString(); saveLocal(); }
+  if(j){
+    const fields=[
+      ['jobNumber','jobNumber'],['customer','customer'],['drawingRev','drawingRev'],
+      ['requiredDelivery','requiredDelivery'],['operator','operator'],
+      ['machineOperation','machineOperation'],['qtyOrdered','qtyOrdered'],
+      ['qtySupplied','qtySupplied'],['material','material'],
+      ['partDescription','partDescription'],['notes','notes'],
+      ['dateStarted','dateStarted'],['actualDelivery','actualDelivery']
+    ];
+    fields.forEach(([elId,key])=>{
+      const el=document.getElementById(elId);
+      if(el&&el.value!==undefined) j[key]=el.value;
+    });
+    j.savedAt=new Date().toISOString();
+    saveLocal();
+    setStatus('Saved ✓');
+  }
   renderAll();
 }
 function showReports(){
@@ -780,27 +790,18 @@ function activateTab(id){
 // ═══════════════════════════════════
 function bind(id,getter,setter){
   const el=document.getElementById(id); if(!el) return;
-  // Only update value if field doesn't have focus (user not typing)
-  if(document.activeElement!==el){
-    el.value=getter()??'';
-  }
+  if(document.activeElement!==el) el.value=getter()??'';
   const j=jobs[currentJobId];
-  if(j?.cocIssued){
-    el.disabled=true;
-    el.oninput=null;
-  } else {
-    el.disabled=false;
-    el.oninput=e=>{
-      setter(e.target.value);
-      // Update status bar immediately without full re-render
-      const jj=jobs[currentJobId];
-      if(jj) renderJobStatus(jj);
-      renderHero();
-      renderTabs();
-      saveLocal();
-      setStatus('Saved ✓');
-    };
-  }
+  if(j?.cocIssued){ el.disabled=true; el.oninput=null; return; }
+  el.disabled=false;
+  el.oninput=e=>{
+    setter(e.target.value);
+    saveLocal();
+    setStatus('Saved ✓');
+    renderJobStatus(jobs[currentJobId]);
+    renderHero();
+    renderTabs();
+  };
 }
 
 function renderJobPanel(){
@@ -835,7 +836,7 @@ function renderJobStatus(j){
     {key:'qtyOrdered',      label:'Qty Ordered'},
     {key:'requiredDelivery',label:'Required Delivery'}
   ];
-  const missing=required.filter(f=>!j[f.key]);
+  const missing=required.filter(f=>!String(j[f.key]||'').trim());
   if(missing.length===0){
     el.innerHTML=`<div style="background:#d4edda;border:2px solid var(--green);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;margin-bottom:14px">
       <span style="font-size:24px">✅</span>
