@@ -583,9 +583,8 @@ function saveNow(){
   if(j) j.savedAt=new Date().toISOString();
   saveLocal();
   setStatus('Saved ✓');
-  renderJobList(); renderHero(); renderTabs();
-  const jj=jobs[currentJobId];
-  if(jj) renderJobStatus(jj);
+  // Render everything so all panels see fresh data
+  renderAll();
   if(currentJobId) pushJob(currentJobId);
 }
 function scheduleSave(){
@@ -743,23 +742,12 @@ function renderTabs(){
 }
 
 function showTab(id){
-  // Save first, then re-render the target panel so it sees fresh data
-  if(currentJobId) saveNow();
   activeTab=id;
-  // Re-render the specific panel we're switching to
-  switch(id){
-    case 'prestart':    renderPrestartPanel(); break;
-    case 'inspections': renderInspectionsPanel(); break;
-    case 'final':       renderFinalPanel(); break;
-    case 'coc':         renderCoCPanel(); break;
-    case 'time':        renderTimePanel(); break;
-    case 'ncr':         renderNCRPanel(); break;
-    case 'audit':       renderAuditPanel(); break;
-    case 'job':         renderJobPanel(); break;
-    case 'reports':     showReports(); break;
-  }
-  activateTab(id);
-  renderTabs();
+  if(id==='reports'){ showReports(); return; }
+  // saveNow calls renderAll which re-renders all panels with fresh data
+  // and activates the correct tab
+  if(currentJobId) saveNow();
+  else { renderAll(); }
 }
 function showReports(){
   activeTab='reports';
@@ -795,9 +783,7 @@ function bind(id,getter,setter){
     el.disabled=false;
     el.oninput=e=>{
       setter(e.target.value);
-      // Save immediately and update UI
       saveNow();
-      renderJobStatus(j);
     };
   }
 }
@@ -824,24 +810,17 @@ function renderJobPanel(){
 
 function renderJobStatus(j){
   const el=document.getElementById('jobStatusBar'); if(!el) return;
-  // Read from both the data object AND the live input values
-  // so status reflects what user has typed even before save completes
   const required=[
-    {key:'jobNumber',    elId:'jobNumber',      label:'Job Number'},
-    {key:'customer',     elId:'customer',        label:'Customer'},
-    {key:'drawingRev',   elId:'drawingRev',      label:'Drawing / Rev'},
-    {key:'operator',     elId:'operator',        label:'Operator'},
-    {key:'machineOperation',elId:'machineOperation',label:'Machine / Operation'},
-    {key:'material',     elId:'material',        label:'Material'},
-    {key:'qtyOrdered',   elId:'qtyOrdered',      label:'Qty Ordered'},
-    {key:'requiredDelivery',elId:'requiredDelivery',label:'Required Delivery'}
+    {key:'jobNumber',       label:'Job Number'},
+    {key:'customer',        label:'Customer'},
+    {key:'drawingRev',      label:'Drawing / Rev'},
+    {key:'operator',        label:'Operator'},
+    {key:'machineOperation',label:'Machine / Operation'},
+    {key:'material',        label:'Material'},
+    {key:'qtyOrdered',      label:'Qty Ordered'},
+    {key:'requiredDelivery',label:'Required Delivery'}
   ];
-  const missing=required.filter(f=>{
-    // Check live input value first, fall back to data object
-    const inputEl=document.getElementById(f.elId);
-    const liveVal=inputEl?inputEl.value.trim():'';
-    return !(liveVal||j[f.key]);
-  });
+  const missing=required.filter(f=>!j[f.key]);
   if(missing.length===0){
     el.innerHTML=`<div style="background:#d4edda;border:2px solid var(--green);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;margin-bottom:14px">
       <span style="font-size:24px">✅</span>
