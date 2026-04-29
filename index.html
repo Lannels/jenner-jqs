@@ -742,31 +742,24 @@ function renderTabs(){
 function showTab(id){
   activeTab=id;
   if(id==='reports'){ showReports(); return; }
-  flushAndRender();
-}
-
-function flushAndRender(){
-  // Read current values from ALL job info inputs into the job object
-  // This ensures typed-but-not-saved values are captured before rendering
+  // Flush inputs to job object first
   const j=jobs[currentJobId];
   if(j){
-    const fields=[
-      ['jobNumber','jobNumber'],['customer','customer'],['drawingRev','drawingRev'],
-      ['requiredDelivery','requiredDelivery'],['operator','operator'],
-      ['machineOperation','machineOperation'],['qtyOrdered','qtyOrdered'],
-      ['qtySupplied','qtySupplied'],['material','material'],
-      ['partDescription','partDescription'],['notes','notes'],
-      ['dateStarted','dateStarted'],['actualDelivery','actualDelivery']
-    ];
-    fields.forEach(([elId,key])=>{
-      const el=document.getElementById(elId);
-      if(el&&el.value!==undefined) j[key]=el.value;
+    ['jobNumber','customer','drawingRev','requiredDelivery','operator',
+     'machineOperation','qtyOrdered','qtySupplied','material',
+     'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
+      const el=document.getElementById(key);
+      if(el) j[key]=el.value;
     });
     j.savedAt=new Date().toISOString();
     saveLocal();
-    setStatus('Saved ✓');
   }
-  renderAll();
+  // Use setTimeout so the current click event fully completes before re-rendering
+  setTimeout(()=>renderAll(), 0);
+}
+
+function flushAndRender(){
+  showTab(activeTab);
 }
 function showReports(){
   activeTab='reports';
