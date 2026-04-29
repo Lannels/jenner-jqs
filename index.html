@@ -208,6 +208,7 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
         </div>
       </div>
       <div class="main-actions">
+        <button class="btn-green btn-sm" onclick="saveNow();setStatus('Saved ✓')" id="btnSave" style="font-size:13px;padding:7px 16px">💾 Save</button>
         <button class="btn-white btn-sm" onclick="downloadBlankPDF()">📄 Blank Forms PDF</button>
         <button class="btn-gold btn-sm" onclick="downloadJobPackPDF()" id="btnJobPackPDF" disabled>🖨 Print Job Pack</button>
         <button class="btn-white btn-sm" onclick="downloadCompletedPDF()" id="btnCompletedPDF" disabled>📋 Completed Pack</button>
@@ -577,19 +578,19 @@ function loadLocal(){
 function saveLocal(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(jobs)); }
 function sortedJobs(){ return Object.values(jobs).sort((a,b)=>String(b.savedAt||'').localeCompare(String(a.savedAt||''))); }
 
+function saveNow(){
+  const j=jobs[currentJobId];
+  if(j) j.savedAt=new Date().toISOString();
+  saveLocal();
+  setStatus('Saved ✓');
+  renderJobList(); renderHero(); renderTabs();
+  const jj=jobs[currentJobId];
+  if(jj) renderJobStatus(jj);
+  if(currentJobId) pushJob(currentJobId);
+}
 function scheduleSave(){
-  if(saveTimer) clearTimeout(saveTimer);
-  saveTimer=setTimeout(()=>{
-    const j=jobs[currentJobId];
-    if(j) j.savedAt=new Date().toISOString();
-    saveLocal();
-    setStatus('Saved ✓');
-    renderJobList(); renderHero(); renderTabs();
-    // Re-render job status bar and tabs whenever data changes
-    const jj=jobs[currentJobId];
-    if(jj) renderJobStatus(jj);
-    if(currentJobId) pushJob(currentJobId);
-  },600);
+  // Save immediately so navigation always sees current data
+  saveNow();
 }
 function setStatus(msg){ document.getElementById('statusBox').textContent=msg; }
 
@@ -742,6 +743,8 @@ function renderTabs(){
 }
 
 function showTab(id){
+  // Always save current data before switching tabs
+  if(currentJobId) saveNow();
   activeTab=id;
   activateTab(id);
   renderTabs();
@@ -781,10 +784,9 @@ function bind(id,getter,setter){
     el.disabled=false;
     el.oninput=e=>{
       setter(e.target.value);
-      scheduleSave();
-      // Immediately update status bar and tabs without waiting for save
+      // Save immediately and update UI
+      saveNow();
       renderJobStatus(j);
-      renderTabs();
     };
   }
 }
