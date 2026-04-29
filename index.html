@@ -226,11 +226,11 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
             <div class="field"><label>Customer *</label><input id="customer" placeholder="Customer name"></div>
             <div class="field"><label>Drawing / Rev *</label><input id="drawingRev" placeholder="e.g. NMQ-4754-0405-011 Rev 0"></div>
             <div class="field"><label>Required Delivery *</label><input id="requiredDelivery" type="date"></div>
-            <div class="field"><label>Operator(s) *</label><input id="operator" placeholder="e.g. Chris / Gary / Todd"></div>
-            <div class="field"><label>Machine(s) / Operation *</label><input id="machineOperation" placeholder="e.g. Manual Lathe, CNC Mill, Victor"></div>
-            <div class="field"><label>Qty Ordered *</label><input id="qtyOrdered" type="number" min="0"></div>
+            <div class="field"><label>Operator(s)</label><input id="operator" placeholder="e.g. Chris / Gary / Todd"></div>
+            <div class="field"><label>Machine(s) / Operation</label><input id="machineOperation" placeholder="e.g. Manual Lathe, CNC Mill, Victor"></div>
+            <div class="field"><label>Qty Ordered</label><input id="qtyOrdered" type="number" min="0"></div>
             <div class="field"><label>Qty Supplied</label><input id="qtySupplied" type="number" min="0"></div>
-            <div class="field"><label>Material *</label><input id="material" placeholder="e.g. Ø60 K1045 Round Bar"></div>
+            <div class="field"><label>Material</label><input id="material" placeholder="e.g. Ø60 K1045 Round Bar"></div>
           </div>
           <div class="grid-2" style="margin-top:12px">
             <div class="field"><label>Part Description</label><input id="partDescription"></div>
@@ -489,7 +489,7 @@ function sectionComplete(j, sec){
   if(!j) return false;
   switch(sec){
     case 'job':
-      return !!(j.jobNumber?.trim()&&j.customer?.trim()&&j.drawingRev?.trim()&&j.operator?.trim()&&j.machineOperation?.trim()&&j.material?.trim()&&j.qtyOrdered?.toString().trim()&&j.requiredDelivery?.trim());
+      return !!(j.jobNumber?.trim()&&j.customer?.trim()&&j.drawingRev?.trim()&&j.requiredDelivery?.trim());
     case 'prestart':{
       const allChecked=['safety','drawing','machine'].every(s=>j.prestart[s].every(r=>r.ok));
       return allChecked&&!!(j.prestartSignoff.name&&j.prestartSignoff.date);
@@ -830,10 +830,6 @@ function renderJobStatus(j){
     {key:'jobNumber',       label:'Job Number'},
     {key:'customer',        label:'Customer'},
     {key:'drawingRev',      label:'Drawing / Rev'},
-    {key:'operator',        label:'Operator'},
-    {key:'machineOperation',label:'Machine / Operation'},
-    {key:'material',        label:'Material'},
-    {key:'qtyOrdered',      label:'Qty Ordered'},
     {key:'requiredDelivery',label:'Required Delivery'}
   ];
   const missing=required.filter(f=>!String(j[f.key]||'').trim());
