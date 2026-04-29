@@ -739,6 +739,31 @@ function renderTabs(){
     }).join('');
 }
 
+// ═══════════════════════════════════
+// GLOBAL NAV FUNCTIONS — defined outside rendered HTML so they 
+// can't be destroyed mid-click when the DOM re-renders
+// ═══════════════════════════════════
+function _navTo(tabId){
+  activeTab=tabId;
+  const j=jobs[currentJobId];
+  if(j){
+    ['jobNumber','customer','drawingRev','requiredDelivery','operator',
+     'machineOperation','qtyOrdered','qtySupplied','material',
+     'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
+      const el=document.getElementById(key);
+      if(el) j[key]=el.value;
+    });
+    j.savedAt=new Date().toISOString();
+    saveLocal();
+  }
+  setTimeout(()=>renderAll(), 0);
+}
+function goToPrestart()    { _navTo('prestart'); }
+function goToInspections() { _navTo('inspections'); }
+function goToFinal()       { _navTo('final'); }
+function goToCoC()         { _navTo('coc'); }
+function goToTime()        { _navTo('time'); }
+
 function showTab(id){
   activeTab=id;
   if(id==='reports'){ showReports(); return; }
@@ -838,7 +863,7 @@ function renderJobStatus(j){
           <div style="font-size:12px;color:#555;margin-top:2px">Click the <strong>Pre-Start</strong> tab above to continue.</div>
         </div>
       </div>
-      <button onclick="showTab('prestart')" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap">→ Go to Pre-Start</button>
+      <button onclick="goToPrestart()" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap">→ Go to Pre-Start</button>
     </div>`;
   } else {
     el.innerHTML=`<div style="background:#fff8e1;border:2px solid var(--gold);border-left:6px solid var(--gold);border-radius:10px;padding:14px 18px;margin-bottom:14px">
@@ -999,12 +1024,12 @@ function lockedPanel(msg){
 function renderPrestartPanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('prestartContent'); if(!el) return;
-  // Check both stored data AND live DOM inputs
-  const jn=j?.jobNumber||document.getElementById('jobNumber')?.value||'';
-  const cu=j?.customer||document.getElementById('customer')?.value||'';
-  const dr=j?.drawingRev||document.getElementById('drawingRev')?.value||'';
-  const rd=j?.requiredDelivery||document.getElementById('requiredDelivery')?.value||'';
-  if(!jn.trim()||!cu.trim()||!dr.trim()||!rd.trim()){
+  // Read from j object ONLY (which was flushed before renderAll was called)
+  const jn=String(j?.jobNumber||'').trim();
+  const cu=String(j?.customer||'').trim();
+  const dr=String(j?.drawingRev||'').trim();
+  const rd=String(j?.requiredDelivery||'').trim();
+  if(!jn||!cu||!dr||!rd){
     el.innerHTML=lockedPanel('Complete Job Information first');return;
   }
   const locked=j.cocIssued;
@@ -1024,6 +1049,18 @@ function renderPrestartPanel(){
     html+=`</tbody></table></div></div>`;
   });
   html+=signoffBox('prestartSignoff',j,'prestart',locked);
+  // Next step button
+  const _so=j['prestartSignoff']||{};
+  const _complete=!!(_so.name&&_so.date)&&!locked;
+  if(_complete){
+    html+=`<div style="background:#d4edda;border:2px solid var(--green);border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:22px">✅</span>
+        <div style="font-weight:700;color:var(--green);font-size:14px">Section complete — In-Process is now ready</div>
+      </div>
+      <button onclick="goToInspections()" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap">→ Go to In-Process</button>
+    </div>`;
+  }
   el.innerHTML=html;
 }
 window.ps_check=(sec,i,v)=>{const j=jobs[currentJobId];if(j){j.prestart[sec][i].ok=v;scheduleSave();}};
@@ -1068,6 +1105,14 @@ function renderInspectionsPanel(){
     </tr>`;
   });
   html+=`</tbody></table></div></div>`;
+  // Next step button after in-process sign-off
+  const _ipso=j['inProcessSignoff']||{};
+  if(_ipso.name&&_ipso.date&&!j.cocIssued){
+    html+=`<div style="background:#d4edda;border:2px solid var(--green);border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px">
+      <div style="font-weight:700;color:var(--green);font-size:14px">✅ In-Process complete — Final Inspection is now ready</div>
+      <button onclick="goToFinal()" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap">→ Go to Final Inspection</button>
+    </div>`;
+  }
   el.innerHTML=html;
 }
 window.ip_check=(i,v)=>{const j=jobs[currentJobId];if(j){j.inProcess[i].ok=v;scheduleSave();}};
@@ -1133,6 +1178,10 @@ function renderFinalPanel(){
     </label>
   </div>
   ${signoffBox('finalSignoff',j,'final',locked)}
+  ${(j.finalSignoff?.name&&j.finalSignoff?.date&&!j.cocIssued)?`<div style="background:#d4edda;border:2px solid var(--green);border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px">
+    <div style="font-weight:700;color:var(--green);font-size:14px">✅ Final Inspection complete — Certificate of Conformance is now ready</div>
+    <button onclick="goToCoC()" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap">→ Go to CoC</button>
+  </div>`:''}
   </div></div>`;
   el.innerHTML=html;
 }
@@ -2615,6 +2664,11 @@ window.selectJob      = selectJob;
 window.syncFromServer = syncFromServer;
 window.syncToServer   = syncToServer;
 window.showTab        = showTab;
+window.goToPrestart   = goToPrestart;
+window.goToInspections = goToInspections;
+window.goToFinal      = goToFinal;
+window.goToCoC        = goToCoC;
+window.goToTime       = goToTime;
 window.showReports    = showReports;
 window.toggleSidebar  = toggleSidebar;
 window.renderReports  = renderReports;
@@ -2684,7 +2738,7 @@ document.getElementById('sidebarLogo').src  = IMG_LOGO;
     }
   }catch(e){}
   document.getElementById('loginScreen').style.display='flex';
-})();})();
+})();
 </script>
 </body>
 </html>
