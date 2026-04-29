@@ -743,12 +743,23 @@ function renderTabs(){
 }
 
 function showTab(id){
-  // Always save current data before switching tabs
+  // Save first, then re-render the target panel so it sees fresh data
   if(currentJobId) saveNow();
   activeTab=id;
+  // Re-render the specific panel we're switching to
+  switch(id){
+    case 'prestart':    renderPrestartPanel(); break;
+    case 'inspections': renderInspectionsPanel(); break;
+    case 'final':       renderFinalPanel(); break;
+    case 'coc':         renderCoCPanel(); break;
+    case 'time':        renderTimePanel(); break;
+    case 'ncr':         renderNCRPanel(); break;
+    case 'audit':       renderAuditPanel(); break;
+    case 'job':         renderJobPanel(); break;
+    case 'reports':     showReports(); break;
+  }
   activateTab(id);
   renderTabs();
-  if(id==='reports'){ showReports(); return; }
 }
 function showReports(){
   activeTab='reports';
