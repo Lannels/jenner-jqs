@@ -583,8 +583,14 @@ function saveNow(){
   if(j) j.savedAt=new Date().toISOString();
   saveLocal();
   setStatus('Saved ✓');
-  // Render everything so all panels see fresh data
-  renderAll();
+  renderJobList(); renderHero(); renderTabs();
+  const jj=jobs[currentJobId];
+  if(jj) renderJobStatus(jj);
+  // Only do full renderAll if not actively typing in a field
+  if(!document.activeElement||document.activeElement.tagName==='BODY'||
+     document.activeElement.tagName==='BUTTON'||document.activeElement.id===''){
+    renderAll();
+  }
   if(currentJobId) pushJob(currentJobId);
 }
 function scheduleSave(){
@@ -744,10 +750,10 @@ function renderTabs(){
 function showTab(id){
   activeTab=id;
   if(id==='reports'){ showReports(); return; }
-  // saveNow calls renderAll which re-renders all panels with fresh data
-  // and activates the correct tab
-  if(currentJobId) saveNow();
-  else { renderAll(); }
+  // Save then do a full renderAll so the target panel sees fresh data
+  const j=jobs[currentJobId];
+  if(j){ j.savedAt=new Date().toISOString(); saveLocal(); }
+  renderAll();
 }
 function showReports(){
   activeTab='reports';
@@ -774,7 +780,10 @@ function activateTab(id){
 // ═══════════════════════════════════
 function bind(id,getter,setter){
   const el=document.getElementById(id); if(!el) return;
-  el.value=getter()??'';
+  // Only update value if field doesn't have focus (user not typing)
+  if(document.activeElement!==el){
+    el.value=getter()??'';
+  }
   const j=jobs[currentJobId];
   if(j?.cocIssued){
     el.disabled=true;
@@ -783,7 +792,13 @@ function bind(id,getter,setter){
     el.disabled=false;
     el.oninput=e=>{
       setter(e.target.value);
-      saveNow();
+      // Update status bar immediately without full re-render
+      const jj=jobs[currentJobId];
+      if(jj) renderJobStatus(jj);
+      renderHero();
+      renderTabs();
+      saveLocal();
+      setStatus('Saved ✓');
     };
   }
 }
