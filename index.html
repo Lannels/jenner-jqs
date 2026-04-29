@@ -189,7 +189,7 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
       <button class="btn-gold btn-sm" onclick="createJob()" id="btnNewJob">+ New Job</button>
       <button class="btn-dark btn-sm" onclick="syncFromServer()" title="Import jobs from a backup file">↓ Import</button>
       <button class="btn-dark btn-sm" onclick="syncToServer()" title="Export all jobs to a backup file">↑ Export</button>
-      <button class="btn-dark btn-sm" onclick="showReports()" id="btnReports" style="display:none">📊 Reports</button>
+      <button class="btn-dark btn-sm" onclick="showReports()" id="btnReports">📊 Reports</button>
       <button class="btn-dark btn-sm" onclick="doLogout()">Sign Out</button>
     </div>
     <div class="sb-jobs">
@@ -557,7 +557,7 @@ function showApp(){
   document.getElementById('sbUserName').textContent=currentUser.name;
   document.getElementById('sbUserRole').textContent=
     currentUser.role+(currentUser.coc_authority?' · CoC Authority':'');
-  if(currentUser.role==='admin') document.getElementById('btnReports').style.display='';
+  // Reports visible to all users
   loadLocal();
   renderAll();
   setStatus('Ready — data saved on this device');
@@ -585,9 +585,9 @@ function scheduleSave(){
     saveLocal();
     setStatus('Saved ✓');
     renderJobList(); renderHero(); renderTabs();
-    // Re-render job status bar so missing fields update live
+    // Re-render job status bar and tabs whenever data changes
     const jj=jobs[currentJobId];
-    if(jj&&activeTab==='job') renderJobStatus(jj);
+    if(jj) renderJobStatus(jj);
     if(currentJobId) pushJob(currentJobId);
   },600);
 }
@@ -671,7 +671,7 @@ function createJob(){
   writeAudit(id,'created','job','New job created by '+currentUser.name);
   renderAll();
 }
-function selectJob(id){ currentJobId=id; activeTab='job'; renderAll(); }
+function selectJob(id){ currentJobId=id; activeTab='job'; renderAll(); setTimeout(()=>{const j=jobs[id];if(j)renderJobStatus(j);},50); }
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open'); }
 
 // ═══════════════════════════════════
@@ -718,13 +718,13 @@ const TAB_DEFS=[
   {id:'time',    label:'Time / Lost Time',   needs:'job'},
   {id:'ncr',     label:'NCRs',               needs:null},
   {id:'audit',   label:'Audit Log',          needs:null},
-  {id:'reports', label:'📊 Reports',          needs:null, adminOnly:true}
+  {id:'reports', label:'📊 Reports',          needs:null}
 ];
 
 function renderTabs(){
   const j=jobs[currentJobId];
   document.getElementById('tabs').innerHTML=TAB_DEFS
-    .filter(t=>!t.adminOnly||(currentUser&&currentUser.role==='admin'))
+    .filter(t=>true) // all tabs visible to all users
     .map(t=>{
       const locked=!!(t.needs&&!sectionComplete(j,t.needs));
       const done=sectionComplete(j,t.id);
@@ -779,7 +779,13 @@ function bind(id,getter,setter){
     el.oninput=null;
   } else {
     el.disabled=false;
-    el.oninput=e=>{setter(e.target.value); scheduleSave();};
+    el.oninput=e=>{
+      setter(e.target.value);
+      scheduleSave();
+      // Immediately update status bar and tabs without waiting for save
+      renderJobStatus(j);
+      renderTabs();
+    };
   }
 }
 
@@ -805,17 +811,24 @@ function renderJobPanel(){
 
 function renderJobStatus(j){
   const el=document.getElementById('jobStatusBar'); if(!el) return;
+  // Read from both the data object AND the live input values
+  // so status reflects what user has typed even before save completes
   const required=[
-    {key:'jobNumber',label:'Job Number'},
-    {key:'customer',label:'Customer'},
-    {key:'drawingRev',label:'Drawing / Rev'},
-    {key:'operator',label:'Operator'},
-    {key:'machineOperation',label:'Machine / Operation'},
-    {key:'material',label:'Material'},
-    {key:'qtyOrdered',label:'Qty Ordered'},
-    {key:'requiredDelivery',label:'Required Delivery'}
+    {key:'jobNumber',    elId:'jobNumber',      label:'Job Number'},
+    {key:'customer',     elId:'customer',        label:'Customer'},
+    {key:'drawingRev',   elId:'drawingRev',      label:'Drawing / Rev'},
+    {key:'operator',     elId:'operator',        label:'Operator'},
+    {key:'machineOperation',elId:'machineOperation',label:'Machine / Operation'},
+    {key:'material',     elId:'material',        label:'Material'},
+    {key:'qtyOrdered',   elId:'qtyOrdered',      label:'Qty Ordered'},
+    {key:'requiredDelivery',elId:'requiredDelivery',label:'Required Delivery'}
   ];
-  const missing=required.filter(f=>!j[f.key]);
+  const missing=required.filter(f=>{
+    // Check live input value first, fall back to data object
+    const inputEl=document.getElementById(f.elId);
+    const liveVal=inputEl?inputEl.value.trim():'';
+    return !(liveVal||j[f.key]);
+  });
   if(missing.length===0){
     el.innerHTML=`<div style="background:#d4edda;border:2px solid var(--green);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;margin-bottom:14px">
       <span style="font-size:24px">✅</span>
