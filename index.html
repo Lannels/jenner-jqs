@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <title>Jenner Engineering QMS</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -834,12 +837,15 @@ function renderJobStatus(j){
   ];
   const missing=required.filter(f=>!String(j[f.key]||'').trim());
   if(missing.length===0){
-    el.innerHTML=`<div style="background:#d4edda;border:2px solid var(--green);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;margin-bottom:14px">
-      <span style="font-size:24px">✅</span>
-      <div>
-        <div style="font-weight:700;color:var(--green);font-size:14px">Job Information complete — Pre-Start tab is now unlocked</div>
-        <div style="font-size:12px;color:#555;margin-top:2px">Click the <strong>Pre-Start</strong> tab above to continue.</div>
+    el.innerHTML=`<div style="background:#d4edda;border:2px solid var(--green);border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:24px">✅</span>
+        <div>
+          <div style="font-weight:700;color:var(--green);font-size:14px">Job Information complete — Pre-Start tab is now unlocked</div>
+          <div style="font-size:12px;color:#555;margin-top:2px">Click the <strong>Pre-Start</strong> tab above to continue.</div>
+        </div>
       </div>
+      <button onclick="showTab('prestart')" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap">→ Go to Pre-Start</button>
     </div>`;
   } else {
     el.innerHTML=`<div style="background:#fff8e1;border:2px solid var(--gold);border-left:6px solid var(--gold);border-radius:10px;padding:14px 18px;margin-bottom:14px">
@@ -1000,7 +1006,14 @@ function lockedPanel(msg){
 function renderPrestartPanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('prestartContent'); if(!el) return;
-  if(!sectionComplete(j,'job')){el.innerHTML=lockedPanel('Complete Job Information first');return;}
+  // Check both stored data AND live DOM inputs
+  const jn=j?.jobNumber||document.getElementById('jobNumber')?.value||'';
+  const cu=j?.customer||document.getElementById('customer')?.value||'';
+  const dr=j?.drawingRev||document.getElementById('drawingRev')?.value||'';
+  const rd=j?.requiredDelivery||document.getElementById('requiredDelivery')?.value||'';
+  if(!jn.trim()||!cu.trim()||!dr.trim()||!rd.trim()){
+    el.innerHTML=lockedPanel('Complete Job Information first');return;
+  }
   const locked=j.cocIssued;
   const sects=[{key:'safety',label:'Safety Checks'},{key:'drawing',label:'Drawing & Material Check'},{key:'machine',label:'Machine & Tooling'}];
   let html=`<div class="warning">⚠️ Completed by the Operator before work commences. Supervisor sign-off required at the bottom. F-PS-01 v1.0 · ISO 9001:2015 Cl.8.5.1</div>`;
