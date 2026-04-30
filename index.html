@@ -563,6 +563,17 @@ function loadLocal(){
 function saveLocal(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(jobs)); }
 function sortedJobs(){ return Object.values(jobs).sort((a,b)=>String(b.savedAt||'').localeCompare(String(a.savedAt||''))); }
 
+function flushFields(){
+  const j=jobs[currentJobId]; if(!j) return;
+  ['jobNumber','customer','drawingRev','requiredDelivery','operator',
+   'machineOperation','qtyOrdered','qtySupplied','material',
+   'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
+    const el=document.getElementById(key);
+    if(el) j[key]=el.value;
+  });
+  j.savedAt=new Date().toISOString();
+  saveLocal();
+}
 function saveNow(){
   flushFields();
   setStatus('Saved ✓');
@@ -662,9 +673,7 @@ function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('o
 // RENDER ENGINE
 // ═══════════════════════════════════
 function renderAll(){
-  // Render content first, then bind tabs using delegated event handling.
-  // This keeps navigation working on GitHub Pages even after the tabs are re-rendered.
-  renderJobList(); renderHero(); renderTabs(); bindTabClicks();
+  renderJobList(); renderHero(); renderTabs();
   renderJobPanel(); renderPrestartPanel(); renderInspectionsPanel();
   renderFinalPanel(); renderCoCPanel(); renderTimePanel();
   renderNCRPanel(); renderAuditPanel();
@@ -709,47 +718,20 @@ const TAB_DEFS=[
 
 function renderTabs(){
   const j=jobs[currentJobId];
-  const tabsEl=document.getElementById('tabs');
-  if(!tabsEl) return;
-  tabsEl.innerHTML=TAB_DEFS
+  document.getElementById('tabs').innerHTML=TAB_DEFS
     .map(t=>{
       const hasIssue=t.id==='ncr'&&j&&openNCRs(j).length>0;
-      const isLocked=!j && !['job','reports'].includes(t.id);
-      return `<button type="button" class="tab ${activeTab===t.id?'active':''} ${isLocked?'locked':''}"
-        data-tab="${t.id}" aria-controls="panel-${t.id}">
+      return `<button class="tab ${activeTab===t.id?'active':''}"
+        onclick="showTab('${t.id}')">
         ${t.label}${hasIssue?' <span class="tab-pill tp-issue">⚠</span>':''}
       </button>`;
     }).join('');
-}
-
-function bindTabClicks(){
-  const tabsEl=document.getElementById('tabs');
-  if(!tabsEl || tabsEl.dataset.bound==='true') return;
-  tabsEl.dataset.bound='true';
-  tabsEl.addEventListener('click',e=>{
-    const btn=e.target.closest('.tab[data-tab]');
-    if(!btn) return;
-    e.preventDefault();
-    e.stopPropagation();
-    showTab(btn.dataset.tab);
-  });
 }
 
 // ═══════════════════════════════════
 // GLOBAL NAV FUNCTIONS — defined outside rendered HTML so they 
 // can't be destroyed mid-click when the DOM re-renders
 // ═══════════════════════════════════
-function flushFields(){
-  const j=jobs[currentJobId]; if(!j) return;
-  ['jobNumber','customer','drawingRev','requiredDelivery','operator',
-   'machineOperation','qtyOrdered','qtySupplied','material',
-   'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
-    const el=document.getElementById(key);
-    if(el) j[key]=el.value;
-  });
-  j.savedAt=new Date().toISOString();
-  saveLocal();
-}
 function goToPrestart()    { flushFields(); activeTab='prestart';    renderAll(); }
 function goToInspections() { flushFields(); activeTab='inspections'; renderAll(); }
 function goToFinal()       { flushFields(); activeTab='final';       renderAll(); }
@@ -757,16 +739,9 @@ function goToCoC()         { flushFields(); activeTab='coc';         renderAll()
 function goToTime()        { flushFields(); activeTab='time';        renderAll(); }
 
 function showTab(id){
-  const target=TAB_DEFS.find(t=>t.id===id)?.id||'job';
-  if(target==='reports'){ activeTab='reports'; showReports(); return; }
-  if(!currentJobId && target!=='job'){
-    activeTab='job';
-    activateTab('job');
-    setStatus('Create or select a job first');
-    return;
-  }
+  if(id==='reports'){ activeTab='reports'; showReports(); return; }
   flushFields();
-  activeTab=target;
+  activeTab=id;
   renderAll();
 }
 
@@ -776,20 +751,19 @@ function flushAndRender(){
 }
 function showReports(){
   activeTab='reports';
-  renderTabs();
-  bindTabClicks();
-  renderReports();
   activateTab('reports');
+  renderTabs();
+  renderReports();
 }
 
 function activateTab(id){
-  const target=TAB_DEFS.find(t=>t.id===id)?.id||'job';
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  const p=document.getElementById('panel-'+target);
+  const p=document.getElementById('panel-'+id);
   if(p) p.classList.add('active');
-  const btn=document.querySelector(`.tab[data-tab="${target}"]`);
-  if(btn) btn.classList.add('active');
+  document.querySelectorAll('.tab').forEach(t=>{
+    if(t.textContent.includes(TAB_DEFS.find(td=>td.id===id)?.label?.split(' ')[0]||'__')) t.classList.add('active');
+  });
 }
 </script>
 
@@ -1012,13 +986,6 @@ function renderPrestartPanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('prestartContent'); if(!el) return;
   // Read from j object ONLY (which was flushed before renderAll was called)
-  const jn=String(j?.jobNumber||'').trim();
-  const cu=String(j?.customer||'').trim();
-  const dr=String(j?.drawingRev||'').trim();
-  const rd=String(j?.requiredDelivery||'').trim();
-  if(!jn||!cu||!dr||!rd){
-    el.innerHTML=lockedPanel('Complete Job Information first');return;
-  }
   const locked=j.cocIssued;
   const sects=[{key:'safety',label:'Safety Checks'},{key:'drawing',label:'Drawing & Material Check'},{key:'machine',label:'Machine & Tooling'}];
   let html=`<div class="warning">⚠️ Completed by the Operator before work commences. Supervisor sign-off required at the bottom. F-PS-01 v1.0 · ISO 9001:2015 Cl.8.5.1</div>`;
@@ -1112,9 +1079,8 @@ window.prog_note=(i,v)=>{const j=jobs[currentJobId];if(j){j.progress[i].notes=v;
 function renderFinalPanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('finalContent'); if(!el) return;
-  if(!sectionComplete(j,'job')){el.innerHTML=lockedPanel('Complete Job Information first');return;}
   const locked=j.cocIssued;
-  const inspectionsDone=sectionComplete(j,'inspections');
+  const inspectionsDone=true;
   const anyFail=j.progress.some(r=>r.fail);
   let html=inspectionsDone?``:`<div class="warning" style="background:#fff3e0;border-color:#e07000;border-left-color:#e07000;color:#7a3c00">📋 In-Process section is not yet fully signed off — you can enter results here now, but it must be completed before the CoC can be issued.</div>`;
   html+=`<div class="card"><div class="card-head">Final Inspection — All Inspections Must Pass Before Release <span style="font-size:10px;font-weight:400;color:#aaa">F-FI-01 · ISO 9001:2015 Cl.8.6</span></div>
@@ -1995,7 +1961,6 @@ function pdfSectionHead(doc,text,y){
 window.downloadJobPackPDF=()=>{
   const j=jobs[currentJobId];
   if(!j){alert('No job selected.');return;}
-  if(!sectionComplete(j,'job')){alert('Please complete the Job Information fields first.');return;}
   try{
     const {jsPDF}=window.jspdf;
     const PAGES=5+(j.drawings?.length||0);
@@ -2661,8 +2626,8 @@ window.toggleSidebar  = toggleSidebar;
 window.renderReports  = renderReports;
 window.exportFYCSV    = exportFYCSV;
 window.exportISOReport= exportISOReport;
-window.openCoCPage    = window.openCoCPage;
-window.downloadJobPackPDF = window.downloadJobPackPDF;
+window.openCoCPage    = openCoCPage;
+window.downloadJobPackPDF = downloadJobPackPDF;
 window.closeModal     = (id)=>document.getElementById(id).classList.remove('open');
 window.promptIssueCoC = ()=>{
   const j=jobs[currentJobId]; if(!j) return;
@@ -2726,43 +2691,6 @@ document.getElementById('sidebarLogo').src  = IMG_LOGO;
   }catch(e){}
   document.getElementById('loginScreen').style.display='flex';
 })();
-</script>
-  <!-- build: github-tabs-fixed-2026-04-30 -->
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-
-  function safeShowTab(tab) {
-    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
-    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-
-    const panel = document.getElementById("panel-" + tab);
-    if (panel) panel.classList.add("active");
-
-    const btn = document.querySelector(`[data-tab="${tab}"]`);
-    if (btn) btn.classList.add("active");
-  }
-
-  window.showTab = safeShowTab;
-
-  function bindTabs() {
-    document.querySelectorAll(".tab").forEach(btn => {
-      btn.onclick = null;
-      btn.addEventListener("click", function () {
-        const tab = this.getAttribute("data-tab");
-        safeShowTab(tab);
-      });
-    });
-  }
-
-  const observer = new MutationObserver(() => {
-    bindTabs();
-  });
-
-  observer.observe(document.body, { childList: true, subtree: true });
-
-  setTimeout(bindTabs, 500);
-
-});
 </script>
 </body>
 </html>
