@@ -662,7 +662,7 @@ function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('o
 // RENDER ENGINE
 // ═══════════════════════════════════
 function renderAll(){
-  renderJobList(); renderHero(); renderTabs();
+  renderJobList(); renderHero(); renderTabs(); bindTabClicks();
   renderJobPanel(); renderPrestartPanel(); renderInspectionsPanel();
   renderFinalPanel(); renderCoCPanel(); renderTimePanel();
   renderNCRPanel(); renderAuditPanel();
@@ -707,19 +707,34 @@ const TAB_DEFS=[
 
 function renderTabs(){
   const j=jobs[currentJobId];
-  document.getElementById('tabs').innerHTML=TAB_DEFS
+  const tabsEl=document.getElementById('tabs');
+  if(!tabsEl) return;
+  tabsEl.innerHTML=TAB_DEFS
     .map(t=>{
       const hasIssue=t.id==='ncr'&&j&&openNCRs(j).length>0;
-      return `<button class="tab ${activeTab===t.id?'active':''}"
-        onclick="showTab('${t.id}')">
+      const isLocked=!j && !['job','reports'].includes(t.id);
+      return `<button type="button" class="tab ${activeTab===t.id?'active':''} ${isLocked?'locked':''}"
+        data-tab="${t.id}">
         ${t.label}${hasIssue?' <span class="tab-pill tp-issue">⚠</span>':''}
       </button>`;
     }).join('');
 }
 
+function bindTabClicks(){
+  const tabsEl=document.getElementById('tabs');
+  if(!tabsEl || tabsEl.dataset.bound==='true') return;
+  tabsEl.dataset.bound='true';
+  tabsEl.addEventListener('click',e=>{
+    const btn=e.target.closest('.tab[data-tab]');
+    if(!btn) return;
+    e.preventDefault();
+    showTab(btn.dataset.tab);
+  });
+}
+
 // ═══════════════════════════════════
-// GLOBAL NAV FUNCTIONS — defined outside rendered HTML so they 
-// can't be destroyed mid-click when the DOM re-renders
+// GLOBAL NAV FUNCTIONS — defined outside rendered HTML so they
+// cannot be destroyed mid-click when the DOM re-renders
 // ═══════════════════════════════════
 function flushFields(){
   const j=jobs[currentJobId]; if(!j) return;
@@ -732,16 +747,27 @@ function flushFields(){
   j.savedAt=new Date().toISOString();
   saveLocal();
 }
-function goToPrestart()    { flushFields(); activeTab='prestart';    renderAll(); }
-function goToInspections() { flushFields(); activeTab='inspections'; renderAll(); }
-function goToFinal()       { flushFields(); activeTab='final';       renderAll(); }
-function goToCoC()         { flushFields(); activeTab='coc';         renderAll(); }
-function goToTime()        { flushFields(); activeTab='time';        renderAll(); }
+function goToPrestart()    { showTab('prestart'); }
+function goToInspections() { showTab('inspections'); }
+function goToFinal()       { showTab('final'); }
+function goToCoC()         { showTab('coc'); }
+function goToTime()        { showTab('time'); }
 
 function showTab(id){
-  if(id==='reports'){ activeTab='reports'; showReports(); return; }
+  const target=TAB_DEFS.find(t=>t.id===id)?.id||'job';
+  if(target==='reports'){
+    activeTab='reports';
+    showReports();
+    return;
+  }
+  if(!currentJobId && target!=='job'){
+    activeTab='job';
+    activateTab('job');
+    setStatus('Create or select a job first');
+    return;
+  }
   flushFields();
-  activeTab=id;
+  activeTab=target;
   renderAll();
 }
 
@@ -751,19 +777,20 @@ function flushAndRender(){
 }
 function showReports(){
   activeTab='reports';
+  renderReports();
   activateTab('reports');
   renderTabs();
-  renderReports();
+  activateTab('reports');
 }
 
 function activateTab(id){
+  const target=TAB_DEFS.find(t=>t.id===id)?.id||'job';
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  const p=document.getElementById('panel-'+id);
+  const p=document.getElementById('panel-'+target);
   if(p) p.classList.add('active');
-  document.querySelectorAll('.tab').forEach(t=>{
-    if(t.textContent.includes(TAB_DEFS.find(td=>td.id===id)?.label?.split(' ')[0]||'__')) t.classList.add('active');
-  });
+  const btn=document.querySelector(`.tab[data-tab="${target}"]`);
+  if(btn) btn.classList.add('active');
 }
 </script>
 
@@ -2703,4 +2730,3 @@ document.getElementById('sidebarLogo').src  = IMG_LOGO;
 </script>
 </body>
 </html>
-
