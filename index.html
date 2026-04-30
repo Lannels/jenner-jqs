@@ -580,17 +580,7 @@ function saveLocal(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(jobs)); }
 function sortedJobs(){ return Object.values(jobs).sort((a,b)=>String(b.savedAt||'').localeCompare(String(a.savedAt||''))); }
 
 function saveNow(){
-  const j=jobs[currentJobId];
-  if(j){
-    ['jobNumber','customer','drawingRev','requiredDelivery','operator',
-     'machineOperation','qtyOrdered','qtySupplied','material',
-     'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
-      const el=document.getElementById(key);
-      if(el) j[key]=el.value;
-    });
-    j.savedAt=new Date().toISOString();
-    saveLocal();
-  }
+  flushFields();
   setStatus('Saved ✓');
 }
 function scheduleSave(){
@@ -752,36 +742,35 @@ function renderTabs(){
 }
 
 // ═══════════════════════════════════
-// GLOBAL NAV FUNCTIONS — defined outside rendered HTML so they 
-// can't be destroyed mid-click when the DOM re-renders
+// NAVIGATION — flush fields then switch tab
 // ═══════════════════════════════════
-function goToPrestart()    { showTab('prestart'); }
-function goToInspections() { showTab('inspections'); }
-function goToFinal()       { showTab('final'); }
-function goToCoC()         { showTab('coc'); }
-function goToTime()        { showTab('time'); }
+function flushFields(){
+  const j=jobs[currentJobId]; if(!j) return;
+  ['jobNumber','customer','drawingRev','requiredDelivery','operator',
+   'machineOperation','qtyOrdered','qtySupplied','material',
+   'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
+    const el=document.getElementById(key);
+    if(el) j[key]=el.value;
+  });
+  j.savedAt=new Date().toISOString();
+  saveLocal();
+}
+function goToPrestart()    { flushFields(); activeTab='prestart';     renderAll(); }
+function goToInspections() { flushFields(); activeTab='inspections';  renderAll(); }
+function goToFinal()       { flushFields(); activeTab='final';        renderAll(); }
+function goToCoC()         { flushFields(); activeTab='coc';          renderAll(); }
+function goToTime()        { flushFields(); activeTab='time';         renderAll(); }
 
 function showTab(id){
+  if(id==='reports'){ activeTab='reports'; showReports(); return; }
+  flushFields();
   activeTab=id;
-  if(id==='reports'){ showReports(); return; }
-  // Flush inputs to job object first
-  const j=jobs[currentJobId];
-  if(j){
-    ['jobNumber','customer','drawingRev','requiredDelivery','operator',
-     'machineOperation','qtyOrdered','qtySupplied','material',
-     'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
-      const el=document.getElementById(key);
-      if(el) j[key]=el.value;
-    });
-    j.savedAt=new Date().toISOString();
-    saveLocal();
-  }
-  // Use setTimeout so the current click event fully completes before re-rendering
-  setTimeout(()=>renderAll(), 0);
+  renderAll();
 }
 
 function flushAndRender(){
-  saveNow();
+  flushFields();
+  renderAll();
 }
 function showReports(){
   activeTab='reports';
@@ -812,7 +801,7 @@ function bind(id,getter,setter){
   const j=jobs[currentJobId];
   if(j?.cocIssued){ el.disabled=true; el.oninput=null; el.onblur=null; return; }
   el.disabled=false;
-  el.oninput=e=>{ setter(e.target.value); scheduleSave(); };
+  el.oninput=e=>{ setter(e.target.value); saveLocal(); setStatus('Saved ✓'); };
   el.onblur=()=>{ renderJobStatus(jobs[currentJobId]); renderHero(); renderTabs(); };
 }
 
@@ -996,13 +985,11 @@ window.so_set=(field,key,val)=>{
   if(key==='operatorName'&&!j[field].operatorDate) j[field].operatorDate=today();
   if(key==='operatorName'&&!j[field].operatorTime) j[field].operatorTime=nowTime();
   saveLocal();
-  renderTabs();
-  renderHero();
-  // Re-render the active panel so completion banner appears
   if(activeTab==='prestart') renderPrestartPanel();
   else if(activeTab==='inspections') renderInspectionsPanel();
   else if(activeTab==='final') renderFinalPanel();
   else if(activeTab==='coc') renderCoCPanel();
+  renderTabs(); renderHero();
 };
 window.so_sig=(field,val)=>{
   const j=jobs[currentJobId]; if(!j) return;
@@ -1182,7 +1169,7 @@ function renderFinalPanel(){
   </div></div>`;
   el.innerHTML=html;
 }
-window.res_set=(k,v)=>{const j=jobs[currentJobId];if(j){j.results[k]=v;saveLocal();}};
+window.res_set=(k,v)=>{const j=jobs[currentJobId];if(j){j.results[k]=v;scheduleSave();}};
 window.fs_set=(k,v)=>{const j=jobs[currentJobId];if(j){j.finalSignoff[k]=v;saveLocal();renderFinalPanel();renderTabs();}};
 
 // ═══════════════════════════════════
