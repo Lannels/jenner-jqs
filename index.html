@@ -457,13 +457,22 @@ function normalizeJob(raw, idFallback=''){
   Object.assign(j,raw);
   j.id=raw.id||idFallback||j.id;
   j.items=(raw.items&&raw.items.length)?raw.items:j.items;
-  j.prestart=raw.prestart||j.prestart;
+  // Normalize prestart — fall back per-section if arrays are missing/empty
+  const rawPre=raw.prestart||{};
+  j.prestart={
+    safety: (rawPre.safety&&rawPre.safety.length) ? rawPre.safety : deepClone(PRESTART_DEFAULT.safety),
+    drawing:(rawPre.drawing&&rawPre.drawing.length)? rawPre.drawing: deepClone(PRESTART_DEFAULT.drawing),
+    machine:(rawPre.machine&&rawPre.machine.length)? rawPre.machine: deepClone(PRESTART_DEFAULT.machine)
+  };
   j.prestartSignoff=raw.prestartSignoff||j.prestartSignoff;
-  j.inProcess=raw.inProcess||
-    raw.inspections?.inprocess?.map((x,i)=>({...INPROCESS_DEFAULT[i],ok:!!x.ok,sign:x.signature||''})) ||
-    j.inProcess;
+  j.inProcess=(raw.inProcess&&raw.inProcess.length) ? raw.inProcess :
+    (raw.inspections?.inprocess?.length ?
+      raw.inspections.inprocess.map((x,i)=>({...INPROCESS_DEFAULT[i],ok:!!x.ok,sign:x.signature||''})) :
+      deepClone(INPROCESS_DEFAULT));
   j.inProcessSignoff=raw.inProcessSignoff||j.inProcessSignoff;
-  j.progress=raw.progress||raw.inspections?.progress||j.progress;
+  j.progress=(raw.progress&&raw.progress.length) ? raw.progress :
+    (raw.inspections?.progress?.length ? raw.inspections.progress :
+      [1,2,3,4,5,6].map(n=>({feature:'Dimension '+n,pass:false,fail:false,notes:''})));
   j.results=raw.results||j.results;
   j.finalSignoff=raw.finalSignoff||j.finalSignoff;
   j.coc=raw.coc||j.coc;
