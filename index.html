@@ -2727,6 +2727,43 @@ document.getElementById('sidebarLogo').src  = IMG_LOGO;
   document.getElementById('loginScreen').style.display='flex';
 })();
 </script>
+  <!-- build: github-tabs-fixed-2026-04-30 -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  function safeShowTab(tab) {
+    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+
+    const panel = document.getElementById("panel-" + tab);
+    if (panel) panel.classList.add("active");
+
+    const btn = document.querySelector(`[data-tab="${tab}"]`);
+    if (btn) btn.classList.add("active");
+  }
+
+  window.showTab = safeShowTab;
+
+  function bindTabs() {
+    document.querySelectorAll(".tab").forEach(btn => {
+      btn.onclick = null;
+      btn.addEventListener("click", function () {
+        const tab = this.getAttribute("data-tab");
+        safeShowTab(tab);
+      });
+    });
+  }
+
+  const observer = new MutationObserver(() => {
+    bindTabs();
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  setTimeout(bindTabs, 500);
+
+});
+</script>
 </body>
 </html>
 
