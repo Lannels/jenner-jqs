@@ -742,9 +742,10 @@ function renderTabs(){
 }
 
 // ═══════════════════════════════════
-// NAVIGATION — flush fields then switch tab
+// NAVIGATION
 // ═══════════════════════════════════
 function flushFields(){
+  // Read all visible input values into the job object before any navigation
   const j=jobs[currentJobId]; if(!j) return;
   ['jobNumber','customer','drawingRev','requiredDelivery','operator',
    'machineOperation','qtyOrdered','qtySupplied','material',
@@ -755,11 +756,11 @@ function flushFields(){
   j.savedAt=new Date().toISOString();
   saveLocal();
 }
-function goToPrestart()    { flushFields(); activeTab='prestart';     renderAll(); }
-function goToInspections() { flushFields(); activeTab='inspections';  renderAll(); }
-function goToFinal()       { flushFields(); activeTab='final';        renderAll(); }
-function goToCoC()         { flushFields(); activeTab='coc';          renderAll(); }
-function goToTime()        { flushFields(); activeTab='time';         renderAll(); }
+function goToPrestart()    { flushFields(); activeTab='prestart';    renderAll(); }
+function goToInspections() { flushFields(); activeTab='inspections'; renderAll(); }
+function goToFinal()       { flushFields(); activeTab='final';       renderAll(); }
+function goToCoC()         { flushFields(); activeTab='coc';         renderAll(); }
+function goToTime()        { flushFields(); activeTab='time';        renderAll(); }
 
 function showTab(id){
   if(id==='reports'){ activeTab='reports'; showReports(); return; }
