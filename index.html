@@ -579,12 +579,19 @@ function saveNow(){
   setStatus('Saved ✓');
 }
 function scheduleSave(){
-  if(saveTimer) clearTimeout(saveTimer);
-  saveTimer=setTimeout(()=>{
-    const j=jobs[currentJobId];
-    if(j){ j.savedAt=new Date().toISOString(); saveLocal(); }
+  // Always flush DOM values into j first, then save
+  const j=jobs[currentJobId];
+  if(j){
+    ['jobNumber','customer','drawingRev','requiredDelivery','operator',
+     'machineOperation','qtyOrdered','qtySupplied','material',
+     'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
+      const el=document.getElementById(key);
+      if(el && el.value!==undefined) j[key]=el.value;
+    });
+    j.savedAt=new Date().toISOString();
+    saveLocal();
     setStatus('Saved ✓');
-  },600);
+  }
 }
 function setStatus(msg){ document.getElementById('statusBox').textContent=msg; }
 
@@ -659,14 +666,21 @@ function writeAudit(jobId,action,section,detail){
 // JOB MANAGEMENT
 // ═══════════════════════════════════
 function createJob(){
+  flushFields();             // save whatever is open
   const id='job_'+Date.now();
   jobs[id]=defaultJob(id);
   currentJobId=id; activeTab='job';
   saveLocal();
   writeAudit(id,'created','job','New job created by '+currentUser.name);
-  renderAll();
+  renderAll();               // full render since we're going to job tab
 }
-function selectJob(id){ currentJobId=id; activeTab='job'; renderAll(); setTimeout(()=>{const j=jobs[id];if(j)renderJobStatus(j);},50); }
+function selectJob(id){
+  flushFields();           // save current job before switching
+  currentJobId=id;
+  activeTab='job';
+  renderAll();             // renders job panel since activeTab==='job'
+  setTimeout(()=>{ const j=jobs[id]; if(j) renderJobStatus(j); }, 50);
+}
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open'); }
 
 // ═══════════════════════════════════
@@ -674,7 +688,9 @@ function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('o
 // ═══════════════════════════════════
 function renderAll(){
   renderJobList(); renderHero(); renderTabs();
-  renderJobPanel(); renderPrestartPanel(); renderInspectionsPanel();
+  // Only re-render job panel inputs when on job tab (prevents field reset while typing)
+  if(activeTab==='job') renderJobPanel();
+  renderPrestartPanel(); renderInspectionsPanel();
   renderFinalPanel(); renderCoCPanel(); renderTimePanel();
   renderNCRPanel(); renderAuditPanel();
   activateTab(activeTab);
@@ -732,17 +748,33 @@ function renderTabs(){
 // GLOBAL NAV FUNCTIONS — defined outside rendered HTML so they 
 // can't be destroyed mid-click when the DOM re-renders
 // ═══════════════════════════════════
-function goToPrestart()    { flushFields(); activeTab='prestart';    renderAll(); }
-function goToInspections() { flushFields(); activeTab='inspections'; renderAll(); }
-function goToFinal()       { flushFields(); activeTab='final';       renderAll(); }
-function goToCoC()         { flushFields(); activeTab='coc';         renderAll(); }
-function goToTime()        { flushFields(); activeTab='time';        renderAll(); }
-
-function showTab(id){
-  if(id==='reports'){ activeTab='reports'; showReports(); return; }
+function switchTab(id){
+  // Internal tab switcher — does NOT re-render job panel inputs
   flushFields();
   activeTab=id;
-  renderAll();
+  renderJobList(); renderHero(); renderTabs();
+  renderPrestartPanel(); renderInspectionsPanel();
+  renderFinalPanel(); renderCoCPanel(); renderTimePanel();
+  renderNCRPanel(); renderAuditPanel();
+  activateTab(id);
+}
+function goToPrestart()    { switchTab('prestart'); }
+function goToInspections() { switchTab('inspections'); }
+function goToFinal()       { switchTab('final'); }
+function goToCoC()         { switchTab('coc'); }
+function goToTime()        { switchTab('time'); }
+
+function showTab(id){
+  if(id==='reports'){ flushFields(); activeTab='reports'; showReports(); return; }
+  if(id==='job'){
+    // Going back to job tab — need to render job panel inputs
+    flushFields();
+    activeTab='job';
+    renderAll();
+    return;
+  }
+  // For all other tabs, use switchTab (preserves job panel inputs)
+  switchTab(id);
 }
 
 function flushAndRender(){
@@ -774,12 +806,28 @@ function activateTab(id){
 // ═══════════════════════════════════
 function bind(id,getter,setter){
   const el=document.getElementById(id); if(!el) return;
-  if(document.activeElement!==el) el.value=getter()??'';
   const j=jobs[currentJobId];
   if(j?.cocIssued){ el.disabled=true; el.oninput=null; el.onblur=null; return; }
   el.disabled=false;
-  el.oninput=e=>{ setter(e.target.value); saveLocal(); setStatus('Saved ✓'); };
-  el.onblur=()=>{ renderJobStatus(jobs[currentJobId]); renderHero(); renderTabs(); };
+  // Only reset value if field is not currently focused (user is not typing)
+  if(document.activeElement!==el){ el.value=getter()??''; }
+  el.oninput=e=>{
+    setter(e.target.value);   // update j immediately
+    j.savedAt=new Date().toISOString();
+    saveLocal();              // persist immediately — no delay
+    setStatus('Saved ✓');
+    renderJobStatus(j);       // update status bar live
+    renderHero();
+    renderTabs();
+  };
+  el.onblur=()=>{
+    setter(el.value);         // ensure final value captured
+    j.savedAt=new Date().toISOString();
+    saveLocal();
+    renderJobStatus(j);
+    renderHero();
+    renderTabs();
+  };
 }
 
 function renderJobPanel(){
@@ -810,7 +858,13 @@ function renderJobStatus(j){
     {key:'drawingRev',      label:'Drawing / Rev'},
     {key:'requiredDelivery',label:'Required Delivery'}
   ];
-  const missing=required.filter(f=>!String(j[f.key]||'').trim());
+  // Read from DOM inputs too (catches values typed before j was updated)
+  const getVal=(key)=>{
+    const domEl=document.getElementById(key);
+    const domVal=domEl?domEl.value:'';
+    return domVal||String(j[key]||'');
+  };
+  const missing=required.filter(f=>!getVal(f.key).trim());
   if(missing.length===0){
     el.innerHTML=`<div style="background:#d4edda;border:2px solid var(--green);border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px">
       <div style="display:flex;align-items:center;gap:12px">
@@ -1389,7 +1443,7 @@ window.promptIssueCoC=()=>{
   document.getElementById('cocConfirmModal').classList.add('open');
 };
 
-window.confirmIssueCoC=async()=>{
+window.confirmIssueCoC=()=>{
   const j=jobs[currentJobId]; if(!j) return;
   closeModal('cocConfirmModal');
   j.coc.number=j.coc.number||genCoCNumber(j);
@@ -1403,8 +1457,7 @@ window.confirmIssueCoC=async()=>{
   j.dateCompleted=today();
   j.savedAt=new Date().toISOString();
   saveLocal();
-  await syncToServer();
-  await writeAudit(j.id,'coc_issued','coc',`Certificate ${j.coc.number} issued by ${currentUser.name}`);
+  writeAudit(j.id,'coc_issued','coc',`Certificate ${j.coc.number} issued by ${currentUser.name}`);
   renderAll();
   setTimeout(()=>openCoCPage(),600);
 };
@@ -2616,6 +2669,7 @@ window.selectJob      = selectJob;
 window.syncFromServer = syncFromServer;
 window.syncToServer   = syncToServer;
 window.showTab        = showTab;
+window.switchTab      = switchTab;
 window.goToPrestart   = goToPrestart;
 window.goToInspections = goToInspections;
 window.goToFinal      = goToFinal;
