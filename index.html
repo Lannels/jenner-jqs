@@ -737,10 +737,9 @@ function renderTabs(){
   document.getElementById('tabs').innerHTML=TAB_DEFS
     .map(t=>{
       const hasIssue=t.id==='ncr'&&j&&openNCRs(j).length>0;
-      return `<button class="tab ${activeTab===t.id?'active':''}"
-        onclick="showTab('${t.id}')">
-        ${t.label}${hasIssue?' <span class="tab-pill tp-issue">⚠</span>':''}
-      </button>`;
+      return `<button class="tab ${activeTab===t.id?'active':''}" data-tab="${t.id}" onclick="showTab('${t.id}')">` +
+        `${t.label}${hasIssue?' <span class="tab-pill tp-issue">⚠</span>':''}` +
+        `</button>`;
     }).join('');
 }
 
@@ -793,9 +792,8 @@ function activateTab(id){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   const p=document.getElementById('panel-'+id);
   if(p) p.classList.add('active');
-  document.querySelectorAll('.tab').forEach(t=>{
-    if(t.textContent.includes(TAB_DEFS.find(td=>td.id===id)?.label?.split(' ')[0]||'__')) t.classList.add('active');
-  });
+  // Use data-tab attribute for reliable matching (not text content)
+  document.querySelectorAll('.tab[data-tab="'+id+'"]').forEach(t=>t.classList.add('active'));
 }
 </script>
 
@@ -1039,6 +1037,7 @@ function lockedPanel(msg){
 function renderPrestartPanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('prestartContent'); if(!el) return;
+  if(!j){el.innerHTML='<p style="color:#aaa;padding:20px">No job selected.</p>';return;}
   // Read from j object ONLY (which was flushed before renderAll was called)
   const locked=j.cocIssued;
   const sects=[{key:'safety',label:'Safety Checks'},{key:'drawing',label:'Drawing & Material Check'},{key:'machine',label:'Machine & Tooling'}];
@@ -1079,6 +1078,7 @@ window.ps_check=(sec,i,v)=>{const j=jobs[currentJobId];if(j){j.prestart[sec][i].
 function renderInspectionsPanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('inspectionsContent'); if(!el) return;
+  if(!j){el.innerHTML='<p style="color:#aaa;padding:20px">No job selected.</p>';return;}
   const locked=j.cocIssued;
   const prestartDone=true;
   let html=prestartDone?``:`<div class="warning" style="background:#fff3e0;border-color:#e07000;border-left-color:#e07000;color:#7a3c00">📋 Pre-Start not yet signed off — you can enter data here now, but it must be completed before the CoC can be issued.</div>`;
@@ -1133,6 +1133,7 @@ window.prog_note=(i,v)=>{const j=jobs[currentJobId];if(j){j.progress[i].notes=v;
 function renderFinalPanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('finalContent'); if(!el) return;
+  if(!j){el.innerHTML='<p style="color:#aaa;padding:20px">No job selected.</p>';return;}
   const locked=j.cocIssued;
   const inspectionsDone=true;
   const anyFail=j.progress.some(r=>r.fail);
@@ -1206,6 +1207,7 @@ function genCoCNumber(j){
 function renderCoCPanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('cocContent'); if(!el) return;
+  if(!j){el.innerHTML='<p style="color:#aaa;padding:20px">No job selected.</p>';return;}
   // No blocker on CoC panel
   const openN=openNCRs(j);
   if(openN.length>0&&!j.cocIssued){
@@ -1472,6 +1474,7 @@ window.closeModal=(id)=>document.getElementById(id).classList.remove('open');
 function renderTimePanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('timeContent'); if(!el) return;
+  if(!j){el.innerHTML='<p style="color:#aaa;padding:20px">No job selected.</p>';return;}
   const locked=j.cocIssued;
   const timeRows=j.timeEntries.map((row,i)=>{
     const flds=['operator','date','clockIn','clockOut','hours','chargeable','stage'];
