@@ -737,9 +737,9 @@ function renderTabs(){
   document.getElementById('tabs').innerHTML=TAB_DEFS
     .map(t=>{
       const hasIssue=t.id==='ncr'&&j&&openNCRs(j).length>0;
-      return `<button class="tab ${activeTab===t.id?'active':''}" data-tab="${t.id}" onclick="showTab('${t.id}')">` +
-        `${t.label}${hasIssue?' <span class="tab-pill tp-issue">⚠</span>':''}` +
-        `</button>`;
+      return '<button class="tab '+(activeTab===t.id?'active':'')+'" data-tab="'+t.id+'" onclick="showTab(\''+t.id+'\')">'
+        +t.label+(hasIssue?' <span class="tab-pill tp-issue">⚠</span>':'')
+        +'</button>';
     }).join('');
 }
 
@@ -764,15 +764,14 @@ function goToCoC()         { switchTab('coc'); }
 function goToTime()        { switchTab('time'); }
 
 function showTab(id){
+  // Always update activeTab and ensure the panel becomes visible
   if(id==='reports'){ flushFields(); activeTab='reports'; showReports(); return; }
   if(id==='job'){
-    // Going back to job tab — need to render job panel inputs
     flushFields();
     activeTab='job';
     renderAll();
     return;
   }
-  // For all other tabs, use switchTab (preserves job panel inputs)
   switchTab(id);
 }
 
@@ -792,7 +791,7 @@ function activateTab(id){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   const p=document.getElementById('panel-'+id);
   if(p) p.classList.add('active');
-  // Use data-tab attribute for reliable matching (not text content)
+  // Reliable: match by data-tab attribute, not text content
   document.querySelectorAll('.tab[data-tab="'+id+'"]').forEach(t=>t.classList.add('active'));
 }
 </script>
