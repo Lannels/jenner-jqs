@@ -174,8 +174,6 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
   </div>
 </div>
 
-<!-- MAIN APP --></div>
-
 <!-- MAIN APP -->
 <div id="appRoot" class="app" style="display:none">
   <aside class="sidebar" id="sidebar">
@@ -337,7 +335,7 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
 // CONFIG  (no Supabase — local storage only)
 // ═══════════════════════════════════
 const STORAGE_KEY = "jenner_qms_v3";
-const WORKSHOP_PASSWORD = "jenner2025"; // Change this to your preferred passwordconst STORAGE_KEY   = "jenner_qms_v3";
+const WORKSHOP_PASSWORD = "jenner2025";
 
 // ═══════════════════════════════════
 // IMAGES — inserted by build script
@@ -582,12 +580,26 @@ function saveLocal(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(jobs)); }
 function sortedJobs(){ return Object.values(jobs).sort((a,b)=>String(b.savedAt||'').localeCompare(String(a.savedAt||''))); }
 
 function saveNow(){
-  flushAndRender();
-  if(currentJobId) pushJob(currentJobId);
+  const j=jobs[currentJobId];
+  if(j){
+    ['jobNumber','customer','drawingRev','requiredDelivery','operator',
+     'machineOperation','qtyOrdered','qtySupplied','material',
+     'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
+      const el=document.getElementById(key);
+      if(el) j[key]=el.value;
+    });
+    j.savedAt=new Date().toISOString();
+    saveLocal();
+  }
+  setStatus('Saved ✓');
 }
 function scheduleSave(){
-  // Save immediately so navigation always sees current data
-  saveNow();
+  if(saveTimer) clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>{
+    const j=jobs[currentJobId];
+    if(j){ j.savedAt=new Date().toISOString(); saveLocal(); }
+    setStatus('Saved ✓');
+  },600);
 }
 function setStatus(msg){ document.getElementById('statusBox').textContent=msg; }
 
@@ -743,26 +755,11 @@ function renderTabs(){
 // GLOBAL NAV FUNCTIONS — defined outside rendered HTML so they 
 // can't be destroyed mid-click when the DOM re-renders
 // ═══════════════════════════════════
-function _navTo(tabId){
-  activeTab=tabId;
-  const j=jobs[currentJobId];
-  if(j){
-    ['jobNumber','customer','drawingRev','requiredDelivery','operator',
-     'machineOperation','qtyOrdered','qtySupplied','material',
-     'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
-      const el=document.getElementById(key);
-      if(el) j[key]=el.value;
-    });
-    j.savedAt=new Date().toISOString();
-    saveLocal();
-  }
-  setTimeout(()=>renderAll(), 0);
-}
-function goToPrestart()    { _navTo('prestart'); }
-function goToInspections() { _navTo('inspections'); }
-function goToFinal()       { _navTo('final'); }
-function goToCoC()         { _navTo('coc'); }
-function goToTime()        { _navTo('time'); }
+function goToPrestart()    { showTab('prestart'); }
+function goToInspections() { showTab('inspections'); }
+function goToFinal()       { showTab('final'); }
+function goToCoC()         { showTab('coc'); }
+function goToTime()        { showTab('time'); }
 
 function showTab(id){
   activeTab=id;
@@ -784,7 +781,7 @@ function showTab(id){
 }
 
 function flushAndRender(){
-  showTab(activeTab);
+  saveNow();
 }
 function showReports(){
   activeTab='reports';
@@ -813,16 +810,10 @@ function bind(id,getter,setter){
   const el=document.getElementById(id); if(!el) return;
   if(document.activeElement!==el) el.value=getter()??'';
   const j=jobs[currentJobId];
-  if(j?.cocIssued){ el.disabled=true; el.oninput=null; return; }
+  if(j?.cocIssued){ el.disabled=true; el.oninput=null; el.onblur=null; return; }
   el.disabled=false;
-  el.oninput=e=>{
-    setter(e.target.value);
-    saveLocal();
-    setStatus('Saved ✓');
-    renderJobStatus(jobs[currentJobId]);
-    renderHero();
-    renderTabs();
-  };
+  el.oninput=e=>{ setter(e.target.value); scheduleSave(); };
+  el.onblur=()=>{ renderJobStatus(jobs[currentJobId]); renderHero(); renderTabs(); };
 }
 
 function renderJobPanel(){
@@ -1000,12 +991,18 @@ window.so_set=(field,key,val)=>{
   const j=jobs[currentJobId]; if(!j) return;
   if(!j[field]) j[field]={};
   j[field][key]=val;
-  // Auto-fill date/time when name is entered
   if(key==='name'&&!j[field].date) j[field].date=today();
   if(key==='name'&&!j[field].time) j[field].time=nowTime();
   if(key==='operatorName'&&!j[field].operatorDate) j[field].operatorDate=today();
   if(key==='operatorName'&&!j[field].operatorTime) j[field].operatorTime=nowTime();
-  scheduleSave();
+  saveLocal();
+  renderTabs();
+  renderHero();
+  // Re-render the active panel so completion banner appears
+  if(activeTab==='prestart') renderPrestartPanel();
+  else if(activeTab==='inspections') renderInspectionsPanel();
+  else if(activeTab==='final') renderFinalPanel();
+  else if(activeTab==='coc') renderCoCPanel();
 };
 window.so_sig=(field,val)=>{
   const j=jobs[currentJobId]; if(!j) return;
@@ -1063,7 +1060,7 @@ function renderPrestartPanel(){
   }
   el.innerHTML=html;
 }
-window.ps_check=(sec,i,v)=>{const j=jobs[currentJobId];if(j){j.prestart[sec][i].ok=v;scheduleSave();}};
+window.ps_check=(sec,i,v)=>{const j=jobs[currentJobId];if(j){j.prestart[sec][i].ok=v;saveLocal();renderPrestartPanel();renderTabs();}};
 
 // ═══════════════════════════════════
 // INSPECTIONS PANEL
@@ -1115,9 +1112,9 @@ function renderInspectionsPanel(){
   }
   el.innerHTML=html;
 }
-window.ip_check=(i,v)=>{const j=jobs[currentJobId];if(j){j.inProcess[i].ok=v;scheduleSave();}};
+window.ip_check=(i,v)=>{const j=jobs[currentJobId];if(j){j.inProcess[i].ok=v;saveLocal();renderInspectionsPanel();renderTabs();}};
 window.prog_feat=(i,v)=>{const j=jobs[currentJobId];if(j){j.progress[i].feature=v;scheduleSave();}};
-window.prog_result=(i,r)=>{const j=jobs[currentJobId];if(j){j.progress[i].pass=(r==='pass');j.progress[i].fail=(r==='fail');scheduleSave();}};
+window.prog_result=(i,r)=>{const j=jobs[currentJobId];if(j){j.progress[i].pass=(r==='pass');j.progress[i].fail=(r==='fail');saveLocal();renderInspectionsPanel();renderTabs();}};
 window.prog_note=(i,v)=>{const j=jobs[currentJobId];if(j){j.progress[i].notes=v;scheduleSave();}};
 
 // ═══════════════════════════════════
@@ -1185,8 +1182,8 @@ function renderFinalPanel(){
   </div></div>`;
   el.innerHTML=html;
 }
-window.res_set=(k,v)=>{const j=jobs[currentJobId];if(j){j.results[k]=v;scheduleSave();}};
-window.fs_set=(k,v)=>{const j=jobs[currentJobId];if(j){j.finalSignoff[k]=v;scheduleSave();}};
+window.res_set=(k,v)=>{const j=jobs[currentJobId];if(j){j.results[k]=v;saveLocal();}};
+window.fs_set=(k,v)=>{const j=jobs[currentJobId];if(j){j.finalSignoff[k]=v;saveLocal();renderFinalPanel();renderTabs();}};
 
 // ═══════════════════════════════════
 // COC PANEL
@@ -1693,8 +1690,8 @@ function renderReports(){
     <select id="reportFY" onchange="renderReports()" style="padding:7px 12px;border:1px solid #ccc;border-radius:7px;font-weight:700">
       ${allFYs.map(f=>`<option value="${f}"${f===selFY?' selected':''}>${f}</option>`).join('')}
     </select>
-    <button class="btn-gold" onclick="exportFYCSV('${selFY}')">⬇ Export CSV</button>
-    <button class="btn-dark" onclick="exportISOReport('${selFY}')">📋 ISO 9001 Report</button>
+    <button class="btn-gold" onclick="exportFYCSV(document.getElementById('reportFY').value)">⬇ Export CSV</button>
+    <button class="btn-dark" onclick="exportISOReport(document.getElementById('reportFY').value)">📋 ISO 9001 Report</button>
   </div>
 
   <!-- ROW 1: TOP KPIs matching Excel workbook -->
@@ -2657,6 +2654,8 @@ window.downloadCoCPDF=()=>{
 // ═══════════════════════════════════
 // GLOBAL WINDOW EXPORTS
 // ═══════════════════════════════════
+window.genCoCNumber   = genCoCNumber;
+window.saveNow        = saveNow;
 window.doLogin        = doLogin;
 window.doLogout       = doLogout;
 window.createJob      = createJob;
