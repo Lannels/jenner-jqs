@@ -487,9 +487,29 @@ function normalizeJob(raw, idFallback=''){
 // SECTION COMPLETION LOGIC
 // ═══════════════════════════════════
 function sectionComplete(j, sec){
-  // All sections always accessible - no blockers
   if(!j) return false;
-  return true;
+  switch(sec){
+    case 'job':
+      // Four required header fields must be filled (matches renderJobStatus)
+      return !!(j.jobNumber&&j.jobNumber.trim()&&
+                j.customer&&j.customer.trim()&&
+                j.drawingRev&&j.drawingRev.trim()&&
+                j.requiredDelivery&&j.requiredDelivery.trim());
+    case 'prestart':
+      // Supervisor sign-off name + date (matches prestartPanel "complete" check)
+      return !!(j.prestartSignoff&&j.prestartSignoff.name&&j.prestartSignoff.date);
+    case 'inspections':
+      // In-process supervisor sign-off name + date (matches inspectionsPanel check)
+      return !!(j.inProcessSignoff&&j.inProcessSignoff.name&&j.inProcessSignoff.date);
+    case 'final':
+      // Final supervisor sign-off name + date (matches finalPanel GoToCoC check)
+      return !!(j.finalSignoff&&j.finalSignoff.name&&j.finalSignoff.date);
+    case 'coc':
+      return !!j.cocIssued;
+    default:
+      // time, ncr, audit — always accessible once a job exists
+      return true;
+  }
 }
 function openNCRs(j){ return (j?.ncrs||[]).filter(n=>n.status==='open'); }
 function canIssueCoC(j){
