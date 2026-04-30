@@ -662,6 +662,8 @@ function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('o
 // RENDER ENGINE
 // ═══════════════════════════════════
 function renderAll(){
+  // Render content first, then bind tabs using delegated event handling.
+  // This keeps navigation working on GitHub Pages even after the tabs are re-rendered.
   renderJobList(); renderHero(); renderTabs(); bindTabClicks();
   renderJobPanel(); renderPrestartPanel(); renderInspectionsPanel();
   renderFinalPanel(); renderCoCPanel(); renderTimePanel();
@@ -714,7 +716,7 @@ function renderTabs(){
       const hasIssue=t.id==='ncr'&&j&&openNCRs(j).length>0;
       const isLocked=!j && !['job','reports'].includes(t.id);
       return `<button type="button" class="tab ${activeTab===t.id?'active':''} ${isLocked?'locked':''}"
-        data-tab="${t.id}">
+        data-tab="${t.id}" aria-controls="panel-${t.id}">
         ${t.label}${hasIssue?' <span class="tab-pill tp-issue">⚠</span>':''}
       </button>`;
     }).join('');
@@ -728,13 +730,14 @@ function bindTabClicks(){
     const btn=e.target.closest('.tab[data-tab]');
     if(!btn) return;
     e.preventDefault();
+    e.stopPropagation();
     showTab(btn.dataset.tab);
   });
 }
 
 // ═══════════════════════════════════
-// GLOBAL NAV FUNCTIONS — defined outside rendered HTML so they
-// cannot be destroyed mid-click when the DOM re-renders
+// GLOBAL NAV FUNCTIONS — defined outside rendered HTML so they 
+// can't be destroyed mid-click when the DOM re-renders
 // ═══════════════════════════════════
 function flushFields(){
   const j=jobs[currentJobId]; if(!j) return;
@@ -747,19 +750,15 @@ function flushFields(){
   j.savedAt=new Date().toISOString();
   saveLocal();
 }
-function goToPrestart()    { showTab('prestart'); }
-function goToInspections() { showTab('inspections'); }
-function goToFinal()       { showTab('final'); }
-function goToCoC()         { showTab('coc'); }
-function goToTime()        { showTab('time'); }
+function goToPrestart()    { flushFields(); activeTab='prestart';    renderAll(); }
+function goToInspections() { flushFields(); activeTab='inspections'; renderAll(); }
+function goToFinal()       { flushFields(); activeTab='final';       renderAll(); }
+function goToCoC()         { flushFields(); activeTab='coc';         renderAll(); }
+function goToTime()        { flushFields(); activeTab='time';        renderAll(); }
 
 function showTab(id){
   const target=TAB_DEFS.find(t=>t.id===id)?.id||'job';
-  if(target==='reports'){
-    activeTab='reports';
-    showReports();
-    return;
-  }
+  if(target==='reports'){ activeTab='reports'; showReports(); return; }
   if(!currentJobId && target!=='job'){
     activeTab='job';
     activateTab('job');
@@ -777,9 +776,9 @@ function flushAndRender(){
 }
 function showReports(){
   activeTab='reports';
-  renderReports();
-  activateTab('reports');
   renderTabs();
+  bindTabClicks();
+  renderReports();
   activateTab('reports');
 }
 
@@ -2662,8 +2661,8 @@ window.toggleSidebar  = toggleSidebar;
 window.renderReports  = renderReports;
 window.exportFYCSV    = exportFYCSV;
 window.exportISOReport= exportISOReport;
-window.openCoCPage    = openCoCPage;
-window.downloadJobPackPDF = downloadJobPackPDF;
+window.openCoCPage    = window.openCoCPage;
+window.downloadJobPackPDF = window.downloadJobPackPDF;
 window.closeModal     = (id)=>document.getElementById(id).classList.remove('open');
 window.promptIssueCoC = ()=>{
   const j=jobs[currentJobId]; if(!j) return;
@@ -2730,3 +2729,4 @@ document.getElementById('sidebarLogo').src  = IMG_LOGO;
 </script>
 </body>
 </html>
+
