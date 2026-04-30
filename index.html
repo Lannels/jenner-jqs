@@ -252,14 +252,6 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
           <tbody id="itemsBody"></tbody></table>
         </div>
       </div>
-      <div class="card">
-        <div class="card-head">Drawing Attachments
-          <label style="background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer">
-            📎 Add Drawing PDF <input type="file" accept=".pdf" multiple style="display:none" onchange="attachDrawing(event)">
-          </label>
-        </div>
-        <div class="card-body"><div id="drawingAttachInfo" style="color:var(--muted);font-size:12px">No drawings attached.</div></div>
-      </div>
 
       <div style="background:#b42318;border-radius:10px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:14px">
         <span style="font-size:28px">⏱</span>
@@ -423,7 +415,7 @@ function defaultJob(id){
       {qty:'',partNumber:'',description:''},
       {qty:'',partNumber:'',description:''}
     ],
-    drawings:[], // array of {name, data} — supports multiple drawings
+    drawings:[],
     prestart:deepClone(PRESTART_DEFAULT),
     prestartSignoff:{name:'',signatureKey:'',date:'',time:''},
     inProcess:deepClone(INPROCESS_DEFAULT),
@@ -480,10 +472,7 @@ function normalizeJob(raw, idFallback=''){
   j.lostEntries=raw.lostEntries||raw.inspections?.lost||j.lostEntries;
   j.ncrs=raw.ncrs||[];
   j.auditLog=raw.auditLog||[];
-  // migrate old single drawing to array
-  if(raw.drawings) j.drawings=raw.drawings;
-  else if(raw.drawingPdf) j.drawings=[{name:raw.drawingPdfName||'drawing.pdf',data:raw.drawingPdf}];
-  else j.drawings=j.drawings||[];
+  j.drawings=[];
   j.cocIssued=raw.cocIssued||false;
   j.cocIssuedAt=raw.cocIssuedAt||'';
   j.cocIssuedBy=raw.cocIssuedBy||'';
@@ -582,6 +571,18 @@ function showApp(){
 // ═══════════════════════════════════
 // PERSISTENCE
 // ═══════════════════════════════════
+// ═══════════════════════════════════
+// PERSISTENCE
+// ═══════════════════════════════════
+function saveLocal(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
+  }catch(e){
+    setStatus('⚠ Save failed — storage full. Use Export to back up your data.');
+    console.error('saveLocal failed:',e);
+  }
+}
+
 function loadLocal(){
   try{
     const r=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');
@@ -589,7 +590,6 @@ function loadLocal(){
     Object.entries(r).forEach(([k,v])=>jobs[k]=normalizeJob(v,k));
   }catch(e){jobs={};}
 }
-function saveLocal(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(jobs)); }
 function sortedJobs(){ return Object.values(jobs).sort((a,b)=>String(b.savedAt||'').localeCompare(String(a.savedAt||''))); }
 
 function flushFields(){
@@ -639,7 +639,6 @@ function syncFromServer(){
         Object.entries(imported).forEach(([k,v])=>{
           const srv=normalizeJob(v,k);
           const loc=jobs[k];
-          // Take imported version if newer or not present locally
           if(!loc||new Date(srv.savedAt)>=new Date(loc.savedAt||0)){
             jobs[k]=srv; count++;
           }
@@ -657,7 +656,6 @@ function syncFromServer(){
 
 
 function syncToServer(){
-  // Export all jobs to a JSON backup file
   const data=JSON.stringify(jobs, null, 2);
   const blob=new Blob([data],{type:'application/json'});
   const a=document.createElement('a');
@@ -893,7 +891,6 @@ function renderJobPanel(){
   bind('dateStarted',()=>j.dateStarted,v=>j.dateStarted=v);
   bind('actualDelivery',()=>j.actualDelivery,v=>j.actualDelivery=v);
   renderItemsTable(j);
-  renderDrawingInfo(j);
   renderJobStatus(j);
 }
 
@@ -947,53 +944,6 @@ function renderItemsTable(j){
 window.j_item=(i,f,v)=>{const j=jobs[currentJobId];if(j){j.items[i][f]=v;scheduleSave();}};
 window.addItemRow=()=>{const j=jobs[currentJobId];if(j){j.items.push({qty:'',partNumber:'',description:''});scheduleSave();renderItemsTable(j);}};
 window.removeItem=(i)=>{const j=jobs[currentJobId];if(j&&j.items.length>1){j.items.splice(i,1);scheduleSave();renderItemsTable(j);}};
-
-function renderDrawingInfo(j){
-  const el=document.getElementById('drawingAttachInfo'); if(!el) return;
-  const drawings=j.drawings||[];
-  if(!drawings.length){
-    el.innerHTML=`<div style="color:var(--muted);font-size:12px">No drawings attached. Use the <strong>Add Drawing PDF</strong> button to attach one or more drawings. Multiple drawings supported.</div>`;
-    return;
-  }
-  el.innerHTML=drawings.map((d,i)=>`
-    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0f0f0">
-      <span style="font-size:18px">📄</span>
-      <span style="font-weight:700;font-size:13px;flex:1">${esc(d.name)}</span>
-      <button class="btn-white btn-sm" onclick="viewDrawing(${i})">View</button>
-      ${!j.cocIssued?`<button class="btn-red btn-sm" onclick="removeDrawing(${i})">Remove</button>`:''}
-    </div>`).join('');
-}
-window.attachDrawing=(evt)=>{
-  const files=[...evt.target.files]; if(!files.length) return;
-  const j=jobs[currentJobId]; if(!j) return;
-  if(!j.drawings) j.drawings=[];
-  let loaded=0;
-  files.forEach(f=>{
-    if(f.size>15*1024*1024){alert(f.name+' is over 15MB — please compress before attaching.');return;}
-    const reader=new FileReader();
-    reader.onload=()=>{
-      j.drawings.push({name:f.name, data:reader.result.split(',')[1]});
-      loaded++;
-      if(loaded===files.length){scheduleSave();renderDrawingInfo(j);}
-      writeAudit(j.id,'drawing_attached','job','Drawing attached: '+f.name);
-    };
-    reader.readAsDataURL(f);
-  });
-  evt.target.value='';
-};
-window.removeDrawing=(i)=>{
-  const j=jobs[currentJobId];
-  if(j&&j.drawings){j.drawings.splice(i,1);scheduleSave();renderDrawingInfo(j);}
-};
-window.viewDrawing=(i)=>{
-  const j=jobs[currentJobId];
-  const d=j?.drawings?.[i];
-  if(d){
-    const w=window.open();
-    w.document.write(`<title>${d.name}</title><iframe src="data:application/pdf;base64,${d.data}" width="100%" height="100%" style="border:none;margin:0"></iframe>`);
-    w.document.close();
-  }
-};
 
 // ═══════════════════════════════════
 // SIGN-OFF BOX HELPER
@@ -2068,7 +2018,7 @@ window.downloadJobPackPDF=()=>{
   if(!j){alert('No job selected.');return;}
   try{
     const {jsPDF}=window.jspdf;
-    const PAGES=5+(j.drawings?.length||0);
+    const PAGES=5;
     const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
 
     // Helper: small job header strip on every page after page 1
@@ -2660,19 +2610,6 @@ window.downloadCompletedPDF=()=>{
       }); y+=7;
     });
     pdfFooter(doc,'JEN.QMS.01',6,PAGES);
-
-    // ── Pages 7+: Drawings (if attached) ──
-    const drawings=j.drawings||[];
-    drawings.forEach((d,di)=>{
-      try{
-        doc.addPage();
-        pdfHeader(doc,`Customer Drawing ${drawings.length>1?'('+(di+1)+' of '+drawings.length+') — ':'— '}${d.name}`,'DRAWING',7+di,PAGES+drawings.length-1);
-        doc.setFontSize(9);doc.setTextColor(100,100,100);
-        doc.text('Customer drawing attached — refer to original file for full detail.',10,60);
-        doc.text('File: '+d.name,10,70);
-        pdfFooter(doc,'DRAWING',7+di,PAGES+drawings.length-1);
-      }catch(e){}
-    });
 
     doc.save(`Jenner-JobPack-${j.jobNumber||'Job'}-${(j.customer||'').replace(/[^a-z0-9]/gi,'-')}.pdf`);
   }catch(e){console.error('PDF Error:',e);alert('PDF failed: '+e.message);}
