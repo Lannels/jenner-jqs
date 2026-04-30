@@ -563,8 +563,8 @@ function showApp(){
   document.getElementById('sbUserName').textContent=currentUser.name;
   document.getElementById('sbUserRole').textContent=
     currentUser.role+(currentUser.coc_authority?' · CoC Authority':'');
-  // Reports visible to all users
   loadLocal();
+  buildTabs(); // build tab buttons once — event delegation handles all future clicks
   renderAll();
   setStatus('Ready — data saved on this device');
 }
@@ -752,23 +752,59 @@ const TAB_DEFS=[
   {id:'reports', label:'📊 Reports',          needs:null}
 ];
 
+// ═══════════════════════════════════
+// TAB SYSTEM — delegation-based, buttons built ONCE
+// ═══════════════════════════════════
+
+// Build tab buttons once at app init — single delegated listener survives all re-renders
+function buildTabs(){
+  const container=document.getElementById('tabs');
+  container.innerHTML='';
+  TAB_DEFS.forEach(function(t){
+    const btn=document.createElement('button');
+    btn.className='tab';
+    btn.setAttribute('data-tab',t.id);
+    btn.textContent=t.label;
+    container.appendChild(btn);
+  });
+  // One listener on the container — never needs rebuilding
+  container.addEventListener('click',function(e){
+    const btn=e.target.closest('[data-tab]');
+    if(btn) showTab(btn.getAttribute('data-tab'));
+  });
+}
+
+// renderTabs only updates classes/pills — never destroys buttons
 function renderTabs(){
   const j=jobs[currentJobId];
-  document.getElementById('tabs').innerHTML=TAB_DEFS
-    .map(t=>{
-      const hasIssue=t.id==='ncr'&&j&&openNCRs(j).length>0;
-      return '<button class="tab '+(activeTab===t.id?'active':'')+'" data-tab="'+t.id+'" onclick="showTab(\''+t.id+'\')">'
-        +t.label+(hasIssue?' <span class="tab-pill tp-issue">⚠</span>':'')
-        +'</button>';
-    }).join('');
+  document.querySelectorAll('#tabs [data-tab]').forEach(function(btn){
+    const id=btn.getAttribute('data-tab');
+    const hasIssue=(id==='ncr')&&j&&openNCRs(j).length>0;
+    btn.className='tab'+(activeTab===id?' active':'');
+    var pill=btn.querySelector('.tab-pill');
+    if(hasIssue){
+      if(!pill){pill=document.createElement('span');pill.className='tab-pill tp-issue';btn.appendChild(pill);}
+      pill.textContent='\u26A0';
+    } else {
+      if(pill) pill.remove();
+    }
+  });
+}
+
+// activateTab: show the right panel and mark the right button active
+function activateTab(id){
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('#tabs [data-tab]').forEach(function(t){
+    t.classList.toggle('active', t.getAttribute('data-tab')===id);
+  });
+  var p=document.getElementById('panel-'+id);
+  if(p) p.classList.add('active');
 }
 
 // ═══════════════════════════════════
-// GLOBAL NAV FUNCTIONS — defined outside rendered HTML so they 
-// can't be destroyed mid-click when the DOM re-renders
+// NAVIGATION
 // ═══════════════════════════════════
 function switchTab(id){
-  // Internal tab switcher — does NOT re-render job panel inputs
   flushFields();
   activeTab=id;
   renderJobList(); renderHero(); renderTabs();
@@ -784,35 +820,20 @@ function goToCoC()         { switchTab('coc'); }
 function goToTime()        { switchTab('time'); }
 
 function showTab(id){
-  // Always update activeTab and ensure the panel becomes visible
   if(id==='reports'){ flushFields(); activeTab='reports'; showReports(); return; }
   if(id==='job'){
-    flushFields();
-    activeTab='job';
-    renderAll();
-    return;
+    flushFields(); activeTab='job'; renderAll(); return;
   }
   switchTab(id);
 }
 
-function flushAndRender(){
-  flushFields();
-  renderAll();
-}
+function flushAndRender(){ flushFields(); renderAll(); }
+
 function showReports(){
   activeTab='reports';
+  renderJobList(); renderHero(); renderTabs();
   activateTab('reports');
-  renderTabs();
   renderReports();
-}
-
-function activateTab(id){
-  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  const p=document.getElementById('panel-'+id);
-  if(p) p.classList.add('active');
-  // Reliable: match by data-tab attribute, not text content
-  document.querySelectorAll('.tab[data-tab="'+id+'"]').forEach(t=>t.classList.add('active'));
 }
 </script>
 
