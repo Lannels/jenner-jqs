@@ -487,25 +487,9 @@ function normalizeJob(raw, idFallback=''){
 // SECTION COMPLETION LOGIC
 // ═══════════════════════════════════
 function sectionComplete(j, sec){
+  // All sections always accessible - no blockers
   if(!j) return false;
-  switch(sec){
-    case 'job':
-      return !!(j.jobNumber?.trim()&&j.customer?.trim()&&j.drawingRev?.trim()&&j.requiredDelivery?.trim());
-    case 'prestart':{
-      const allChecked=['safety','drawing','machine'].every(s=>j.prestart[s].every(r=>r.ok));
-      return allChecked&&!!(j.prestartSignoff.name&&j.prestartSignoff.date);
-    }
-    case 'inspections':{
-      const ipOk=j.inProcess.every(r=>r.ok);
-      const progOk=j.progress.every(r=>r.pass||r.fail);
-      return ipOk&&progOk&&!!(j.inProcessSignoff.name&&j.inProcessSignoff.date);
-    }
-    case 'final':
-      return j.progress.every(r=>r.pass||r.fail)&&
-             (j.finalSignoff.allPass||j.finalSignoff.failNcr)&&
-             !!(j.finalSignoff.name&&j.finalSignoff.date);
-    default: return false;
-  }
+  return true;
 }
 function openNCRs(j){ return (j?.ncrs||[]).filter(n=>n.status==='open'); }
 function canIssueCoC(j){
@@ -724,28 +708,20 @@ const TAB_DEFS=[
 function renderTabs(){
   const j=jobs[currentJobId];
   document.getElementById('tabs').innerHTML=TAB_DEFS
-    .filter(t=>true) // all tabs visible to all users
     .map(t=>{
-      const locked=!!(t.needs&&!sectionComplete(j,t.needs));
-      const done=sectionComplete(j,t.id);
       const hasIssue=t.id==='ncr'&&j&&openNCRs(j).length>0;
-      const pillClass=hasIssue?'tp-issue':done?'tp-done':locked?'tp-locked':'';
-      const pillText=hasIssue?'⚠':done?'✓':locked?'🔒':'';
-      const lockedTitle=locked?`Complete "${TAB_DEFS.find(td=>td.id===t.needs)?.label||t.needs}" first`:'';
-      return `<button class="tab ${activeTab===t.id?'active':''} ${locked?'locked':''}"
-        onclick="${locked?'':("showTab('"+t.id+"')")}"
-        title="${locked?lockedTitle:''}"
-        style="${locked?'cursor:not-allowed;opacity:.4':''}">
-        ${t.label}${(done||locked||hasIssue)?` <span class="tab-pill ${pillClass}">${pillText}</span>`:''}
+      return `<button class="tab ${activeTab===t.id?'active':''}"
+        onclick="showTab('${t.id}')">
+        ${t.label}${hasIssue?' <span class="tab-pill tp-issue">⚠</span>':''}
       </button>`;
     }).join('');
 }
 
 // ═══════════════════════════════════
-// NAVIGATION
+// GLOBAL NAV FUNCTIONS — defined outside rendered HTML so they 
+// can't be destroyed mid-click when the DOM re-renders
 // ═══════════════════════════════════
 function flushFields(){
-  // Read all visible input values into the job object before any navigation
   const j=jobs[currentJobId]; if(!j) return;
   ['jobNumber','customer','drawingRev','requiredDelivery','operator',
    'machineOperation','qtyOrdered','qtySupplied','material',
@@ -1056,9 +1032,8 @@ window.ps_check=(sec,i,v)=>{const j=jobs[currentJobId];if(j){j.prestart[sec][i].
 function renderInspectionsPanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('inspectionsContent'); if(!el) return;
-  if(!sectionComplete(j,'job')){el.innerHTML=lockedPanel('Complete Job Information first');return;}
   const locked=j.cocIssued;
-  const prestartDone=sectionComplete(j,'prestart');
+  const prestartDone=true;
   let html=prestartDone?``:`<div class="warning" style="background:#fff3e0;border-color:#e07000;border-left-color:#e07000;color:#7a3c00">📋 Pre-Start not yet signed off — you can enter data here now, but it must be completed before the CoC can be issued.</div>`;
   html+=`<div class="warning">⚠️ In-Process: Completed by the Operator. Supervisor sign-off required at the bottom before proceeding. F-IP/FI-01 v2.0 · ISO 9001:2015 Cl.8.5.1/8.6</div>
   <div class="card"><div class="card-head">In-Process Inspection</div>
@@ -1185,7 +1160,7 @@ function genCoCNumber(j){
 function renderCoCPanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('cocContent'); if(!el) return;
-  if(!sectionComplete(j,'final')){el.innerHTML=lockedPanel('Complete Final Inspection first');return;}
+  // No blocker on CoC panel
   const openN=openNCRs(j);
   if(openN.length>0&&!j.cocIssued){
     el.innerHTML=`<div class="warning red">🔒 ${openN.length} open NCR(s) must be closed before the CoC can be issued.
@@ -1452,7 +1427,6 @@ window.closeModal=(id)=>document.getElementById(id).classList.remove('open');
 function renderTimePanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('timeContent'); if(!el) return;
-  if(!sectionComplete(j,'job')){el.innerHTML=lockedPanel('Complete Job Information first');return;}
   const locked=j.cocIssued;
   const timeRows=j.timeEntries.map((row,i)=>{
     const flds=['operator','date','clockIn','clockOut','hours','chargeable','stage'];
