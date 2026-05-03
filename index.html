@@ -174,6 +174,8 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
   </div>
 </div>
 
+<!-- MAIN APP --></div>
+
 <!-- MAIN APP -->
 <div id="appRoot" class="app" style="display:none">
   <aside class="sidebar" id="sidebar">
@@ -252,6 +254,14 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
           <tbody id="itemsBody"></tbody></table>
         </div>
       </div>
+      <div class="card">
+        <div class="card-head">Drawing Attachments
+          <label style="background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer">
+            📎 Add Drawing PDF <input type="file" accept=".pdf" multiple style="display:none" onchange="attachDrawing(event)">
+          </label>
+        </div>
+        <div class="card-body"><div id="drawingAttachInfo" style="color:var(--muted);font-size:12px">No drawings attached.</div></div>
+      </div>
 
       <div style="background:#b42318;border-radius:10px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:14px">
         <span style="font-size:28px">⏱</span>
@@ -327,7 +337,7 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
 // CONFIG  (no Supabase — local storage only)
 // ═══════════════════════════════════
 const STORAGE_KEY = "jenner_qms_v3";
-const WORKSHOP_PASSWORD = "jenner2025";
+const WORKSHOP_PASSWORD = "jenner2025"; // Change this to your preferred passwordconst STORAGE_KEY   = "jenner_qms_v3";
 
 // ═══════════════════════════════════
 // IMAGES — inserted by build script
@@ -415,7 +425,7 @@ function defaultJob(id){
       {qty:'',partNumber:'',description:''},
       {qty:'',partNumber:'',description:''}
     ],
-    drawings:[],
+    drawings:[], // array of {name, data} — supports multiple drawings
     prestart:deepClone(PRESTART_DEFAULT),
     prestartSignoff:{name:'',signatureKey:'',date:'',time:''},
     inProcess:deepClone(INPROCESS_DEFAULT),
@@ -449,22 +459,13 @@ function normalizeJob(raw, idFallback=''){
   Object.assign(j,raw);
   j.id=raw.id||idFallback||j.id;
   j.items=(raw.items&&raw.items.length)?raw.items:j.items;
-  // Normalize prestart — fall back per-section if arrays are missing/empty
-  const rawPre=raw.prestart||{};
-  j.prestart={
-    safety: (rawPre.safety&&rawPre.safety.length) ? rawPre.safety : deepClone(PRESTART_DEFAULT.safety),
-    drawing:(rawPre.drawing&&rawPre.drawing.length)? rawPre.drawing: deepClone(PRESTART_DEFAULT.drawing),
-    machine:(rawPre.machine&&rawPre.machine.length)? rawPre.machine: deepClone(PRESTART_DEFAULT.machine)
-  };
+  j.prestart=raw.prestart||j.prestart;
   j.prestartSignoff=raw.prestartSignoff||j.prestartSignoff;
-  j.inProcess=(raw.inProcess&&raw.inProcess.length) ? raw.inProcess :
-    (raw.inspections?.inprocess?.length ?
-      raw.inspections.inprocess.map((x,i)=>({...INPROCESS_DEFAULT[i],ok:!!x.ok,sign:x.signature||''})) :
-      deepClone(INPROCESS_DEFAULT));
+  j.inProcess=raw.inProcess||
+    raw.inspections?.inprocess?.map((x,i)=>({...INPROCESS_DEFAULT[i],ok:!!x.ok,sign:x.signature||''})) ||
+    j.inProcess;
   j.inProcessSignoff=raw.inProcessSignoff||j.inProcessSignoff;
-  j.progress=(raw.progress&&raw.progress.length) ? raw.progress :
-    (raw.inspections?.progress?.length ? raw.inspections.progress :
-      [1,2,3,4,5,6].map(n=>({feature:'Dimension '+n,pass:false,fail:false,notes:''})));
+  j.progress=raw.progress||raw.inspections?.progress||j.progress;
   j.results=raw.results||j.results;
   j.finalSignoff=raw.finalSignoff||j.finalSignoff;
   j.coc=raw.coc||j.coc;
@@ -472,7 +473,10 @@ function normalizeJob(raw, idFallback=''){
   j.lostEntries=raw.lostEntries||raw.inspections?.lost||j.lostEntries;
   j.ncrs=raw.ncrs||[];
   j.auditLog=raw.auditLog||[];
-  j.drawings=[];
+  // migrate old single drawing to array
+  if(raw.drawings) j.drawings=raw.drawings;
+  else if(raw.drawingPdf) j.drawings=[{name:raw.drawingPdfName||'drawing.pdf',data:raw.drawingPdf}];
+  else j.drawings=j.drawings||[];
   j.cocIssued=raw.cocIssued||false;
   j.cocIssuedAt=raw.cocIssuedAt||'';
   j.cocIssuedBy=raw.cocIssuedBy||'';
@@ -488,25 +492,21 @@ function sectionComplete(j, sec){
   if(!j) return false;
   switch(sec){
     case 'job':
-      // Four required header fields must be filled (matches renderJobStatus)
-      return !!(j.jobNumber&&j.jobNumber.trim()&&
-                j.customer&&j.customer.trim()&&
-                j.drawingRev&&j.drawingRev.trim()&&
-                j.requiredDelivery&&j.requiredDelivery.trim());
-    case 'prestart':
-      // Supervisor sign-off name + date (matches prestartPanel "complete" check)
-      return !!(j.prestartSignoff&&j.prestartSignoff.name&&j.prestartSignoff.date);
-    case 'inspections':
-      // In-process supervisor sign-off name + date (matches inspectionsPanel check)
-      return !!(j.inProcessSignoff&&j.inProcessSignoff.name&&j.inProcessSignoff.date);
+      return !!(j.jobNumber?.trim()&&j.customer?.trim()&&j.drawingRev?.trim()&&j.requiredDelivery?.trim());
+    case 'prestart':{
+      const allChecked=['safety','drawing','machine'].every(s=>j.prestart[s].every(r=>r.ok));
+      return allChecked&&!!(j.prestartSignoff.name&&j.prestartSignoff.date);
+    }
+    case 'inspections':{
+      const ipOk=j.inProcess.every(r=>r.ok);
+      const progOk=j.progress.every(r=>r.pass||r.fail);
+      return ipOk&&progOk&&!!(j.inProcessSignoff.name&&j.inProcessSignoff.date);
+    }
     case 'final':
-      // Final supervisor sign-off name + date (matches finalPanel GoToCoC check)
-      return !!(j.finalSignoff&&j.finalSignoff.name&&j.finalSignoff.date);
-    case 'coc':
-      return !!j.cocIssued;
-    default:
-      // time, ncr, audit — always accessible once a job exists
-      return true;
+      return j.progress.every(r=>r.pass||r.fail)&&
+             (j.finalSignoff.allPass||j.finalSignoff.failNcr)&&
+             !!(j.finalSignoff.name&&j.finalSignoff.date);
+    default: return false;
   }
 }
 function openNCRs(j){ return (j?.ncrs||[]).filter(n=>n.status==='open'); }
@@ -561,8 +561,8 @@ function showApp(){
   document.getElementById('sbUserName').textContent=currentUser.name;
   document.getElementById('sbUserRole').textContent=
     currentUser.role+(currentUser.coc_authority?' · CoC Authority':'');
+  // Reports visible to all users
   loadLocal();
-  buildTabs(); // build tab buttons once — event delegation handles all future clicks
   renderAll();
   setStatus('Ready — data saved on this device');
 }
@@ -571,18 +571,6 @@ function showApp(){
 // ═══════════════════════════════════
 // PERSISTENCE
 // ═══════════════════════════════════
-// ═══════════════════════════════════
-// PERSISTENCE
-// ═══════════════════════════════════
-function saveLocal(){
-  try{
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
-  }catch(e){
-    setStatus('⚠ Save failed — storage full. Use Export to back up your data.');
-    console.error('saveLocal failed:',e);
-  }
-}
-
 function loadLocal(){
   try{
     const r=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');
@@ -590,37 +578,34 @@ function loadLocal(){
     Object.entries(r).forEach(([k,v])=>jobs[k]=normalizeJob(v,k));
   }catch(e){jobs={};}
 }
-function sortedJobs(){ return Object.values(jobs).sort((a,b)=>String(b.savedAt||'').localeCompare(String(a.savedAt||''))); }
-
-function flushFields(){
-  const j=jobs[currentJobId]; if(!j) return;
-  ['jobNumber','customer','drawingRev','requiredDelivery','operator',
-   'machineOperation','qtyOrdered','qtySupplied','material',
-   'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
-    const el=document.getElementById(key);
-    if(el) j[key]=el.value;
-  });
-  j.savedAt=new Date().toISOString();
-  saveLocal();
+function saveLocal(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(jobs)); }
+function parseJobNum(j){
+  // Extract numeric components for sorting: P.26.0189 -> [26, 189]
+  const s=j.jobNumber||'';
+  const nums=s.match(/\d+/g)||[];
+  if(!nums.length) return [9999,9999,s]; // jobs without numbers go last
+  return nums.map(Number);
 }
+function sortedJobs(){
+  return Object.values(jobs).sort((a,b)=>{
+    const na=parseJobNum(a), nb=parseJobNum(b);
+    // Compare each numeric segment
+    for(let i=0;i<Math.max(na.length,nb.length);i++){
+      const ai=na[i]??-1, bi=nb[i]??-1;
+      if(bi!==ai) return bi-ai; // descending (newest number first)
+    }
+    // Fallback: alphabetical by job number
+    return String(b.jobNumber||'').localeCompare(String(a.jobNumber||''));
+  });
+}
+
 function saveNow(){
-  flushFields();
-  setStatus('Saved ✓');
+  flushAndRender();
+  if(currentJobId) pushJob(currentJobId);
 }
 function scheduleSave(){
-  // Always flush DOM values into j first, then save
-  const j=jobs[currentJobId];
-  if(j){
-    ['jobNumber','customer','drawingRev','requiredDelivery','operator',
-     'machineOperation','qtyOrdered','qtySupplied','material',
-     'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
-      const el=document.getElementById(key);
-      if(el && el.value!==undefined) j[key]=el.value;
-    });
-    j.savedAt=new Date().toISOString();
-    saveLocal();
-    setStatus('Saved ✓');
-  }
+  // Save immediately so navigation always sees current data
+  saveNow();
 }
 function setStatus(msg){ document.getElementById('statusBox').textContent=msg; }
 
@@ -639,6 +624,7 @@ function syncFromServer(){
         Object.entries(imported).forEach(([k,v])=>{
           const srv=normalizeJob(v,k);
           const loc=jobs[k];
+          // Take imported version if newer or not present locally
           if(!loc||new Date(srv.savedAt)>=new Date(loc.savedAt||0)){
             jobs[k]=srv; count++;
           }
@@ -656,6 +642,7 @@ function syncFromServer(){
 
 
 function syncToServer(){
+  // Export all jobs to a JSON backup file
   const data=JSON.stringify(jobs, null, 2);
   const blob=new Blob([data],{type:'application/json'});
   const a=document.createElement('a');
@@ -693,21 +680,14 @@ function writeAudit(jobId,action,section,detail){
 // JOB MANAGEMENT
 // ═══════════════════════════════════
 function createJob(){
-  flushFields();             // save whatever is open
   const id='job_'+Date.now();
   jobs[id]=defaultJob(id);
   currentJobId=id; activeTab='job';
   saveLocal();
   writeAudit(id,'created','job','New job created by '+currentUser.name);
-  renderAll();               // full render since we're going to job tab
+  renderAll();
 }
-function selectJob(id){
-  flushFields();           // save current job before switching
-  currentJobId=id;
-  activeTab='job';
-  renderAll();             // renders job panel since activeTab==='job'
-  setTimeout(()=>{ const j=jobs[id]; if(j) renderJobStatus(j); }, 50);
-}
+function selectJob(id){ currentJobId=id; activeTab='job'; renderAll(); setTimeout(()=>{const j=jobs[id];if(j)renderJobStatus(j);},50); }
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open'); }
 
 // ═══════════════════════════════════
@@ -715,9 +695,7 @@ function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('o
 // ═══════════════════════════════════
 function renderAll(){
   renderJobList(); renderHero(); renderTabs();
-  // Only re-render job panel inputs when on job tab (prevents field reset while typing)
-  if(activeTab==='job') renderJobPanel();
-  renderPrestartPanel(); renderInspectionsPanel();
+  renderJobPanel(); renderPrestartPanel(); renderInspectionsPanel();
   renderFinalPanel(); renderCoCPanel(); renderTimePanel();
   renderNCRPanel(); renderAuditPanel();
   activateTab(activeTab);
@@ -759,88 +737,88 @@ const TAB_DEFS=[
   {id:'reports', label:'📊 Reports',          needs:null}
 ];
 
-// ═══════════════════════════════════
-// TAB SYSTEM — delegation-based, buttons built ONCE
-// ═══════════════════════════════════
-
-// Build tab buttons once at app init — single delegated listener survives all re-renders
-function buildTabs(){
-  const container=document.getElementById('tabs');
-  container.innerHTML='';
-  TAB_DEFS.forEach(function(t){
-    const btn=document.createElement('button');
-    btn.className='tab';
-    btn.setAttribute('data-tab',t.id);
-    btn.textContent=t.label;
-    container.appendChild(btn);
-  });
-  // One listener on the container — never needs rebuilding
-  container.addEventListener('click',function(e){
-    const btn=e.target.closest('[data-tab]');
-    if(btn) showTab(btn.getAttribute('data-tab'));
-  });
-}
-
-// renderTabs only updates classes/pills — never destroys buttons
 function renderTabs(){
   const j=jobs[currentJobId];
-  document.querySelectorAll('#tabs [data-tab]').forEach(function(btn){
-    const id=btn.getAttribute('data-tab');
-    const hasIssue=(id==='ncr')&&j&&openNCRs(j).length>0;
-    btn.className='tab'+(activeTab===id?' active':'');
-    var pill=btn.querySelector('.tab-pill');
-    if(hasIssue){
-      if(!pill){pill=document.createElement('span');pill.className='tab-pill tp-issue';btn.appendChild(pill);}
-      pill.textContent='\u26A0';
-    } else {
-      if(pill) pill.remove();
-    }
-  });
-}
-
-// activateTab: show the right panel and mark the right button active
-function activateTab(id){
-  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
-  document.querySelectorAll('#tabs [data-tab]').forEach(function(t){
-    t.classList.toggle('active', t.getAttribute('data-tab')===id);
-  });
-  var p=document.getElementById('panel-'+id);
-  if(p) p.classList.add('active');
+  document.getElementById('tabs').innerHTML=TAB_DEFS
+    .filter(t=>true) // all tabs visible to all users
+    .map(t=>{
+      const locked=!!(t.needs&&!sectionComplete(j,t.needs));
+      const done=sectionComplete(j,t.id);
+      const hasIssue=t.id==='ncr'&&j&&openNCRs(j).length>0;
+      const pillClass=hasIssue?'tp-issue':done?'tp-done':locked?'tp-locked':'';
+      const pillText=hasIssue?'⚠':done?'✓':locked?'🔒':'';
+      const lockedTitle=locked?`Complete "${TAB_DEFS.find(td=>td.id===t.needs)?.label||t.needs}" first`:'';
+      return `<button class="tab ${activeTab===t.id?'active':''} ${locked?'locked':''}"
+        onclick="${locked?'':("showTab('"+t.id+"')")}"
+        title="${locked?lockedTitle:''}"
+        style="${locked?'cursor:not-allowed;opacity:.4':''}">
+        ${t.label}${(done||locked||hasIssue)?` <span class="tab-pill ${pillClass}">${pillText}</span>`:''}
+      </button>`;
+    }).join('');
 }
 
 // ═══════════════════════════════════
-// NAVIGATION
+// GLOBAL NAV FUNCTIONS — defined outside rendered HTML so they 
+// can't be destroyed mid-click when the DOM re-renders
 // ═══════════════════════════════════
-function switchTab(id){
-  flushFields();
-  activeTab=id;
-  renderJobList(); renderHero(); renderTabs();
-  renderPrestartPanel(); renderInspectionsPanel();
-  renderFinalPanel(); renderCoCPanel(); renderTimePanel();
-  renderNCRPanel(); renderAuditPanel();
-  activateTab(id);
+function _navTo(tabId){
+  activeTab=tabId;
+  const j=jobs[currentJobId];
+  if(j){
+    ['jobNumber','customer','drawingRev','requiredDelivery','operator',
+     'machineOperation','qtyOrdered','qtySupplied','material',
+     'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
+      const el=document.getElementById(key);
+      if(el) j[key]=el.value;
+    });
+    j.savedAt=new Date().toISOString();
+    saveLocal();
+  }
+  setTimeout(()=>renderAll(), 0);
 }
-function goToPrestart()    { switchTab('prestart'); }
-function goToInspections() { switchTab('inspections'); }
-function goToFinal()       { switchTab('final'); }
-function goToCoC()         { switchTab('coc'); }
-function goToTime()        { switchTab('time'); }
+function goToPrestart()    { _navTo('prestart'); }
+function goToInspections() { _navTo('inspections'); }
+function goToFinal()       { _navTo('final'); }
+function goToCoC()         { _navTo('coc'); }
+function goToTime()        { _navTo('time'); }
 
 function showTab(id){
-  if(id==='reports'){ flushFields(); activeTab='reports'; showReports(); return; }
-  if(id==='job'){
-    flushFields(); activeTab='job'; renderAll(); return;
+  activeTab=id;
+  if(id==='reports'){ showReports(); return; }
+  // Flush inputs to job object first
+  const j=jobs[currentJobId];
+  if(j){
+    ['jobNumber','customer','drawingRev','requiredDelivery','operator',
+     'machineOperation','qtyOrdered','qtySupplied','material',
+     'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
+      const el=document.getElementById(key);
+      if(el) j[key]=el.value;
+    });
+    j.savedAt=new Date().toISOString();
+    saveLocal();
   }
-  switchTab(id);
+  // Use setTimeout so the current click event fully completes before re-rendering
+  setTimeout(()=>renderAll(), 0);
 }
 
-function flushAndRender(){ flushFields(); renderAll(); }
-
+function flushAndRender(){
+  showTab(activeTab);
+}
 function showReports(){
   activeTab='reports';
-  renderJobList(); renderHero(); renderTabs();
   activateTab('reports');
+  renderTabs();
   renderReports();
+}
+
+function activateTab(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  const p=document.getElementById('panel-'+id);
+  if(p) p.classList.add('active');
+  document.querySelectorAll('.tab').forEach(t=>{
+    if(t.textContent.includes(TAB_DEFS.find(td=>td.id===id)?.label?.split(' ')[0]||'__')) t.classList.add('active');
+  });
 }
 </script>
 
@@ -851,25 +829,15 @@ function showReports(){
 // ═══════════════════════════════════
 function bind(id,getter,setter){
   const el=document.getElementById(id); if(!el) return;
+  if(document.activeElement!==el) el.value=getter()??'';
   const j=jobs[currentJobId];
-  if(j?.cocIssued){ el.disabled=true; el.oninput=null; el.onblur=null; return; }
+  if(j?.cocIssued){ el.disabled=true; el.oninput=null; return; }
   el.disabled=false;
-  // Only reset value if field is not currently focused (user is not typing)
-  if(document.activeElement!==el){ el.value=getter()??''; }
   el.oninput=e=>{
-    setter(e.target.value);   // update j immediately
-    j.savedAt=new Date().toISOString();
-    saveLocal();              // persist immediately — no delay
-    setStatus('Saved ✓');
-    renderJobStatus(j);       // update status bar live
-    renderHero();
-    renderTabs();
-  };
-  el.onblur=()=>{
-    setter(el.value);         // ensure final value captured
-    j.savedAt=new Date().toISOString();
+    setter(e.target.value);
     saveLocal();
-    renderJobStatus(j);
+    setStatus('Saved ✓');
+    renderJobStatus(jobs[currentJobId]);
     renderHero();
     renderTabs();
   };
@@ -891,6 +859,7 @@ function renderJobPanel(){
   bind('dateStarted',()=>j.dateStarted,v=>j.dateStarted=v);
   bind('actualDelivery',()=>j.actualDelivery,v=>j.actualDelivery=v);
   renderItemsTable(j);
+  renderDrawingInfo(j);
   renderJobStatus(j);
 }
 
@@ -902,13 +871,7 @@ function renderJobStatus(j){
     {key:'drawingRev',      label:'Drawing / Rev'},
     {key:'requiredDelivery',label:'Required Delivery'}
   ];
-  // Read from DOM inputs too (catches values typed before j was updated)
-  const getVal=(key)=>{
-    const domEl=document.getElementById(key);
-    const domVal=domEl?domEl.value:'';
-    return domVal||String(j[key]||'');
-  };
-  const missing=required.filter(f=>!getVal(f.key).trim());
+  const missing=required.filter(f=>!String(j[f.key]||'').trim());
   if(missing.length===0){
     el.innerHTML=`<div style="background:#d4edda;border:2px solid var(--green);border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px">
       <div style="display:flex;align-items:center;gap:12px">
@@ -941,9 +904,56 @@ function renderItemsTable(j){
     <td>${!j.cocIssued?`<button class="btn-red btn-sm" onclick="removeItem(${i})">✕</button>`:''}</td>
   </tr>`).join('');
 }
-window.j_item=(i,f,v)=>{const j=jobs[currentJobId];if(j){j.items[i][f]=v;scheduleSave();}};
+window.j_item=(i,f,v)=>{const j=jobs[currentJobId];if(j){j.items[i][f]=v;saveLocal();setStatus('Saved ✓');}};
 window.addItemRow=()=>{const j=jobs[currentJobId];if(j){j.items.push({qty:'',partNumber:'',description:''});scheduleSave();renderItemsTable(j);}};
 window.removeItem=(i)=>{const j=jobs[currentJobId];if(j&&j.items.length>1){j.items.splice(i,1);scheduleSave();renderItemsTable(j);}};
+
+function renderDrawingInfo(j){
+  const el=document.getElementById('drawingAttachInfo'); if(!el) return;
+  const drawings=j.drawings||[];
+  if(!drawings.length){
+    el.innerHTML=`<div style="color:var(--muted);font-size:12px">No drawings attached. Use the <strong>Add Drawing PDF</strong> button to attach one or more drawings. Multiple drawings supported.</div>`;
+    return;
+  }
+  el.innerHTML=drawings.map((d,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0f0f0">
+      <span style="font-size:18px">📄</span>
+      <span style="font-weight:700;font-size:13px;flex:1">${esc(d.name)}</span>
+      <button class="btn-white btn-sm" onclick="viewDrawing(${i})">View</button>
+      ${!j.cocIssued?`<button class="btn-red btn-sm" onclick="removeDrawing(${i})">Remove</button>`:''}
+    </div>`).join('');
+}
+window.attachDrawing=(evt)=>{
+  const files=[...evt.target.files]; if(!files.length) return;
+  const j=jobs[currentJobId]; if(!j) return;
+  if(!j.drawings) j.drawings=[];
+  let loaded=0;
+  files.forEach(f=>{
+    if(f.size>15*1024*1024){alert(f.name+' is over 15MB — please compress before attaching.');return;}
+    const reader=new FileReader();
+    reader.onload=()=>{
+      j.drawings.push({name:f.name, data:reader.result.split(',')[1]});
+      loaded++;
+      if(loaded===files.length){scheduleSave();renderDrawingInfo(j);}
+      writeAudit(j.id,'drawing_attached','job','Drawing attached: '+f.name);
+    };
+    reader.readAsDataURL(f);
+  });
+  evt.target.value='';
+};
+window.removeDrawing=(i)=>{
+  const j=jobs[currentJobId];
+  if(j&&j.drawings){j.drawings.splice(i,1);scheduleSave();renderDrawingInfo(j);}
+};
+window.viewDrawing=(i)=>{
+  const j=jobs[currentJobId];
+  const d=j?.drawings?.[i];
+  if(d){
+    const w=window.open();
+    w.document.write(`<title>${d.name}</title><iframe src="data:application/pdf;base64,${d.data}" width="100%" height="100%" style="border:none;margin:0"></iframe>`);
+    w.document.close();
+  }
+};
 
 // ═══════════════════════════════════
 // SIGN-OFF BOX HELPER
@@ -1008,16 +1018,16 @@ window.so_set=(field,key,val)=>{
   const j=jobs[currentJobId]; if(!j) return;
   if(!j[field]) j[field]={};
   j[field][key]=val;
+  // Auto-fill date/time when name is entered
   if(key==='name'&&!j[field].date) j[field].date=today();
   if(key==='name'&&!j[field].time) j[field].time=nowTime();
   if(key==='operatorName'&&!j[field].operatorDate) j[field].operatorDate=today();
   if(key==='operatorName'&&!j[field].operatorTime) j[field].operatorTime=nowTime();
+  // LIGHT save only — no re-render so typing is not interrupted
+  if(jobs[currentJobId]) jobs[currentJobId].savedAt=new Date().toISOString();
   saveLocal();
-  if(activeTab==='prestart') renderPrestartPanel();
-  else if(activeTab==='inspections') renderInspectionsPanel();
-  else if(activeTab==='final') renderFinalPanel();
-  else if(activeTab==='coc') renderCoCPanel();
-  renderTabs(); renderHero();
+  setStatus('Saved ✓');
+  renderTabs(); // update tab completion indicators only
 };
 window.so_sig=(field,val)=>{
   const j=jobs[currentJobId]; if(!j) return;
@@ -1036,8 +1046,14 @@ function lockedPanel(msg){
 function renderPrestartPanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('prestartContent'); if(!el) return;
-  if(!j){el.innerHTML='<p style="color:#aaa;padding:20px">No job selected.</p>';return;}
   // Read from j object ONLY (which was flushed before renderAll was called)
+  const jn=String(j?.jobNumber||'').trim();
+  const cu=String(j?.customer||'').trim();
+  const dr=String(j?.drawingRev||'').trim();
+  const rd=String(j?.requiredDelivery||'').trim();
+  if(!jn||!cu||!dr||!rd){
+    el.innerHTML=lockedPanel('Complete Job Information first');return;
+  }
   const locked=j.cocIssued;
   const sects=[{key:'safety',label:'Safety Checks'},{key:'drawing',label:'Drawing & Material Check'},{key:'machine',label:'Machine & Tooling'}];
   let html=`<div class="warning">⚠️ Completed by the Operator before work commences. Supervisor sign-off required at the bottom. F-PS-01 v1.0 · ISO 9001:2015 Cl.8.5.1</div>`;
@@ -1069,7 +1085,7 @@ function renderPrestartPanel(){
   }
   el.innerHTML=html;
 }
-window.ps_check=(sec,i,v)=>{const j=jobs[currentJobId];if(j){j.prestart[sec][i].ok=v;saveLocal();renderPrestartPanel();renderTabs();}};
+window.ps_check=(sec,i,v)=>{const j=jobs[currentJobId];if(j){j.prestart[sec][i].ok=v;scheduleSave();}};
 
 // ═══════════════════════════════════
 // INSPECTIONS PANEL
@@ -1077,9 +1093,9 @@ window.ps_check=(sec,i,v)=>{const j=jobs[currentJobId];if(j){j.prestart[sec][i].
 function renderInspectionsPanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('inspectionsContent'); if(!el) return;
-  if(!j){el.innerHTML='<p style="color:#aaa;padding:20px">No job selected.</p>';return;}
+  if(!sectionComplete(j,'job')){el.innerHTML=lockedPanel('Complete Job Information first');return;}
   const locked=j.cocIssued;
-  const prestartDone=true;
+  const prestartDone=sectionComplete(j,'prestart');
   let html=prestartDone?``:`<div class="warning" style="background:#fff3e0;border-color:#e07000;border-left-color:#e07000;color:#7a3c00">📋 Pre-Start not yet signed off — you can enter data here now, but it must be completed before the CoC can be issued.</div>`;
   html+=`<div class="warning">⚠️ In-Process: Completed by the Operator. Supervisor sign-off required at the bottom before proceeding. F-IP/FI-01 v2.0 · ISO 9001:2015 Cl.8.5.1/8.6</div>
   <div class="card"><div class="card-head">In-Process Inspection</div>
@@ -1121,10 +1137,10 @@ function renderInspectionsPanel(){
   }
   el.innerHTML=html;
 }
-window.ip_check=(i,v)=>{const j=jobs[currentJobId];if(j){j.inProcess[i].ok=v;saveLocal();renderInspectionsPanel();renderTabs();}};
-window.prog_feat=(i,v)=>{const j=jobs[currentJobId];if(j){j.progress[i].feature=v;scheduleSave();}};
-window.prog_result=(i,r)=>{const j=jobs[currentJobId];if(j){j.progress[i].pass=(r==='pass');j.progress[i].fail=(r==='fail');saveLocal();renderInspectionsPanel();renderTabs();}};
-window.prog_note=(i,v)=>{const j=jobs[currentJobId];if(j){j.progress[i].notes=v;scheduleSave();}};
+window.ip_check=(i,v)=>{const j=jobs[currentJobId];if(j){j.inProcess[i].ok=v;scheduleSave();}};
+window.prog_feat=(i,v)=>{const j=jobs[currentJobId];if(j){j.progress[i].feature=v;saveLocal();setStatus('Saved ✓');}};
+window.prog_result=(i,r)=>{const j=jobs[currentJobId];if(j){j.progress[i].pass=(r==='pass');j.progress[i].fail=(r==='fail');scheduleSave();}};
+window.prog_note=(i,v)=>{const j=jobs[currentJobId];if(j){j.progress[i].notes=v;saveLocal();setStatus('Saved ✓');}};
 
 // ═══════════════════════════════════
 // FINAL INSPECTION PANEL
@@ -1132,9 +1148,9 @@ window.prog_note=(i,v)=>{const j=jobs[currentJobId];if(j){j.progress[i].notes=v;
 function renderFinalPanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('finalContent'); if(!el) return;
-  if(!j){el.innerHTML='<p style="color:#aaa;padding:20px">No job selected.</p>';return;}
+  if(!sectionComplete(j,'job')){el.innerHTML=lockedPanel('Complete Job Information first');return;}
   const locked=j.cocIssued;
-  const inspectionsDone=true;
+  const inspectionsDone=sectionComplete(j,'inspections');
   const anyFail=j.progress.some(r=>r.fail);
   let html=inspectionsDone?``:`<div class="warning" style="background:#fff3e0;border-color:#e07000;border-left-color:#e07000;color:#7a3c00">📋 In-Process section is not yet fully signed off — you can enter results here now, but it must be completed before the CoC can be issued.</div>`;
   html+=`<div class="card"><div class="card-head">Final Inspection — All Inspections Must Pass Before Release <span style="font-size:10px;font-weight:400;color:#aaa">F-FI-01 · ISO 9001:2015 Cl.8.6</span></div>
@@ -1192,7 +1208,7 @@ function renderFinalPanel(){
   el.innerHTML=html;
 }
 window.res_set=(k,v)=>{const j=jobs[currentJobId];if(j){j.results[k]=v;scheduleSave();}};
-window.fs_set=(k,v)=>{const j=jobs[currentJobId];if(j){j.finalSignoff[k]=v;saveLocal();renderFinalPanel();renderTabs();}};
+window.fs_set=(k,v)=>{const j=jobs[currentJobId];if(j){j.finalSignoff[k]=v;scheduleSave();}};
 
 // ═══════════════════════════════════
 // COC PANEL
@@ -1206,8 +1222,7 @@ function genCoCNumber(j){
 function renderCoCPanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('cocContent'); if(!el) return;
-  if(!j){el.innerHTML='<p style="color:#aaa;padding:20px">No job selected.</p>';return;}
-  // No blocker on CoC panel
+  if(!sectionComplete(j,'final')){el.innerHTML=lockedPanel('Complete Final Inspection first');return;}
   const openN=openNCRs(j);
   if(openN.length>0&&!j.cocIssued){
     el.innerHTML=`<div class="warning red">🔒 ${openN.length} open NCR(s) must be closed before the CoC can be issued.
@@ -1284,7 +1299,7 @@ function renderCoCPanel(){
       :`<div class="warning">CoC can only be issued by Colin Norris or Carol Norris (accounts with CoC authority).</div>`
   }`;
 }
-window.coc_set=(k,v)=>{const j=jobs[currentJobId];if(j){j.coc[k]=v;scheduleSave();}};
+window.coc_set=(k,v)=>{const j=jobs[currentJobId];if(j){j.coc[k]=v;saveLocal();setStatus('Saved ✓');}};
 window.coc_sig=(v)=>{const j=jobs[currentJobId];if(j){j.coc.signatureKey=v;scheduleSave();renderCoCPanel();}};
 
 function buildCoCSummary(j){
@@ -1444,7 +1459,7 @@ window.promptIssueCoC=()=>{
   document.getElementById('cocConfirmModal').classList.add('open');
 };
 
-window.confirmIssueCoC=()=>{
+window.confirmIssueCoC=async()=>{
   const j=jobs[currentJobId]; if(!j) return;
   closeModal('cocConfirmModal');
   j.coc.number=j.coc.number||genCoCNumber(j);
@@ -1458,7 +1473,8 @@ window.confirmIssueCoC=()=>{
   j.dateCompleted=today();
   j.savedAt=new Date().toISOString();
   saveLocal();
-  writeAudit(j.id,'coc_issued','coc',`Certificate ${j.coc.number} issued by ${currentUser.name}`);
+  await syncToServer();
+  await writeAudit(j.id,'coc_issued','coc',`Certificate ${j.coc.number} issued by ${currentUser.name}`);
   renderAll();
   setTimeout(()=>openCoCPage(),600);
 };
@@ -1473,7 +1489,7 @@ window.closeModal=(id)=>document.getElementById(id).classList.remove('open');
 function renderTimePanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('timeContent'); if(!el) return;
-  if(!j){el.innerHTML='<p style="color:#aaa;padding:20px">No job selected.</p>';return;}
+  if(!sectionComplete(j,'job')){el.innerHTML=lockedPanel('Complete Job Information first');return;}
   const locked=j.cocIssued;
   const timeRows=j.timeEntries.map((row,i)=>{
     const flds=['operator','date','clockIn','clockOut','hours','chargeable','stage'];
@@ -1511,8 +1527,8 @@ function renderTimePanel(){
     </div>
   </div>`;
 }
-window.te_set=(i,f,v)=>{const j=jobs[currentJobId];if(j){j.timeEntries[i][f]=v;scheduleSave();}};
-window.le_set=(i,f,v)=>{const j=jobs[currentJobId];if(j){j.lostEntries[i][f]=v;scheduleSave();}};
+window.te_set=(i,f,v)=>{const j=jobs[currentJobId];if(j){j.timeEntries[i][f]=v;saveLocal();setStatus('Saved ✓');}};
+window.le_set=(i,f,v)=>{const j=jobs[currentJobId];if(j){j.lostEntries[i][f]=v;saveLocal();setStatus('Saved ✓');}};
 window.add_te=()=>{const j=jobs[currentJobId];if(j){j.timeEntries.push({operator:'',date:'',clockIn:'',clockOut:'',hours:'',chargeable:'Yes',stage:''});scheduleSave();renderTimePanel();}};
 window.add_le=()=>{const j=jobs[currentJobId];if(j){j.lostEntries.push({operator:'',date:'',hours:'',category:'W',reason:''});scheduleSave();renderTimePanel();}};
 window.remove_te=(i)=>{const j=jobs[currentJobId];if(j&&j.timeEntries.length>1){j.timeEntries.splice(i,1);scheduleSave();renderTimePanel();}};
@@ -1699,8 +1715,8 @@ function renderReports(){
     <select id="reportFY" onchange="renderReports()" style="padding:7px 12px;border:1px solid #ccc;border-radius:7px;font-weight:700">
       ${allFYs.map(f=>`<option value="${f}"${f===selFY?' selected':''}>${f}</option>`).join('')}
     </select>
-    <button class="btn-gold" onclick="exportFYCSV(document.getElementById('reportFY').value)">⬇ Export CSV</button>
-    <button class="btn-dark" onclick="exportISOReport(document.getElementById('reportFY').value)">📋 ISO 9001 Report</button>
+    <button class="btn-gold" onclick="exportFYCSV('${selFY}')">⬇ Export CSV</button>
+    <button class="btn-dark" onclick="exportISOReport('${selFY}')">📋 ISO 9001 Report</button>
   </div>
 
   <!-- ROW 1: TOP KPIs matching Excel workbook -->
@@ -2016,9 +2032,10 @@ function pdfSectionHead(doc,text,y){
 window.downloadJobPackPDF=()=>{
   const j=jobs[currentJobId];
   if(!j){alert('No job selected.');return;}
+  if(!sectionComplete(j,'job')){alert('Please complete the Job Information fields first.');return;}
   try{
     const {jsPDF}=window.jspdf;
-    const PAGES=5;
+    const PAGES=5+(j.drawings?.length||0);
     const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
 
     // Helper: small job header strip on every page after page 1
@@ -2611,6 +2628,19 @@ window.downloadCompletedPDF=()=>{
     });
     pdfFooter(doc,'JEN.QMS.01',6,PAGES);
 
+    // ── Pages 7+: Drawings (if attached) ──
+    const drawings=j.drawings||[];
+    drawings.forEach((d,di)=>{
+      try{
+        doc.addPage();
+        pdfHeader(doc,`Customer Drawing ${drawings.length>1?'('+(di+1)+' of '+drawings.length+') — ':'— '}${d.name}`,'DRAWING',7+di,PAGES+drawings.length-1);
+        doc.setFontSize(9);doc.setTextColor(100,100,100);
+        doc.text('Customer drawing attached — refer to original file for full detail.',10,60);
+        doc.text('File: '+d.name,10,70);
+        pdfFooter(doc,'DRAWING',7+di,PAGES+drawings.length-1);
+      }catch(e){}
+    });
+
     doc.save(`Jenner-JobPack-${j.jobNumber||'Job'}-${(j.customer||'').replace(/[^a-z0-9]/gi,'-')}.pdf`);
   }catch(e){console.error('PDF Error:',e);alert('PDF failed: '+e.message);}
 };
@@ -2649,8 +2679,6 @@ window.downloadCoCPDF=()=>{
 // ═══════════════════════════════════
 // GLOBAL WINDOW EXPORTS
 // ═══════════════════════════════════
-window.genCoCNumber   = genCoCNumber;
-window.saveNow        = saveNow;
 window.doLogin        = doLogin;
 window.doLogout       = doLogout;
 window.createJob      = createJob;
@@ -2658,7 +2686,6 @@ window.selectJob      = selectJob;
 window.syncFromServer = syncFromServer;
 window.syncToServer   = syncToServer;
 window.showTab        = showTab;
-window.switchTab      = switchTab;
 window.goToPrestart   = goToPrestart;
 window.goToInspections = goToInspections;
 window.goToFinal      = goToFinal;
