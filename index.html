@@ -191,6 +191,7 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
     <div class="sb-tools">
       <button class="btn-gold btn-sm" onclick="createJob()" id="btnNewJob">+ New Job</button>
       <button class="btn-dark btn-sm" onclick="syncFromServer()" title="Import jobs from a backup file">↓ Import</button>
+      <button class="btn-dark btn-sm" onclick="diagnoseLostJobs()" title="Check for missing jobs" style="background:#7a3c00;border-color:#b05500">🔍 Recover</button>
       <button class="btn-dark btn-sm" onclick="syncToServer()" title="Export all jobs to a backup file">↑ Export</button>
       <button class="btn-dark btn-sm" onclick="showReports()" id="btnReports">📊 Reports</button>
       <button class="btn-dark btn-sm" onclick="doLogout()">Sign Out</button>
@@ -337,7 +338,7 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
 // CONFIG  (no Supabase — local storage only)
 // ═══════════════════════════════════
 const STORAGE_KEY = "jenner_qms_v3";
-const WORKSHOP_PASSWORD = "jenner2025"; // Change this to your preferred passwordconst STORAGE_KEY   = "jenner_qms_v3";
+const WORKSHOP_PASSWORD = "jenner2025"; // Change this to your preferred password
 
 // ═══════════════════════════════════
 // IMAGES — inserted by build script
@@ -573,6 +574,23 @@ function showApp(){
 // ═══════════════════════════════════
 function loadLocal(){
   try{
+    // Check all known legacy storage keys and migrate data
+    const legacyKeys=['jenner_qms_v1','jenner_qms_v2','jenner_qms','jennerQMS','qms_jobs'];
+    legacyKeys.forEach(legKey=>{
+      try{
+        const legData=localStorage.getItem(legKey);
+        if(legData){
+          const parsed=JSON.parse(legData);
+          if(parsed&&typeof parsed==='object'&&Object.keys(parsed).length>0){
+            // Merge into current storage key
+            const current=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');
+            const merged=Object.assign({},parsed,current); // current takes priority
+            localStorage.setItem(STORAGE_KEY,JSON.stringify(merged));
+            localStorage.removeItem(legKey); // clean up old key
+          }
+        }
+      }catch(e){}
+    });
     const r=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');
     jobs={};
     Object.entries(r).forEach(([k,v])=>jobs[k]=normalizeJob(v,k));
@@ -2679,6 +2697,63 @@ window.downloadCoCPDF=()=>{
 // ═══════════════════════════════════
 // GLOBAL WINDOW EXPORTS
 // ═══════════════════════════════════
+window.diagnoseLostJobs = function(){
+  // Scan ALL localStorage keys to find any job data
+  const found = {};
+  for(let i=0;i<localStorage.length;i++){
+    const key = localStorage.key(i);
+    try{
+      const val = JSON.parse(localStorage.getItem(key));
+      if(val && typeof val==='object'){
+        const entries = Object.entries(val);
+        // Check if it looks like job data (has job-like objects)
+        const jobLike = entries.filter(([k,v])=>v&&typeof v==='object'&&(v.jobNumber||v.customer||v.id));
+        if(jobLike.length > 0){
+          found[key] = jobLike.length;
+        }
+      }
+    }catch(e){}
+  }
+  
+  let msg = '=== localStorage Scan ===\n';
+  msg += `Current key "${STORAGE_KEY}": ${Object.keys(jobs).length} jobs loaded\n\n`;
+  
+  if(Object.keys(found).length === 0){
+    msg += 'No other job data found in localStorage.\n';
+    msg += 'Your jobs may have been saved in a different browser or device.\n';
+    msg += '\nTo recover: use the ↓ Import button with a backup file.';
+  } else {
+    msg += 'Found job data in these storage keys:\n';
+    Object.entries(found).forEach(([k,count])=>{
+      msg += `  "${k}": ${count} jobs\n`;
+    });
+    msg += '\nClick OK to attempt recovery from all found keys.';
+  }
+  
+  if(Object.keys(found).length > 0 && confirm(msg)){
+    let recovered = 0;
+    Object.keys(found).forEach(key=>{
+      if(key === STORAGE_KEY) return;
+      try{
+        const val = JSON.parse(localStorage.getItem(key));
+        Object.entries(val).forEach(([k,v])=>{
+          if(v&&typeof v==='object'&&(v.jobNumber||v.customer||v.id)){
+            if(!jobs[k]){ // don't overwrite existing
+              jobs[k] = normalizeJob(v, k);
+              recovered++;
+            }
+          }
+        });
+        localStorage.removeItem(key); // clean up
+      }catch(e){}
+    });
+    saveLocal();
+    renderAll();
+    alert(`Recovered ${recovered} job(s). Check your job list.`);
+  } else if(Object.keys(found).length === 0){
+    alert(msg);
+  }
+};
 window.doLogin        = doLogin;
 window.doLogout       = doLogout;
 window.createJob      = createJob;
