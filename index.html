@@ -568,6 +568,16 @@ function showApp(){
     currentUser.role+(currentUser.coc_authority?' · CoC Authority':'');
   // Reports visible to all users
   loadLocal();
+  // Restore last selected job from sessionStorage
+  try{
+    const lastJob=sessionStorage.getItem('qms_currentJob');
+    if(lastJob&&jobs[lastJob]) currentJobId=lastJob;
+  }catch(e){}
+  // Auto-select the most recent job if none selected
+  if(!currentJobId){
+    const sorted=sortedJobs();
+    if(sorted.length>0) currentJobId=sorted[0].id;
+  }
   renderAll();
   setStatus('Ready — data saved on this device');
 }
@@ -646,6 +656,7 @@ function saveNow(){
   }
   saveLocal();
   setStatus('Saved ✓');
+  try{ if(currentJobId) sessionStorage.setItem('qms_currentJob',currentJobId); }catch(e){}
   renderJobList();
   renderHero();
   renderTabs();
@@ -734,7 +745,13 @@ function createJob(){
   writeAudit(id,'created','job','New job created by '+currentUser.name);
   renderAll();
 }
-function selectJob(id){ currentJobId=id; activeTab='job'; renderAll(); setTimeout(()=>{const j=jobs[id];if(j)renderJobStatus(j);},50); }
+function selectJob(id){
+  currentJobId=id;
+  activeTab='job';
+  try{ sessionStorage.setItem('qms_currentJob',id); }catch(e){}
+  renderAll();
+  setTimeout(()=>{const j=jobs[id];if(j)renderJobStatus(j);},50);
+}
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open'); }
 
 // ═══════════════════════════════════
@@ -2073,7 +2090,16 @@ function pdfSectionHead(doc,text,y){
 // ═══════════════════════════════════
 window.downloadJobPackPDF=()=>{
   const j=jobs[currentJobId];
-  if(!j){alert('No job selected.');return;}
+  // If currentJobId is null but a job is visible, try to recover
+  if(!j){
+    // Try to find job by job number currently shown in the input
+    const visibleNum=(document.getElementById('jobNumber')?.value||'').trim();
+    if(visibleNum){
+      const found=Object.values(jobs).find(x=>x.jobNumber===visibleNum);
+      if(found){ currentJobId=found.id; j=found; }
+    }
+    if(!j){alert('No job selected. Please click on a job in the left panel first.');return;}
+  }
   // Check which required fields are missing and tell the user specifically
   const missing=[];
   if(!j.jobNumber?.trim()) missing.push('Job Number');
