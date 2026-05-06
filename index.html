@@ -743,7 +743,7 @@ function renderHero(){
     `${j.customer||'No customer'} — ${j.partDescription||'No description'} · FY ${j.financialYear||'—'}`:
     'Create a new job or load from server.';
   document.getElementById('btnCompletedPDF').disabled=!j;
-  document.getElementById('btnJobPackPDF').disabled=!j||!sectionComplete(j,'job');
+  document.getElementById('btnJobPackPDF').disabled=!j; // always enabled when job selected - PDF checks fields
   document.getElementById('btnCoCPDF').disabled=!(j&&j.cocIssued);
 }
 
@@ -2073,8 +2073,19 @@ function pdfSectionHead(doc,text,y){
 window.downloadJobPackPDF=()=>{
   const j=jobs[currentJobId];
   if(!j){alert('No job selected.');return;}
-  if(!sectionComplete(j,'job')){alert('Please complete the Job Information fields first.');return;}
+  // Check which required fields are missing and tell the user specifically
+  const missing=[];
+  if(!j.jobNumber?.trim()) missing.push('Job Number');
+  if(!j.customer?.trim()) missing.push('Customer');
+  if(!j.drawingRev?.trim()) missing.push('Drawing / Rev');
+  if(!j.requiredDelivery?.trim()) missing.push('Required Delivery');
+  if(missing.length){
+    alert('Please fill in these required fields before printing:\n\n• '+missing.join('\n• '));
+    return;
+  }
   try{
+    if(!window.jspdf){alert('PDF library not loaded. Check your internet connection and try again.');return;}
+    if(!window.jspdf){alert('PDF library not loaded. Check your internet connection and try again.');return;}
     const {jsPDF}=window.jspdf;
     const PAGES=5+(j.drawings?.length||0);
     const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
@@ -2314,6 +2325,7 @@ window.downloadJobPackPDF=()=>{
 // ═══════════════════════════════════
 window.downloadBlankPDF=()=>{
   try{
+    if(!window.jspdf){alert('PDF library not loaded. Check your internet connection and try again.');return;}
     const {jsPDF}=window.jspdf;
     const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
     const PAGES=5;
@@ -2456,6 +2468,7 @@ window.downloadBlankPDF=()=>{
 window.downloadCompletedPDF=()=>{
   const j=jobs[currentJobId]; if(!j){alert('No job selected.');return;}
   try{
+    if(!window.jspdf){alert('PDF library not loaded. Check your internet connection and try again.');return;}
     const {jsPDF}=window.jspdf;
     const PAGES=6+(j.drawings?.length||0);
     const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
@@ -2693,6 +2706,7 @@ window.downloadCoCPDF=()=>{
   const j=jobs[currentJobId];
   if(!j||!j.cocIssued){alert('CoC has not been issued for this job yet.');return;}
   try{
+    if(!window.jspdf){alert('PDF library not loaded. Check your internet connection and try again.');return;}
     const {jsPDF}=window.jspdf;
     const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
     pdfHeader(doc,'Certificate of Conformance','F-CoC-01',1,1); let y=24;
