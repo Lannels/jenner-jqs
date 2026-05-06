@@ -214,9 +214,9 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
       <div class="main-actions">
         <button class="btn-green btn-sm" onclick="saveNow();setStatus('Saved ✓')" id="btnSave" style="font-size:13px;padding:7px 16px">💾 Save</button>
         <button class="btn-white btn-sm" onclick="downloadBlankPDF()">📄 Blank Forms PDF</button>
-        <button class="btn-gold btn-sm" onclick="downloadJobPackPDF()" id="btnJobPackPDF" disabled>🖨 Print Job Pack</button>
-        <button class="btn-white btn-sm" onclick="downloadCompletedPDF()" id="btnCompletedPDF" disabled>📋 Completed Pack</button>
-        <button class="btn-white btn-sm" onclick="downloadCoCPDF()" id="btnCoCPDF" disabled>🏆 CoC PDF</button>
+        <button class="btn-gold btn-sm" onclick="downloadJobPackPDF()" id="btnJobPackPDF">🖨 Print Job Pack</button>
+        <button class="btn-white btn-sm" onclick="downloadCompletedPDF()" id="btnCompletedPDF">📋 Completed Pack</button>
+        <button class="btn-white btn-sm" onclick="downloadCoCPDF()" id="btnCoCPDF">🏆 CoC PDF</button>
       </div>
     </div>
     <div class="tabs" id="tabs"></div>
@@ -600,7 +600,18 @@ function loadLocal(){
     Object.entries(r).forEach(([k,v])=>jobs[k]=normalizeJob(v,k));
   }catch(e){jobs={};}
 }
-function saveLocal(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(jobs)); }
+function saveLocal(){
+  try{
+    const data=JSON.stringify(jobs);
+    localStorage.setItem(STORAGE_KEY,data);
+  }catch(e){
+    if(e.name==='QuotaExceededError'||e.code===22){
+      alert('Storage full! Your browser localStorage is full.\n\nPlease use the ↑ Export button to save a backup file, then delete some old jobs to free up space.');
+    } else {
+      console.error('saveLocal error:',e);
+    }
+  }
+}
 function parseJobNum(j){
   // Extract numeric components for sorting: P.26.0189 -> [26, 189]
   const s=j.jobNumber||'';
@@ -622,8 +633,22 @@ function sortedJobs(){
 }
 
 function saveNow(){
-  flushAndRender();
-  if(currentJobId) pushJob(currentJobId);
+  // Flush all job info inputs to the job object
+  const j=jobs[currentJobId];
+  if(j){
+    ['jobNumber','customer','drawingRev','requiredDelivery','operator',
+     'machineOperation','qtyOrdered','qtySupplied','material',
+     'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
+      const el=document.getElementById(key);
+      if(el&&el.value!==undefined) j[key]=el.value;
+    });
+    j.savedAt=new Date().toISOString();
+  }
+  saveLocal();
+  setStatus('Saved ✓');
+  renderJobList();
+  renderHero();
+  renderTabs();
 }
 function scheduleSave(){
   // Save immediately so navigation always sees current data
@@ -741,10 +766,7 @@ function renderHero(){
   document.getElementById('heroJobNo').textContent=j?(j.jobNumber||j.id):'No job selected';
   document.getElementById('heroDesc').textContent=j?
     `${j.customer||'No customer'} — ${j.partDescription||'No description'} · FY ${j.financialYear||'—'}`:
-    'Create a new job or load from server.';
-  document.getElementById('btnCompletedPDF').disabled=!j;
-  document.getElementById('btnJobPackPDF').disabled=!j; // always enabled when job selected - PDF checks fields
-  document.getElementById('btnCoCPDF').disabled=!(j&&j.cocIssued);
+    'Create a new job or load from server.'; // always enabled when job selected - PDF checks fields
 }
 
 const TAB_DEFS=[
@@ -785,17 +807,7 @@ function renderTabs(){
 // ═══════════════════════════════════
 function _navTo(tabId){
   activeTab=tabId;
-  const j=jobs[currentJobId];
-  if(j){
-    ['jobNumber','customer','drawingRev','requiredDelivery','operator',
-     'machineOperation','qtyOrdered','qtySupplied','material',
-     'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
-      const el=document.getElementById(key);
-      if(el) j[key]=el.value;
-    });
-    j.savedAt=new Date().toISOString();
-    saveLocal();
-  }
+  saveNow(); // flush + save
   setTimeout(()=>renderAll(), 0);
 }
 function goToPrestart()    { _navTo('prestart'); }
@@ -807,24 +819,13 @@ function goToTime()        { _navTo('time'); }
 function showTab(id){
   activeTab=id;
   if(id==='reports'){ showReports(); return; }
-  // Flush inputs to job object first
-  const j=jobs[currentJobId];
-  if(j){
-    ['jobNumber','customer','drawingRev','requiredDelivery','operator',
-     'machineOperation','qtyOrdered','qtySupplied','material',
-     'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
-      const el=document.getElementById(key);
-      if(el) j[key]=el.value;
-    });
-    j.savedAt=new Date().toISOString();
-    saveLocal();
-  }
-  // Use setTimeout so the current click event fully completes before re-rendering
-  setTimeout(()=>renderAll(), 0);
+  saveNow(); // flush inputs + save
+  setTimeout(()=>renderAll(), 0); // re-render after click completes
 }
 
 function flushAndRender(){
-  showTab(activeTab);
+  saveNow();
+  renderAll();
 }
 function showReports(){
   activeTab='reports';
@@ -2085,7 +2086,6 @@ window.downloadJobPackPDF=()=>{
   }
   try{
     if(!window.jspdf){alert('PDF library not loaded. Check your internet connection and try again.');return;}
-    if(!window.jspdf){alert('PDF library not loaded. Check your internet connection and try again.');return;}
     const {jsPDF}=window.jspdf;
     const PAGES=5+(j.drawings?.length||0);
     const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
@@ -2818,6 +2818,32 @@ window.promptIssueCoC = ()=>{
      Customer: ${esc(j.customer)}<br>Part: ${esc(j.partDescription)}<br>Drawing: ${esc(j.drawingRev)}`;
   document.getElementById('cocConfirmModal').classList.add('open');
 };
+
+// ═══════════════════════════════════
+// AUTO-SAVE + PAGE UNLOAD PROTECTION  
+// ═══════════════════════════════════
+// Auto-save every 30 seconds
+setInterval(()=>{
+  if(currentJobId&&jobs[currentJobId]){
+    saveNow();
+  }
+}, 30000);
+
+// Save before page closes/refreshes
+window.addEventListener('beforeunload', ()=>{
+  if(currentJobId&&jobs[currentJobId]){
+    // Synchronous save before unload
+    const j=jobs[currentJobId];
+    ['jobNumber','customer','drawingRev','requiredDelivery','operator',
+     'machineOperation','qtyOrdered','qtySupplied','material',
+     'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
+      const el=document.getElementById(key);
+      if(el&&el.value!==undefined) j[key]=el.value;
+    });
+    j.savedAt=new Date().toISOString();
+    try{ localStorage.setItem(STORAGE_KEY,JSON.stringify(jobs)); }catch(e){}
+  }
+});
 
 // ═══════════════════════════════════
 // KEYBOARD SHORTCUTS
