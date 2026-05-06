@@ -252,7 +252,11 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
         </div>
         <div class="card-body" style="padding:0">
           <table><thead><tr><th style="width:70px">Qty</th><th style="width:150px">Part Number</th><th>Description</th><th style="width:36px"></th></tr></thead>
-          <tbody id="itemsBody"></tbody></table>
+          <tbody id="itemsBody">
+  <tr><td><input placeholder="Qty" oninput="j_item(0,'qty',this.value)"></td><td><input placeholder="Part No" oninput="j_item(0,'partNumber',this.value)"></td><td><input placeholder="Description" oninput="j_item(0,'description',this.value)"></td><td></td></tr>
+  <tr><td><input oninput="j_item(1,'qty',this.value)"></td><td><input oninput="j_item(1,'partNumber',this.value)"></td><td><input oninput="j_item(1,'description',this.value)"></td><td></td></tr>
+  <tr><td><input oninput="j_item(2,'qty',this.value)"></td><td><input oninput="j_item(2,'partNumber',this.value)"></td><td><input oninput="j_item(2,'description',this.value)"></td><td></td></tr>
+</tbody></table>
         </div>
       </div>
       <div class="card">
@@ -879,6 +883,8 @@ function renderJobPanel(){
   renderItemsTable(j);
   renderDrawingInfo(j);
   renderJobStatus(j);
+  // Safety net: re-render items table after a tick in case DOM wasn't ready
+  setTimeout(()=>{ const jj=jobs[currentJobId]; if(jj) renderItemsTable(jj); }, 50);
 }
 
 function renderJobStatus(j){
@@ -913,15 +919,31 @@ function renderJobStatus(j){
 
 function renderItemsTable(j){
   const body=document.getElementById('itemsBody'); if(!body) return;
-  // Ensure items is always a valid array with at least 3 rows
-  if(!Array.isArray(j.items)) j.items=[];
-  while(j.items.length<3) j.items.push({qty:'',partNumber:'',description:''});
-  body.innerHTML=j.items.map((it,i)=>`<tr>
-    <td><input value="${esc(it.qty)}" ${j.cocIssued?'disabled':''} oninput="j_item(${i},'qty',this.value)"></td>
-    <td><input value="${esc(it.partNumber)}" ${j.cocIssued?'disabled':''} oninput="j_item(${i},'partNumber',this.value)"></td>
-    <td><input value="${esc(it.description)}" ${j.cocIssued?'disabled':''} oninput="j_item(${i},'description',this.value)"></td>
-    <td>${!j.cocIssued?`<button class="btn-red btn-sm" onclick="removeItem(${i})">✕</button>`:''}</td>
-  </tr>`).join('');
+  // Nuclear safety: ensure j.items is always a usable array
+  try{
+    if(!j||typeof j!=='object') return;
+    if(!Array.isArray(j.items)) j.items=[];
+    while(j.items.length<3) j.items.push({qty:'',partNumber:'',description:''});
+    const rows=j.items.map((it,i)=>{
+      const qty=String(it.qty??''); const pn=String(it.partNumber??''); const desc=String(it.description??'');
+      const dis=j.cocIssued?'disabled':'';
+      const btn=!j.cocIssued?`<button class="btn-red btn-sm" onclick="removeItem(${i})">✕</button>`:'';
+      return `<tr>
+        <td><input value="${esc(qty)}" ${dis} oninput="j_item(${i},'qty',this.value)"></td>
+        <td><input value="${esc(pn)}" ${dis} oninput="j_item(${i},'partNumber',this.value)"></td>
+        <td><input value="${esc(desc)}" ${dis} oninput="j_item(${i},'description',this.value)"></td>
+        <td>${btn}</td>
+      </tr>`;
+    });
+    body.innerHTML=rows.join('');
+    // Failsafe: if innerHTML ended up empty despite items, force 3 blank rows
+    if(!body.innerHTML.trim()&&!j.cocIssued){
+      body.innerHTML='<tr><td><input oninput="j_item(0,'qty',this.value)"></td><td><input oninput="j_item(0,'partNumber',this.value)"></td><td><input oninput="j_item(0,'description',this.value)"></td><td><button class="btn-red btn-sm" onclick="removeItem(0)">✕</button></td></tr><tr><td><input oninput="j_item(1,'qty',this.value)"></td><td><input oninput="j_item(1,'partNumber',this.value)"></td><td><input oninput="j_item(1,'description',this.value)"></td><td><button class="btn-red btn-sm" onclick="removeItem(1)">✕</button></td></tr><tr><td><input oninput="j_item(2,'qty',this.value)"></td><td><input oninput="j_item(2,'partNumber',this.value)"></td><td><input oninput="j_item(2,'description',this.value)"></td><td><button class="btn-red btn-sm" onclick="removeItem(2)">✕</button></td></tr>';
+    }
+  }catch(e){
+    console.error('renderItemsTable error:',e);
+    body.innerHTML='<tr><td colspan="4" style="color:red;padding:8px">Error rendering items — click + Row to add</td></tr>';
+  }
 }
 window.j_item=(i,f,v)=>{const j=jobs[currentJobId];if(j){j.items[i][f]=v;saveLocal();setStatus('Saved ✓');}};
 window.addItemRow=()=>{const j=jobs[currentJobId];if(j){if(!Array.isArray(j.items))j.items=[];j.items.push({qty:'',partNumber:'',description:''});saveLocal();setStatus('Saved ✓');renderItemsTable(j);}};
