@@ -230,7 +230,13 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
             <div class="field"><label>Customer *</label><input id="customer" placeholder="Customer name"></div>
             <div class="field"><label>Drawing / Rev *</label><input id="drawingRev" placeholder="e.g. NMQ-4754-0405-011 Rev 0"></div>
             <div class="field"><label>Required Delivery *</label><input id="requiredDelivery" type="date"></div>
-            <div class="field"><label>Operator(s)</label><input id="operator" placeholder="e.g. Chris / Gary / Todd"></div>
+            <div class="field">
+              <label>Operator(s) Assigned</label>
+              <div id="operatorCheckboxes" style="background:#fff;border:1px solid #d0d0d0;border-radius:7px;padding:8px 10px;display:flex;flex-wrap:wrap;gap:8px;">
+                <span style="color:#aaa;font-size:12px">Loading...</span>
+              </div>
+              <input type="hidden" id="operator">
+            </div>
             <div class="field"><label>Machine(s) / Operation</label><input id="machineOperation" placeholder="e.g. Manual Lathe, CNC Mill, Victor"></div>
             <div class="field"><label>Qty Ordered</label><input id="qtyOrdered" type="number" min="0"></div>
             <div class="field"><label>Qty Supplied</label><input id="qtySupplied" type="number" min="0"></div>
@@ -343,6 +349,24 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
 // ═══════════════════════════════════
 const STORAGE_KEY = "jenner_qms_v3";
 const WORKSHOP_PASSWORD = "jenner2025"; // Change this to your preferred password
+
+// ═══════════════════════════════════
+// STAFF LIST — edit this to add/remove staff
+// Each entry: { name, role: 'operator'|'supervisor'|'both', sigKey: optional }
+// sigKey links to SIG_IMAGES for a signature image
+// ═══════════════════════════════════
+const STAFF = [
+  { name: "Gary Smith",        role: "supervisor", sigKey: null },
+  { name: "Colin Norris",      role: "supervisor", sigKey: "colin" },
+  { name: "Carol Norris",      role: "supervisor", sigKey: "carol" },
+  { name: "Chris Bryan",       role: "operator",   sigKey: null },
+  { name: "Todd O'Sullivan",   role: "operator",   sigKey: null },
+  { name: "Peter Rassmussen",  role: "operator",   sigKey: null },
+];
+// Derived lists used throughout the app
+const OPERATORS   = STAFF.filter(s=>s.role==='operator'||s.role==='both').map(s=>s.name);
+const SUPERVISORS = STAFF.filter(s=>s.role==='supervisor'||s.role==='both').map(s=>s.name);
+const ALL_STAFF   = STAFF.map(s=>s.name);
 
 // ═══════════════════════════════════
 // IMAGES — inserted by build script
@@ -662,8 +686,17 @@ function saveNow(){
   renderTabs();
 }
 function scheduleSave(){
-  // Save immediately so navigation always sees current data
   saveNow();
+  // Re-render current panel so next-step banners update immediately
+  const panelId='panel-'+activeTab;
+  const panel=document.getElementById(panelId);
+  if(panel&&panel.classList.contains('active')){
+    if(activeTab==='prestart') renderPrestartPanel();
+    else if(activeTab==='inspections') renderInspectionsPanel();
+    else if(activeTab==='final') renderFinalPanel();
+    else if(activeTab==='coc') renderCoCPanel();
+    else if(activeTab==='job') { renderJobPanel(); }
+  }
 }
 function setStatus(msg){ document.getElementById('statusBox').textContent=msg; }
 
@@ -803,7 +836,16 @@ function renderTabs(){
   document.getElementById('tabs').innerHTML=TAB_DEFS
     .filter(t=>true) // all tabs visible to all users
     .map(t=>{
-      const locked=!!(t.needs&&!sectionComplete(j,t.needs));
+      // Check sectionComplete on j object AND DOM inputs as fallback
+      let locked=!!(t.needs&&!sectionComplete(j,t.needs));
+      // If locked due to 'job' check, also verify DOM inputs directly
+      if(locked&&t.needs==='job'){
+        const jn=(document.getElementById('jobNumber')?.value||'').trim();
+        const cu=(document.getElementById('customer')?.value||'').trim();
+        const dr=(document.getElementById('drawingRev')?.value||'').trim();
+        const rd=(document.getElementById('requiredDelivery')?.value||'').trim();
+        if(jn&&cu&&dr&&rd) locked=false; // DOM has values - unlock
+      }
       const done=sectionComplete(j,t.id);
       const hasIssue=t.id==='ncr'&&j&&openNCRs(j).length>0;
       const pillClass=hasIssue?'tp-issue':done?'tp-done':locked?'tp-locked':'';
@@ -901,8 +943,22 @@ function renderJobPanel(){
   renderItemsTable(j);
   renderDrawingInfo(j);
   renderJobStatus(j);
+  renderOperatorCheckboxes(j);
   // Safety net: re-render items table after a tick in case DOM wasn't ready
   setTimeout(()=>{ const jj=jobs[currentJobId]; if(jj) renderItemsTable(jj); }, 50);
+}
+
+function renderOperatorCheckboxes(j){
+  const container=document.getElementById('operatorCheckboxes');
+  if(!container) return;
+  const ops=j.operator?j.operator.split('/').map(s=>s.trim()).filter(Boolean):[];
+  container.innerHTML=ALL_STAFF.map(name=>{
+    const checked=ops.includes(name);
+    return `<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:600;padding:3px 8px;border-radius:5px;background:${checked?'var(--gold-soft)':'#f5f5f5'};border:1px solid ${checked?'var(--gold)':'#ddd'}">
+      <input type="checkbox" ${checked?'checked':''} ${j.cocIssued?'disabled':''} onchange="toggleOperator('${name.replace(/'/g,"\\'")}',this.checked)" style="cursor:pointer">
+      ${name}
+    </label>`;
+  }).join('');
 }
 
 function renderJobStatus(j){
@@ -964,6 +1020,21 @@ function renderItemsTable(j){
   }
 }
 window.j_item=(i,f,v)=>{const j=jobs[currentJobId];if(j){j.items[i][f]=v;saveLocal();setStatus('Saved ✓');}};
+
+// Toggle operator assignment (multi-select checkboxes)
+window.toggleOperator=(name,checked)=>{
+  const j=jobs[currentJobId]; if(!j) return;
+  let ops=j.operator?j.operator.split('/').map(s=>s.trim()).filter(Boolean):[];
+  if(checked){ if(!ops.includes(name)) ops.push(name); }
+  else { ops=ops.filter(o=>o!==name); }
+  j.operator=ops.join(' / ');
+  const hiddenEl=document.getElementById('operator');
+  if(hiddenEl) hiddenEl.value=j.operator;
+  saveLocal(); setStatus('Saved ✓');
+  renderTabs();
+  renderJobStatus(j);
+  renderOperatorCheckboxes(j); // refresh checkbox highlight states
+};
 window.addItemRow=()=>{const j=jobs[currentJobId];if(j){if(!Array.isArray(j.items))j.items=[];j.items.push({qty:'',partNumber:'',description:''});saveLocal();setStatus('Saved ✓');renderItemsTable(j);}};
 window.removeItem=(i)=>{const j=jobs[currentJobId];if(j&&Array.isArray(j.items)&&j.items.length>1){j.items.splice(i,1);saveLocal();setStatus('Saved ✓');renderItemsTable(j);}};
 
@@ -984,7 +1055,12 @@ function renderDrawingInfo(j){
 }
 window.attachDrawing=(evt)=>{
   const files=[...evt.target.files]; if(!files.length) return;
-  const j=jobs[currentJobId]; if(!j) return;
+  // If currentJobId is null, try to find job from visible job number
+  if(!currentJobId){
+    const vn=(document.getElementById('jobNumber')?.value||'').trim();
+    if(vn){ const found=Object.values(jobs).find(x=>x.jobNumber===vn); if(found) currentJobId=found.id; }
+  }
+  const j=jobs[currentJobId]; if(!j){ alert('Please select a job first.'); return; }
   if(!j.drawings) j.drawings=[];
   let loaded=0;
   files.forEach(f=>{
@@ -1036,7 +1112,10 @@ function signoffBox(field, j, label, locked){
         <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Operator</div>
         <div class="field" style="margin-bottom:8px">
           <label>Name</label>
-          <input value="${esc(so.operatorName||'')}" ${locked?'disabled':''} oninput="so_set('${field}','operatorName',this.value)" placeholder="Operator name">
+          <select ${locked?'disabled':''} onchange="so_set('${field}','operatorName',this.value)">
+            <option value="">— Select Operator —</option>
+            ${ALL_STAFF.map(n=>`<option value="${n}" ${so.operatorName===n?'selected':''}>${n}</option>`).join('')}
+          </select>
         </div>
         <div class="grid-2" style="gap:8px">
           <div class="field"><label>Date</label><input type="date" value="${esc(so.operatorDate||'')}" ${locked?'disabled':''} oninput="so_set('${field}','operatorDate',this.value)"></div>
@@ -1050,15 +1129,17 @@ function signoffBox(field, j, label, locked){
         <div style="font-size:10px;font-weight:700;color:#7a5c00;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Workshop Supervisor / Manager <span style="color:var(--red)">★ Required</span></div>
         <div class="field" style="margin-bottom:8px">
           <label>Name</label>
-          <input value="${esc(so.name||'')}" ${locked?'disabled':''} oninput="so_set('${field}','name',this.value)" placeholder="Supervisor name">
+          <select ${locked?'disabled':''} onchange="so_set('${field}','name',this.value)">
+            <option value="">— Select Supervisor —</option>
+            ${SUPERVISORS.map(n=>`<option value="${n}" ${so.name===n?'selected':''}>${n}</option>`).join('')}
+          </select>
         </div>
         <div style="margin-bottom:8px">
           <label style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:4px">Signature</label>
           <div class="sig-select">
-            <select ${(!canSign||locked)?'disabled':''} onchange="so_sig('${field}',this.value)">
-              <option value="">— Select —</option>
-              <option value="carol" ${so.signatureKey==='carol'?'selected':''}>Carol Norris</option>
-              <option value="colin" ${so.signatureKey==='colin'?'selected':''}>Colin Norris</option>
+            <select ${locked?'disabled':''} onchange="so_sig('${field}',this.value)">
+              <option value="">— Select Signature —</option>
+              ${SUPERVISORS.map(n=>{ const s=STAFF.find(x=>x.name===n); const k=s?.sigKey||''; return `<option value="${k}" ${so.signatureKey===k?'selected':''}>${n}</option>`; }).join('')}
             </select>
             ${sigImg}
           </div>
@@ -1086,7 +1167,15 @@ window.so_set=(field,key,val)=>{
   if(jobs[currentJobId]) jobs[currentJobId].savedAt=new Date().toISOString();
   saveLocal();
   setStatus('Saved ✓');
-  renderTabs(); // update tab completion indicators only
+  renderTabs(); // update tab completion indicators
+  // Re-render current panel's next-step banner if visible
+  const panelId='panel-'+activeTab;
+  const panel=document.getElementById(panelId);
+  if(panel&&panel.classList.contains('active')){
+    if(activeTab==='prestart') renderPrestartPanel();
+    else if(activeTab==='inspections') renderInspectionsPanel();
+    else if(activeTab==='final') renderFinalPanel();
+  }
 };
 window.so_sig=(field,val)=>{
   const j=jobs[currentJobId]; if(!j) return;
@@ -1106,10 +1195,13 @@ function renderPrestartPanel(){
   const j=jobs[currentJobId];
   const el=document.getElementById('prestartContent'); if(!el) return;
   // Read from j object ONLY (which was flushed before renderAll was called)
-  const jn=String(j?.jobNumber||'').trim();
-  const cu=String(j?.customer||'').trim();
-  const dr=String(j?.drawingRev||'').trim();
-  const rd=String(j?.requiredDelivery||'').trim();
+  // Read from j object, fall back to DOM inputs if j fields are empty
+  const jn=(String(j?.jobNumber||'').trim())||String(document.getElementById('jobNumber')?.value||'').trim();
+  const cu=(String(j?.customer||'').trim())||String(document.getElementById('customer')?.value||'').trim();
+  const dr=(String(j?.drawingRev||'').trim())||String(document.getElementById('drawingRev')?.value||'').trim();
+  const rd=(String(j?.requiredDelivery||'').trim())||String(document.getElementById('requiredDelivery')?.value||'').trim();
+  // Also flush DOM values into j now so they're saved
+  if(j){ if(!j.jobNumber&&jn) j.jobNumber=jn; if(!j.customer&&cu) j.customer=cu; if(!j.drawingRev&&dr) j.drawingRev=dr; if(!j.requiredDelivery&&rd) j.requiredDelivery=rd; }
   if(!jn||!cu||!dr||!rd){
     el.innerHTML=lockedPanel('Complete Job Information first');return;
   }
@@ -1318,7 +1410,11 @@ function renderCoCPanel(){
       <div class="grid-3">
         <div class="field"><label>CoC Number</label><input value="${esc(j.coc.number)}" oninput="coc_set('number',this.value)"></div>
         <div class="field"><label>Issued Date</label><input type="date" value="${esc(j.coc.issued)}" oninput="coc_set('issued',this.value)"></div>
-        <div class="field"><label>Certified By</label><input value="${esc(j.coc.certifiedBy)}" ${currentUser.coc_authority?'':'readonly'} oninput="coc_set('certifiedBy',this.value)"></div>
+        <div class="field"><label>Certified By</label>
+          <select onchange="coc_set('certifiedBy',this.value)">
+            <option value="">— Select —</option>
+            ${SUPERVISORS.map(n=>`<option value="${n}" ${j.coc.certifiedBy===n?'selected':''}>${n}</option>`).join('')}
+          </select></div>
         <div class="field"><label>Customer</label><input value="${esc(j.customer)}" readonly></div>
         <div class="field"><label>Drawing / Rev</label><input value="${esc(j.drawingRev)}" readonly></div>
         <div class="field"><label>Reference (PO / Order No)</label><input value="${esc(j.coc.reference)}" oninput="coc_set('reference',this.value)"></div>
@@ -2831,6 +2927,8 @@ window.goToCoC        = goToCoC;
 window.goToTime       = goToTime;
 window.showReports    = showReports;
 window.toggleSidebar  = toggleSidebar;
+window.toggleOperator = toggleOperator;
+window.renderOperatorCheckboxes = renderOperatorCheckboxes;
 window.renderReports  = renderReports;
 window.exportFYCSV    = exportFYCSV;
 window.exportISOReport= exportISOReport;
