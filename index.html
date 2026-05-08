@@ -670,7 +670,7 @@ function saveNow(){
   // Flush all job info inputs to the job object
   const j=jobs[currentJobId];
   if(j){
-    ['jobNumber','customer','drawingRev','requiredDelivery','operator',
+    ['jobNumber','customer','drawingRev','requiredDelivery',
      'machineOperation','qtyOrdered','qtySupplied','material',
      'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
       const el=document.getElementById(key);
@@ -931,7 +931,9 @@ function renderJobPanel(){
   bind('customer',()=>j.customer,v=>j.customer=v);
   bind('drawingRev',()=>j.drawingRev,v=>j.drawingRev=v);
   bind('requiredDelivery',()=>j.requiredDelivery,v=>j.requiredDelivery=v);
-  bind('operator',()=>j.operator,v=>j.operator=v);
+  // operator managed by checkboxes (toggleOperator) - just set hidden input value
+  const opEl=document.getElementById('operator');
+  if(opEl) opEl.value=j.operator||'';
   bind('machineOperation',()=>j.machineOperation,v=>j.machineOperation=v);
   bind('qtyOrdered',()=>j.qtyOrdered,v=>j.qtyOrdered=v);
   bind('qtySupplied',()=>j.qtySupplied,v=>j.qtySupplied=v);
@@ -2958,7 +2960,7 @@ window.addEventListener('beforeunload', ()=>{
   if(currentJobId&&jobs[currentJobId]){
     // Synchronous save before unload
     const j=jobs[currentJobId];
-    ['jobNumber','customer','drawingRev','requiredDelivery','operator',
+    ['jobNumber','customer','drawingRev','requiredDelivery',
      'machineOperation','qtyOrdered','qtySupplied','material',
      'partDescription','notes','dateStarted','actualDelivery'].forEach(key=>{
       const el=document.getElementById(key);
