@@ -1085,63 +1085,67 @@ window.viewDrawing=(i)=>{
 // ═══════════════════════════════════
 function signoffBox(field, j, label, locked){
   const so=j[field]||{};
-  const canSign=currentUser&&(currentUser.role==='supervisor'||currentUser.role==='admin');
   const sigImg=so.signatureKey&&SIG_IMAGES[so.signatureKey]
-    ? `<img class="sig-preview" src="${SIG_IMAGES[so.signatureKey]}" alt="Signature">`:'';
+    ? '<img class="sig-preview" src="'+SIG_IMAGES[so.signatureKey]+'" alt="Signature">':'';
   const supComplete=!!(so.name&&so.date);
-  return `<div class="signoff-box">
-    <div style="font-size:11px;font-weight:700;color:#7a5c00;text-transform:uppercase;letter-spacing:.4px;margin-bottom:12px">
-      ✍ Section Sign-Off
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
 
-      <!-- OPERATOR SIGN-OFF -->
-      <div style="background:#fff;border:1px solid #e0c96a;border-radius:8px;padding:12px">
-        <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Operator</div>
-        <div class="field" style="margin-bottom:8px">
-          <label>Name</label>
-          <select ${locked?'disabled':''} onchange="so_set('${field}','operatorName',this.value)">
-            <option value="">— Select Operator —</option>
-            ${ALL_STAFF.map(n=>`<option value="${n}" ${so.operatorName===n?'selected':''} >${n}</option>`).join('')}
-          </select>
-        </div>
-        <div class="grid-2" style="gap:8px">
-          <div class="field"><label>Date</label><input type="date" value="${esc(so.operatorDate||'')}" ${locked?'disabled':''} oninput="so_set('${field}','operatorDate',this.value)"></div>
-          <div class="field"><label>Time</label><input type="time" value="${esc(so.operatorTime||'')}" ${locked?'disabled':''} oninput="so_set('${field}','operatorTime',this.value)"></div>
-        </div>
-        ${so.operatorName?`<div style="margin-top:6px;font-size:11px;color:var(--green);font-weight:700">✓ Signed</div>`:'<div style="margin-top:6px;font-size:11px;color:#aaa">Not yet signed</div>'}
-      </div>
+  // Build option strings BEFORE template literal to avoid nesting issues
+  const opOpts=ALL_STAFF.map(n=>{
+    const sel=so.operatorName===n?' selected':'';
+    return '<option value="'+n+'"'+sel+'>'+n+'</option>';
+  }).join('');
 
-      <!-- SUPERVISOR SIGN-OFF (required) -->
-      <div style="background:#fff;border:2px solid var(--gold);border-radius:8px;padding:12px">
-        <div style="font-size:10px;font-weight:700;color:#7a5c00;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Workshop Supervisor / Manager <span style="color:var(--red)">★ Required</span></div>
-        <div class="field" style="margin-bottom:8px">
-          <label>Name</label>
-          <select ${locked?'disabled':''} onchange="so_set('${field}','name',this.value)">
-            <option value="">— Select Supervisor —</option>
-            ${SUPERVISORS.map(n=>`<option value="${n}" ${so.name===n?'selected':''} >${n}</option>`).join('')}
-          </select>
-        </div>
-        <div style="margin-bottom:8px">
-          <label style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:4px">Signature</label>
-          <div class="sig-select">
-            <select ${locked?'disabled':''} onchange="so_sig('${field}',this.value)">
-              <option value="">— Select Signature —</option>
-              ${STAFF.filter(s=>s.role==="supervisor"||s.role==="both").map(s=>`<option value="${s.sigKey||""}" ${so.signatureKey===(s.sigKey||"")?'selected':''}>${s.name}</option>`).join('')}
-            </select>
-            ${sigImg}
-          </div>
-        </div>
-        <div class="grid-2" style="gap:8px">
-          <div class="field"><label>Date</label><input type="date" value="${esc(so.date||'')}" ${locked?'disabled':''} oninput="so_set('${field}','date',this.value)"></div>
-          <div class="field"><label>Time</label><input type="time" value="${esc(so.time||'')}" ${locked?'disabled':''} oninput="so_set('${field}','time',this.value)"></div>
-        </div>
-        ${supComplete&&!locked?'<div style="margin-top:6px;font-size:11px;font-weight:700;color:var(--green)">✅ Section approved</div>':'<div style="margin-top:6px;font-size:11px;color:#aaa">Awaiting supervisor sign-off</div>'}
-      </div>
+  const supOpts=SUPERVISORS.map(n=>{
+    const sel=so.name===n?' selected':'';
+    return '<option value="'+n+'"'+sel+'>'+n+'</option>';
+  }).join('');
 
-    </div>
-  </div>`;
+  const sigOpts=SUPERVISORS.map(n=>{
+    const s=STAFF.find(x=>x.name===n);
+    const k=s&&s.sigKey?s.sigKey:'';
+    const sel=so.signatureKey===k?' selected':'';
+    return '<option value="'+k+'"'+sel+'>'+n+'</option>';
+  }).join('');
+
+  const dis=locked?'disabled':'';
+  const opSigned=so.operatorName?'<div style="margin-top:6px;font-size:11px;color:var(--green);font-weight:700">✓ Signed</div>':'<div style="margin-top:6px;font-size:11px;color:#aaa">Not yet signed</div>';
+  const supStatus=supComplete&&!locked?'<div style="margin-top:6px;font-size:11px;font-weight:700;color:var(--green)">✅ Section approved</div>':'<div style="margin-top:6px;font-size:11px;color:#aaa">Awaiting supervisor sign-off</div>';
+
+  return '<div class="signoff-box">'
+    +'<div style="font-size:11px;font-weight:700;color:#7a5c00;text-transform:uppercase;letter-spacing:.4px;margin-bottom:12px">✍ Section Sign-Off</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'
+
+    // OPERATOR
+    +'<div style="background:#fff;border:1px solid #e0c96a;border-radius:8px;padding:12px">'
+    +'<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Operator</div>'
+    +'<div class="field" style="margin-bottom:8px"><label>Name</label>'
+    +'<select '+dis+' onchange="so_set(''+field+'','operatorName',this.value)">'
+    +'<option value="">— Select Operator —</option>'+opOpts+'</select></div>'
+    +'<div class="grid-2" style="gap:8px">'
+    +'<div class="field"><label>Date</label><input type="date" value="'+(so.operatorDate||'')+'" '+dis+' oninput="so_set(''+field+'','operatorDate',this.value)"></div>'
+    +'<div class="field"><label>Time</label><input type="time" value="'+(so.operatorTime||'')+'" '+dis+' oninput="so_set(''+field+'','operatorTime',this.value)"></div>'
+    +'</div>'+opSigned+'</div>'
+
+    // SUPERVISOR
+    +'<div style="background:#fff;border:2px solid var(--gold);border-radius:8px;padding:12px">'
+    +'<div style="font-size:10px;font-weight:700;color:#7a5c00;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Workshop Supervisor / Manager <span style="color:var(--red)">★ Required</span></div>'
+    +'<div class="field" style="margin-bottom:8px"><label>Name</label>'
+    +'<select '+dis+' onchange="so_set(''+field+'','name',this.value)">'
+    +'<option value="">— Select Supervisor —</option>'+supOpts+'</select></div>'
+    +'<div style="margin-bottom:8px">'
+    +'<label style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:4px">Signature</label>'
+    +'<div class="sig-select">'
+    +'<select '+dis+' onchange="so_sig(''+field+'',this.value)">'
+    +'<option value="">— Select Signature —</option>'+sigOpts+'</select>'
+    +sigImg+'</div></div>'
+    +'<div class="grid-2" style="gap:8px">'
+    +'<div class="field"><label>Date</label><input type="date" value="'+(so.date||'')+'" '+dis+' oninput="so_set(''+field+'','date',this.value)"></div>'
+    +'<div class="field"><label>Time</label><input type="time" value="'+(so.time||'')+'" '+dis+' oninput="so_set(''+field+'','time',this.value)"></div>'
+    +'</div>'+supStatus+'</div>'
+
+    +'</div></div>';
 }
+
 window.so_set=(field,key,val)=>{
   const j=jobs[currentJobId]; if(!j) return;
   if(!j[field]) j[field]={};
