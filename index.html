@@ -233,7 +233,7 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
             <div class="field">
               <label>Operator(s) Assigned</label>
               <div id="operatorCheckboxes" style="background:#fff;border:1px solid #d0d0d0;border-radius:7px;padding:8px 10px;display:flex;flex-wrap:wrap;gap:6px;min-height:36px;">
-                <span style="color:#aaa;font-size:12px;line-height:28px">Loading…</span>
+                <span style="color:#aaa;font-size:12px;line-height:28px">Select operator(s)…</span>
               </div>
               <input type="hidden" id="operator">
             </div>
@@ -348,24 +348,24 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
 // CONFIG  (no Supabase — local storage only)
 // ═══════════════════════════════════
 const STORAGE_KEY = "jenner_qms_v3";
+const WORKSHOP_PASSWORD = "jenner2025";
 
 // ═══════════════════════════════════
-// STAFF — add/remove people here only
+// STAFF — edit ONLY this list to add/change staff
 // role: 'operator' | 'supervisor' | 'both'
-// sigKey: matches SIG_IMAGES key (null if no image)
+// sigKey: matches SIG_IMAGES key, or null
 // ═══════════════════════════════════
 const STAFF = [
-  { name: "Gary Smith",        role: "supervisor", sigKey: null        },
-  { name: "Colin Norris",      role: "supervisor", sigKey: "colin"     },
-  { name: "Carol Norris",      role: "supervisor", sigKey: "carol"     },
-  { name: "Chris Bryan",       role: "operator",   sigKey: null        },
-  { name: "Todd O'Sullivan",  role: "operator",   sigKey: null        },
-  { name: "Peter Rassmussen",  role: "operator",   sigKey: null        },
+  { name: "Gary Smith",       role: "supervisor", sigKey: null    },
+  { name: "Colin Norris",     role: "supervisor", sigKey: "colin" },
+  { name: "Carol Norris",     role: "supervisor", sigKey: "carol" },
+  { name: "Chris Bryan",      role: "operator",   sigKey: null    },
+  { name: "Todd O'Sullivan", role: "operator",   sigKey: null    },
+  { name: "Peter Rassmussen", role: "operator",   sigKey: null    },
 ];
 const OPERATORS   = STAFF.filter(s=>s.role==="operator"||s.role==="both").map(s=>s.name);
 const SUPERVISORS = STAFF.filter(s=>s.role==="supervisor"||s.role==="both").map(s=>s.name);
-const ALL_STAFF   = STAFF.map(s=>s.name);
-const WORKSHOP_PASSWORD = "jenner2025"; // Change this to your preferred password
+const ALL_STAFF   = STAFF.map(s=>s.name); // Change this to your preferred password
 
 // ═══════════════════════════════════
 // IMAGES — inserted by build script
@@ -685,12 +685,8 @@ function saveNow(){
   renderTabs();
 }
 function scheduleSave(){
+  // Save immediately so navigation always sees current data
   saveNow();
-  // Re-render current panel so next-step banners update immediately
-  if(activeTab==='prestart') renderPrestartPanel();
-  else if(activeTab==='inspections') renderInspectionsPanel();
-  else if(activeTab==='final') renderFinalPanel();
-  else if(activeTab==='job'){ renderOperatorCheckboxes(jobs[currentJobId]); }
 }
 function setStatus(msg){ document.getElementById('statusBox').textContent=msg; }
 
@@ -916,9 +912,9 @@ function renderJobPanel(){
   bind('customer',()=>j.customer,v=>j.customer=v);
   bind('drawingRev',()=>j.drawingRev,v=>j.drawingRev=v);
   bind('requiredDelivery',()=>j.requiredDelivery,v=>j.requiredDelivery=v);
-  // operator managed by checkboxes - just sync hidden input value
-  const _opEl=document.getElementById('operator');
-  if(_opEl) _opEl.value=j.operator||'';
+  // operator managed by checkboxes — just sync hidden input value
+  const _opEl = document.getElementById('operator');
+  if (_opEl) _opEl.value = j.operator || '';
   bind('machineOperation',()=>j.machineOperation,v=>j.machineOperation=v);
   bind('qtyOrdered',()=>j.qtyOrdered,v=>j.qtyOrdered=v);
   bind('qtySupplied',()=>j.qtySupplied,v=>j.qtySupplied=v);
@@ -936,25 +932,37 @@ function renderJobPanel(){
 }
 
 function renderOperatorCheckboxes(j){
-  const el=document.getElementById('operatorCheckboxes');
-  if(!el||!j) return;
-  const ops=(j.operator||'').split('/').map(s=>s.trim()).filter(Boolean);
-  const locked=!!j.cocIssued;
-  el.innerHTML=ALL_STAFF.map((name,i)=>{
-    const on=ops.includes(name);
-    const bg=on?'var(--gold-soft)':'#f5f5f5';
-    const bd=on?'var(--gold)':'#ddd';
-    const dis=locked?'disabled':'';
-    const chk=on?'checked':'';
-    // Use data-opidx to avoid apostrophe issues (e.g. Todd O'Sullivan)
-    return '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:600;font-size:13px;padding:4px 10px;border-radius:5px;border:1px solid '+bd+';background:'+bg+'">'
-      +'<input type="checkbox" '+chk+' '+dis+' data-opidx="'+i+'" onchange="toggleOperatorByIdx(this.dataset.opidx,this.checked)" style="cursor:pointer"> '+name
-      +'</label>';
+  const el = document.getElementById('operatorCheckboxes');
+  if (!el || !j) return;
+  const ops = (j.operator || '').split('/').map(function(s){ return s.trim(); }).filter(Boolean);
+  const locked = !!j.cocIssued;
+  el.innerHTML = ALL_STAFF.map(function(name, i){
+    const on = ops.indexOf(name) >= 0;
+    const bg = on ? 'var(--gold-soft)' : '#f5f5f5';
+    const bd = on ? 'var(--gold)' : '#ddd';
+    const dis = locked ? 'disabled' : '';
+    const chk = on ? 'checked' : '';
+    return '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:600;font-size:13px;padding:4px 10px;border-radius:5px;border:1px solid ' + bd + ';background:' + bg + '">'
+      + '<input type="checkbox" ' + chk + ' ' + dis + ' data-opidx="' + i + '" onchange="toggleOperatorByIdx(this.dataset.opidx,this.checked)" style="cursor:pointer"> '
+      + name + '</label>';
   }).join('');
   // Keep hidden input in sync
-  const hidden=document.getElementById('operator');
-  if(hidden) hidden.value=j.operator||'';
+  const hidden = document.getElementById('operator');
+  if (hidden) hidden.value = j.operator || '';
 }
+
+window.toggleOperatorByIdx = function(idx, checked){
+  const name = ALL_STAFF[parseInt(idx)];
+  if (!name) return;
+  const j = jobs[currentJobId]; if (!j) return;
+  let ops = (j.operator || '').split('/').map(function(s){ return s.trim(); }).filter(Boolean);
+  if (checked) { if (ops.indexOf(name) < 0) ops.push(name); }
+  else { ops = ops.filter(function(o){ return o !== name; }); }
+  j.operator = ops.join(' / ');
+  j.savedAt = new Date().toISOString();
+  saveLocal(); setStatus('Saved ✓');
+  renderOperatorCheckboxes(j);
+};
 
 function renderJobStatus(j){
   const el=document.getElementById('jobStatusBar'); if(!el) return;
@@ -1015,19 +1023,6 @@ function renderItemsTable(j){
   }
 }
 window.j_item=(i,f,v)=>{const j=jobs[currentJobId];if(j){j.items[i][f]=v;saveLocal();setStatus('Saved ✓');}};
-
-window.toggleOperatorByIdx=(idx,checked)=>{
-  const name=ALL_STAFF[parseInt(idx)];
-  if(!name) return;
-  const j=jobs[currentJobId]; if(!j) return;
-  let ops=(j.operator||'').split('/').map(s=>s.trim()).filter(Boolean);
-  if(checked){ if(!ops.includes(name)) ops.push(name); }
-  else { ops=ops.filter(o=>o!==name); }
-  j.operator=ops.join(' / ');
-  j.savedAt=new Date().toISOString();
-  saveLocal(); setStatus('Saved ✓');
-  renderOperatorCheckboxes(j);
-};
 window.addItemRow=()=>{const j=jobs[currentJobId];if(j){if(!Array.isArray(j.items))j.items=[];j.items.push({qty:'',partNumber:'',description:''});saveLocal();setStatus('Saved ✓');renderItemsTable(j);}};
 window.removeItem=(i)=>{const j=jobs[currentJobId];if(j&&Array.isArray(j.items)&&j.items.length>1){j.items.splice(i,1);saveLocal();setStatus('Saved ✓');renderItemsTable(j);}};
 
@@ -1084,66 +1079,72 @@ window.viewDrawing=(i)=>{
 // Only supervisor sign-off is required to unlock next section
 // ═══════════════════════════════════
 function signoffBox(field, j, label, locked){
-  const so=j[field]||{};
-  const sigImg=so.signatureKey&&SIG_IMAGES[so.signatureKey]
-    ? '<img class="sig-preview" src="'+SIG_IMAGES[so.signatureKey]+'" alt="Signature">':'';
-  const supComplete=!!(so.name&&so.date);
+  const so = j[field] || {};
+  const sigImg = so.signatureKey && SIG_IMAGES[so.signatureKey]
+    ? '<img class="sig-preview" src="' + SIG_IMAGES[so.signatureKey] + '" alt="Signature">' : '';
+  const supComplete = !!(so.name && so.date);
+  const dis = locked ? 'disabled' : '';
 
-  // Build option strings BEFORE template literal to avoid nesting issues
-  const opOpts=ALL_STAFF.map(n=>{
-    const sel=so.operatorName===n?' selected':'';
-    return '<option value="'+n+'"'+sel+'>'+n+'</option>';
-  }).join('');
+  // Build operator options from ALL_STAFF
+  let opOpts = '<option value="">— Select Operator —</option>';
+  ALL_STAFF.forEach(function(n) {
+    opOpts += '<option value="' + n + '"' + (so.operatorName === n ? ' selected' : '') + '>' + n + '</option>';
+  });
 
-  const supOpts=SUPERVISORS.map(n=>{
-    const sel=so.name===n?' selected':'';
-    return '<option value="'+n+'"'+sel+'>'+n+'</option>';
-  }).join('');
+  // Build supervisor name options from SUPERVISORS
+  let supOpts = '<option value="">— Select Supervisor —</option>';
+  SUPERVISORS.forEach(function(n) {
+    supOpts += '<option value="' + n + '"' + (so.name === n ? ' selected' : '') + '>' + n + '</option>';
+  });
 
-  const sigOpts=SUPERVISORS.map(n=>{
-    const s=STAFF.find(x=>x.name===n);
-    const k=s&&s.sigKey?s.sigKey:'';
-    const sel=so.signatureKey===k?' selected':'';
-    return '<option value="'+k+'"'+sel+'>'+n+'</option>';
-  }).join('');
+  // Build supervisor signature options from STAFF with sigKey
+  let sigOpts = '<option value="">— Select Signature —</option>';
+  SUPERVISORS.forEach(function(n) {
+    const s = STAFF.find(function(x){ return x.name === n; });
+    const k = (s && s.sigKey) ? s.sigKey : '';
+    sigOpts += '<option value="' + k + '"' + (so.signatureKey === k ? ' selected' : '') + '>' + n + '</option>';
+  });
 
-  const dis=locked?'disabled':'';
-  const opSigned=so.operatorName?'<div style="margin-top:6px;font-size:11px;color:var(--green);font-weight:700">✓ Signed</div>':'<div style="margin-top:6px;font-size:11px;color:#aaa">Not yet signed</div>';
-  const supStatus=supComplete&&!locked?'<div style="margin-top:6px;font-size:11px;font-weight:700;color:var(--green)">✅ Section approved</div>':'<div style="margin-top:6px;font-size:11px;color:#aaa">Awaiting supervisor sign-off</div>';
+  const opSigned = so.operatorName
+    ? '<div style="margin-top:6px;font-size:11px;color:var(--green);font-weight:700">&#10003; Signed</div>'
+    : '<div style="margin-top:6px;font-size:11px;color:#aaa">Not yet signed</div>';
+
+  const supStatus = (supComplete && !locked)
+    ? '<div style="margin-top:6px;font-size:11px;font-weight:700;color:var(--green)">&#9989; Section approved</div>'
+    : '<div style="margin-top:6px;font-size:11px;color:#aaa">Awaiting supervisor sign-off</div>';
 
   return '<div class="signoff-box">'
-    +'<div style="font-size:11px;font-weight:700;color:#7a5c00;text-transform:uppercase;letter-spacing:.4px;margin-bottom:12px">✍ Section Sign-Off</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'
+    + '<div style="font-size:11px;font-weight:700;color:#7a5c00;text-transform:uppercase;letter-spacing:.4px;margin-bottom:12px">&#9998; Section Sign-Off</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'
 
-    // OPERATOR
-    +'<div style="background:#fff;border:1px solid #e0c96a;border-radius:8px;padding:12px">'
-    +'<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Operator</div>'
-    +'<div class="field" style="margin-bottom:8px"><label>Name</label>'
-    +'<select '+dis+' onchange="so_set(''+field+'','operatorName',this.value)">'
-    +'<option value="">— Select Operator —</option>'+opOpts+'</select></div>'
-    +'<div class="grid-2" style="gap:8px">'
-    +'<div class="field"><label>Date</label><input type="date" value="'+(so.operatorDate||'')+'" '+dis+' oninput="so_set(''+field+'','operatorDate',this.value)"></div>'
-    +'<div class="field"><label>Time</label><input type="time" value="'+(so.operatorTime||'')+'" '+dis+' oninput="so_set(''+field+'','operatorTime',this.value)"></div>'
-    +'</div>'+opSigned+'</div>'
+    // OPERATOR BOX
+    + '<div style="background:#fff;border:1px solid #e0c96a;border-radius:8px;padding:12px">'
+    + '<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Operator</div>'
+    + '<div class="field" style="margin-bottom:8px"><label>Name</label>'
+    + '<select ' + dis + ' onchange="so_set('' + field + '','operatorName',this.value)">'
+    + opOpts + '</select></div>'
+    + '<div class="grid-2" style="gap:8px">'
+    + '<div class="field"><label>Date</label><input type="date" value="' + esc(so.operatorDate || '') + '" ' + dis + ' oninput="so_set('' + field + '','operatorDate',this.value)"></div>'
+    + '<div class="field"><label>Time</label><input type="time" value="' + esc(so.operatorTime || '') + '" ' + dis + ' oninput="so_set('' + field + '','operatorTime',this.value)"></div>'
+    + '</div>' + opSigned + '</div>'
 
-    // SUPERVISOR
-    +'<div style="background:#fff;border:2px solid var(--gold);border-radius:8px;padding:12px">'
-    +'<div style="font-size:10px;font-weight:700;color:#7a5c00;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Workshop Supervisor / Manager <span style="color:var(--red)">★ Required</span></div>'
-    +'<div class="field" style="margin-bottom:8px"><label>Name</label>'
-    +'<select '+dis+' onchange="so_set(''+field+'','name',this.value)">'
-    +'<option value="">— Select Supervisor —</option>'+supOpts+'</select></div>'
-    +'<div style="margin-bottom:8px">'
-    +'<label style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:4px">Signature</label>'
-    +'<div class="sig-select">'
-    +'<select '+dis+' onchange="so_sig(''+field+'',this.value)">'
-    +'<option value="">— Select Signature —</option>'+sigOpts+'</select>'
-    +sigImg+'</div></div>'
-    +'<div class="grid-2" style="gap:8px">'
-    +'<div class="field"><label>Date</label><input type="date" value="'+(so.date||'')+'" '+dis+' oninput="so_set(''+field+'','date',this.value)"></div>'
-    +'<div class="field"><label>Time</label><input type="time" value="'+(so.time||'')+'" '+dis+' oninput="so_set(''+field+'','time',this.value)"></div>'
-    +'</div>'+supStatus+'</div>'
-
-    +'</div></div>';
+    // SUPERVISOR BOX
+    + '<div style="background:#fff;border:2px solid var(--gold);border-radius:8px;padding:12px">'
+    + '<div style="font-size:10px;font-weight:700;color:#7a5c00;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Supervisor / Manager <span style="color:var(--red)">&#9733; Required</span></div>'
+    + '<div class="field" style="margin-bottom:8px"><label>Name</label>'
+    + '<select ' + dis + ' onchange="so_set('' + field + '','name',this.value)">'
+    + supOpts + '</select></div>'
+    + '<div style="margin-bottom:8px">'
+    + '<label style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:4px">Signature</label>'
+    + '<div class="sig-select">'
+    + '<select ' + dis + ' onchange="so_sig('' + field + '',this.value)">'
+    + sigOpts + '</select>'
+    + sigImg + '</div></div>'
+    + '<div class="grid-2" style="gap:8px">'
+    + '<div class="field"><label>Date</label><input type="date" value="' + esc(so.date || '') + '" ' + dis + ' oninput="so_set('' + field + '','date',this.value)"></div>'
+    + '<div class="field"><label>Time</label><input type="time" value="' + esc(so.time || '') + '" ' + dis + ' oninput="so_set('' + field + '','time',this.value)"></div>'
+    + '</div>' + supStatus + '</div>'
+    + '</div></div>';
 }
 
 window.so_set=(field,key,val)=>{
