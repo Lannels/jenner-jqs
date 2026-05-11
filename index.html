@@ -232,9 +232,7 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
             <div class="field"><label>Required Delivery *</label><input id="requiredDelivery" type="date"></div>
             <div class="field">
               <label>Operator(s) Assigned</label>
-              <div id="operatorCheckboxes" style="background:#fff;border:1px solid #d0d0d0;border-radius:7px;padding:8px 10px;display:flex;flex-wrap:wrap;gap:6px;min-height:36px;">
-                <span style="color:#aaa;font-size:12px;line-height:28px">Select operator(s)…</span>
-              </div>
+              <div id="operatorCheckboxes" style="background:#fff;border:1px solid #d0d0d0;border-radius:7px;padding:8px 10px;display:flex;flex-wrap:wrap;gap:6px;min-height:36px;"></div>
               <input type="hidden" id="operator">
             </div>
             <div class="field"><label>Machine(s) / Operation</label><input id="machineOperation" placeholder="e.g. Manual Lathe, CNC Mill, Victor"></div>
@@ -352,8 +350,6 @@ const WORKSHOP_PASSWORD = "jenner2025";
 
 // ═══════════════════════════════════
 // STAFF — edit ONLY this list to add/change staff
-// role: 'operator' | 'supervisor' | 'both'
-// sigKey: matches SIG_IMAGES key, or null
 // ═══════════════════════════════════
 const STAFF = [
   { name: "Gary Smith",       role: "supervisor", sigKey: null    },
@@ -912,9 +908,8 @@ function renderJobPanel(){
   bind('customer',()=>j.customer,v=>j.customer=v);
   bind('drawingRev',()=>j.drawingRev,v=>j.drawingRev=v);
   bind('requiredDelivery',()=>j.requiredDelivery,v=>j.requiredDelivery=v);
-  // operator managed by checkboxes — just sync hidden input value
-  const _opEl = document.getElementById('operator');
-  if (_opEl) _opEl.value = j.operator || '';
+  // operator managed by checkboxes — sync hidden input
+  const _opEl=document.getElementById('operator'); if(_opEl) _opEl.value=j.operator||'';
   bind('machineOperation',()=>j.machineOperation,v=>j.machineOperation=v);
   bind('qtyOrdered',()=>j.qtyOrdered,v=>j.qtyOrdered=v);
   bind('qtySupplied',()=>j.qtySupplied,v=>j.qtySupplied=v);
@@ -927,39 +922,34 @@ function renderJobPanel(){
   renderDrawingInfo(j);
   renderJobStatus(j);
   renderOperatorCheckboxes(j);
-  // Safety net: re-render items table after a tick in case DOM wasn't ready
-  setTimeout(()=>{ const jj=jobs[currentJobId]; if(jj) renderItemsTable(jj); }, 50);
+  setTimeout(()=>{ const jj=jobs[currentJobId]; if(jj) renderItemsTable(jj); },50);
 }
 
 function renderOperatorCheckboxes(j){
-  const el = document.getElementById('operatorCheckboxes');
-  if (!el || !j) return;
-  const ops = (j.operator || '').split('/').map(function(s){ return s.trim(); }).filter(Boolean);
-  const locked = !!j.cocIssued;
-  el.innerHTML = ALL_STAFF.map(function(name, i){
-    const on = ops.indexOf(name) >= 0;
-    const bg = on ? 'var(--gold-soft)' : '#f5f5f5';
-    const bd = on ? 'var(--gold)' : '#ddd';
-    const dis = locked ? 'disabled' : '';
-    const chk = on ? 'checked' : '';
-    return '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:600;font-size:13px;padding:4px 10px;border-radius:5px;border:1px solid ' + bd + ';background:' + bg + '">'
-      + '<input type="checkbox" ' + chk + ' ' + dis + ' data-opidx="' + i + '" onchange="toggleOperatorByIdx(this.dataset.opidx,this.checked)" style="cursor:pointer"> '
-      + name + '</label>';
+  const el=document.getElementById('operatorCheckboxes');
+  if(!el||!j) return;
+  const ops=(j.operator||'').split('/').map(function(s){return s.trim();}).filter(Boolean);
+  const locked=!!j.cocIssued;
+  el.innerHTML=ALL_STAFF.map(function(name,i){
+    const on=ops.indexOf(name)>=0;
+    const bg=on?'var(--gold-soft)':'#f5f5f5';
+    const bd=on?'var(--gold)':'#ddd';
+    const dis=locked?'disabled':'';
+    const chk=on?'checked':'';
+    return '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:600;font-size:13px;padding:4px 10px;border-radius:5px;border:1px solid '+bd+';background:'+bg+'">'
+      +'<input type="checkbox" '+chk+' '+dis+' data-opidx="'+i+'" onchange="toggleOperatorByIdx(this.dataset.opidx,this.checked)" style="cursor:pointer"> '+name+'</label>';
   }).join('');
-  // Keep hidden input in sync
-  const hidden = document.getElementById('operator');
-  if (hidden) hidden.value = j.operator || '';
+  const hidden=document.getElementById('operator');
+  if(hidden) hidden.value=j.operator||'';
 }
-
-window.toggleOperatorByIdx = function(idx, checked){
-  const name = ALL_STAFF[parseInt(idx)];
-  if (!name) return;
-  const j = jobs[currentJobId]; if (!j) return;
-  let ops = (j.operator || '').split('/').map(function(s){ return s.trim(); }).filter(Boolean);
-  if (checked) { if (ops.indexOf(name) < 0) ops.push(name); }
-  else { ops = ops.filter(function(o){ return o !== name; }); }
-  j.operator = ops.join(' / ');
-  j.savedAt = new Date().toISOString();
+window.toggleOperatorByIdx=function(idx,checked){
+  const name=ALL_STAFF[parseInt(idx)]; if(!name) return;
+  const j=jobs[currentJobId]; if(!j) return;
+  let ops=(j.operator||'').split('/').map(function(s){return s.trim();}).filter(Boolean);
+  if(checked){ if(ops.indexOf(name)<0) ops.push(name); }
+  else{ ops=ops.filter(function(o){return o!==name;}); }
+  j.operator=ops.join(' / ');
+  j.savedAt=new Date().toISOString();
   saveLocal(); setStatus('Saved ✓');
   renderOperatorCheckboxes(j);
 };
@@ -996,33 +986,26 @@ function renderJobStatus(j){
 
 function renderItemsTable(j){
   const body=document.getElementById('itemsBody'); if(!body) return;
-  // Nuclear safety: ensure j.items is always a usable array
-  try{
-    if(!j||typeof j!=='object') return;
-    if(!Array.isArray(j.items)) j.items=[];
-    while(j.items.length<3) j.items.push({qty:'',partNumber:'',description:''});
-    const rows=j.items.map((it,i)=>{
-      const qty=String(it.qty??''); const pn=String(it.partNumber??''); const desc=String(it.description??'');
-      const dis=j.cocIssued?'disabled':'';
-      const btn=!j.cocIssued?`<button class="btn-red btn-sm" onclick="removeItem(${i})">✕</button>`:'';
-      return `<tr>
-        <td><input value="${esc(qty)}" ${dis} oninput="j_item(${i},'qty',this.value)"></td>
-        <td><input value="${esc(pn)}" ${dis} oninput="j_item(${i},'partNumber',this.value)"></td>
-        <td><input value="${esc(desc)}" ${dis} oninput="j_item(${i},'description',this.value)"></td>
-        <td>${btn}</td>
-      </tr>`;
-    });
-    body.innerHTML=rows.join('');
-    // Failsafe: if innerHTML ended up empty despite items, force 3 blank rows
-    if(!body.innerHTML.trim()&&!j.cocIssued){
-      body.innerHTML='<tr><td><input oninput="j_item(0,'qty',this.value)"></td><td><input oninput="j_item(0,'partNumber',this.value)"></td><td><input oninput="j_item(0,'description',this.value)"></td><td><button class="btn-red btn-sm" onclick="removeItem(0)">✕</button></td></tr><tr><td><input oninput="j_item(1,'qty',this.value)"></td><td><input oninput="j_item(1,'partNumber',this.value)"></td><td><input oninput="j_item(1,'description',this.value)"></td><td><button class="btn-red btn-sm" onclick="removeItem(1)">✕</button></td></tr><tr><td><input oninput="j_item(2,'qty',this.value)"></td><td><input oninput="j_item(2,'partNumber',this.value)"></td><td><input oninput="j_item(2,'description',this.value)"></td><td><button class="btn-red btn-sm" onclick="removeItem(2)">✕</button></td></tr>';
-    }
-  }catch(e){
-    console.error('renderItemsTable error:',e);
-    body.innerHTML='<tr><td colspan="4" style="color:red;padding:8px">Error rendering items — click + Row to add</td></tr>';
-  }
+  if(!j||typeof j!=='object') return;
+  if(!Array.isArray(j.items)) j.items=[];
+  while(j.items.length<3) j.items.push({qty:'',partNumber:'',description:''});
+  const dis=j.cocIssued?'disabled':'';
+  body.innerHTML=j.items.map(function(it,i){
+    const q=esc(String(it.qty||''));
+    const p=esc(String(it.partNumber||''));
+    const d=esc(String(it.description||''));
+    const btn=!j.cocIssued?'<button class="btn-red btn-sm" onclick="removeItem('+i+')">&#10005;</button>':'';
+    const rowHtml='<tr>'
+      +'<td><input value="'+q+'" '+dis+' data-row="'+i+'" data-col="qty" oninput="j_item_ev(this)"></td>'
+      +'<td><input value="'+p+'" '+dis+' data-row="'+i+'" data-col="partNumber" oninput="j_item_ev(this)"></td>'
+      +'<td><input value="'+d+'" '+dis+' data-row="'+i+'" data-col="description" oninput="j_item_ev(this)"></td>'
+      +'<td>'+btn+'</td></tr>';
+    return rowHtml;
+  }).join('');
 }
+
 window.j_item=(i,f,v)=>{const j=jobs[currentJobId];if(j){j.items[i][f]=v;saveLocal();setStatus('Saved ✓');}};
+window.j_item_ev=function(el){const i=parseInt(el.dataset.row);const f=el.dataset.col;const j=jobs[currentJobId];if(j&&j.items[i]!==undefined){j.items[i][f]=el.value;saveLocal();setStatus('Saved ✓');}};
 window.addItemRow=()=>{const j=jobs[currentJobId];if(j){if(!Array.isArray(j.items))j.items=[];j.items.push({qty:'',partNumber:'',description:''});saveLocal();setStatus('Saved ✓');renderItemsTable(j);}};
 window.removeItem=(i)=>{const j=jobs[currentJobId];if(j&&Array.isArray(j.items)&&j.items.length>1){j.items.splice(i,1);saveLocal();setStatus('Saved ✓');renderItemsTable(j);}};
 
@@ -1085,19 +1068,7 @@ function signoffBox(field, j, label, locked){
   const supComplete = !!(so.name && so.date);
   const dis = locked ? 'disabled' : '';
 
-  // Build operator options from ALL_STAFF
-  let opOpts = '<option value="">— Select Operator —</option>';
-  ALL_STAFF.forEach(function(n) {
-    opOpts += '<option value="' + n + '"' + (so.operatorName === n ? ' selected' : '') + '>' + n + '</option>';
-  });
-
-  // Build supervisor name options from SUPERVISORS
-  let supOpts = '<option value="">— Select Supervisor —</option>';
-  SUPERVISORS.forEach(function(n) {
-    supOpts += '<option value="' + n + '"' + (so.name === n ? ' selected' : '') + '>' + n + '</option>';
-  });
-
-  // Build supervisor signature options from STAFF with sigKey
+  // Supervisor signature dropdown
   let sigOpts = '<option value="">— Select Signature —</option>';
   SUPERVISORS.forEach(function(n) {
     const s = STAFF.find(function(x){ return x.name === n; });
@@ -1117,32 +1088,25 @@ function signoffBox(field, j, label, locked){
     + '<div style="font-size:11px;font-weight:700;color:#7a5c00;text-transform:uppercase;letter-spacing:.4px;margin-bottom:12px">&#9998; Section Sign-Off</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'
 
-    // OPERATOR BOX
     + '<div style="background:#fff;border:1px solid #e0c96a;border-radius:8px;padding:12px">'
     + '<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Operator</div>'
     + '<div class="field" style="margin-bottom:8px"><label>Name</label>'
-    + '<select ' + dis + ' onchange="so_set('' + field + '','operatorName',this.value)">'
-    + opOpts + '</select></div>'
+    + '<input type="text" value="' + esc(so.operatorName || '') + '" ' + dis + ' placeholder="Operator name" oninput="so_set(\'' + field + '\',\'operatorName\',this.value)"></div>'
     + '<div class="grid-2" style="gap:8px">'
-    + '<div class="field"><label>Date</label><input type="date" value="' + esc(so.operatorDate || '') + '" ' + dis + ' oninput="so_set('' + field + '','operatorDate',this.value)"></div>'
-    + '<div class="field"><label>Time</label><input type="time" value="' + esc(so.operatorTime || '') + '" ' + dis + ' oninput="so_set('' + field + '','operatorTime',this.value)"></div>'
+    + '<div class="field"><label>Date</label><input type="date" value="' + esc(so.operatorDate || '') + '" ' + dis + ' oninput="so_set(\'' + field + '\',\'operatorDate\',this.value)"></div>'
+    + '<div class="field"><label>Time</label><input type="time" value="' + esc(so.operatorTime || '') + '" ' + dis + ' oninput="so_set(\'' + field + '\',\'operatorTime\',this.value)"></div>'
     + '</div>' + opSigned + '</div>'
 
-    // SUPERVISOR BOX
     + '<div style="background:#fff;border:2px solid var(--gold);border-radius:8px;padding:12px">'
     + '<div style="font-size:10px;font-weight:700;color:#7a5c00;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Supervisor / Manager <span style="color:var(--red)">&#9733; Required</span></div>'
     + '<div class="field" style="margin-bottom:8px"><label>Name</label>'
-    + '<select ' + dis + ' onchange="so_set('' + field + '','name',this.value)">'
-    + supOpts + '</select></div>'
+    + '<input type="text" value="' + esc(so.name || '') + '" ' + dis + ' placeholder="Supervisor name" oninput="so_set(\'' + field + '\',\'name\',this.value)"></div>'
     + '<div style="margin-bottom:8px">'
     + '<label style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:4px">Signature</label>'
-    + '<div class="sig-select">'
-    + '<select ' + dis + ' onchange="so_sig('' + field + '',this.value)">'
-    + sigOpts + '</select>'
-    + sigImg + '</div></div>'
+    + '<div class="sig-select"><select ' + dis + ' onchange="so_sig(\'' + field + '\',this.value)">' + sigOpts + '</select>' + sigImg + '</div></div>'
     + '<div class="grid-2" style="gap:8px">'
-    + '<div class="field"><label>Date</label><input type="date" value="' + esc(so.date || '') + '" ' + dis + ' oninput="so_set('' + field + '','date',this.value)"></div>'
-    + '<div class="field"><label>Time</label><input type="time" value="' + esc(so.time || '') + '" ' + dis + ' oninput="so_set('' + field + '','time',this.value)"></div>'
+    + '<div class="field"><label>Date</label><input type="date" value="' + esc(so.date || '') + '" ' + dis + ' oninput="so_set(\'' + field + '\',\'date\',this.value)"></div>'
+    + '<div class="field"><label>Time</label><input type="time" value="' + esc(so.time || '') + '" ' + dis + ' oninput="so_set(\'' + field + '\',\'time\',this.value)"></div>'
     + '</div>' + supStatus + '</div>'
     + '</div></div>';
 }
