@@ -174,8 +174,6 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
   </div>
 </div>
 
-<!-- MAIN APP --></div>
-
 <!-- MAIN APP -->
 <div id="appRoot" class="app" style="display:none">
   <aside class="sidebar" id="sidebar">
@@ -3084,9 +3082,7 @@ window.scanProcess = async function(){
   const apiKey = document.getElementById('scanApiKey').value.trim()
     || localStorage.getItem('qms_gemini_key') || '';
   if(!apiKey){
-    alert('Please enter your Google Gemini API key above and click Save.
-
-Get a free key at: aistudio.google.com');
+    alert('Please enter your Google Gemini API key above and click Save.\n\nGet a free key at: aistudio.google.com');
     return;
   }
 
