@@ -191,6 +191,7 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
     <div class="sb-tools">
       <button class="btn-gold btn-sm" onclick="createJob()" id="btnNewJob">+ New Job</button>
       <button class="btn-dark btn-sm" onclick="syncFromServer()" title="Import jobs from a backup file">↓ Import</button>
+      <button class="btn-dark btn-sm" onclick="scanJobPack()" title="Scan a handwritten job pack PDF or photo" style="background:#1a3a5c;border-color:#2a5a8c">📷 Scan Job Pack</button>
       <button class="btn-dark btn-sm" onclick="diagnoseLostJobs()" title="Check for missing jobs" style="background:#7a3c00;border-color:#b05500">🔍 Recover</button>
       <button class="btn-dark btn-sm" onclick="syncToServer()" title="Export all jobs to a backup file">↑ Export</button>
       <button class="btn-dark btn-sm" onclick="showReports()" id="btnReports">📊 Reports</button>
@@ -2964,6 +2965,269 @@ document.getElementById('sidebarLogo').src  = IMG_LOGO;
   document.getElementById('loginScreen').style.display='flex';
 })();
 </script>
+<!-- SCAN JOB PACK MODAL -->
+<div class="modal-backdrop" id="scanModal">
+  <div class="modal" style="width:min(640px,96vw)">
+    <div class="modal-head">📷 Scan Handwritten Job Pack — AI Reader <button onclick="closeModal('scanModal')">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:#555;margin-bottom:14px">
+        Upload a scanned PDF or photo of a handwritten job pack. The AI will read the handwriting and fill in the job details automatically.
+      </p>
+      <div id="scanDropZone" style="border:2px dashed #d8a318;border-radius:10px;padding:30px;text-align:center;cursor:pointer;background:#fffdf5;margin-bottom:14px" onclick="document.getElementById('scanFileInput').click()" ondragover="event.preventDefault()" ondrop="scanHandleDrop(event)">
+        <div style="font-size:36px;margin-bottom:8px">📄</div>
+        <div style="font-weight:700;color:#7a5c00;font-size:14px">Click to select or drag &amp; drop</div>
+        <div style="font-size:12px;color:#aaa;margin-top:4px">Supports: JPG, PNG, PDF (first page), HEIC photos from phone</div>
+        <input type="file" id="scanFileInput" accept="image/*,.pdf" style="display:none" onchange="scanHandleFile(this.files[0])">
+      </div>
+      <div id="scanPreview" style="display:none;margin-bottom:14px;text-align:center">
+        <img id="scanPreviewImg" style="max-width:100%;max-height:200px;border:1px solid #ddd;border-radius:6px">
+        <div id="scanFileName" style="font-size:12px;color:#888;margin-top:4px"></div>
+      </div>
+      <div id="scanStatus" style="display:none;padding:12px;border-radius:8px;font-size:13px;margin-bottom:10px"></div>
+      <div id="scanResults" style="display:none">
+        <h4 style="font-size:13px;font-weight:700;margin-bottom:10px;color:#333">AI Read the following — review and confirm:</h4>
+        <div class="grid-2" style="gap:10px" id="scanFieldsGrid"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-white" onclick="closeModal('scanModal')">Cancel</button>
+      <button class="btn-gold" id="btnScanProcess" onclick="scanProcess()" style="display:none">🤖 Read Handwriting</button>
+      <button class="btn-green" id="btnScanImport" onclick="scanImport()" style="display:none">✅ Create Job from Scan</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════
+// SCAN JOB PACK — AI Handwriting Reader
+// Uses Anthropic Claude vision via API
+// ═══════════════════════════════════
+let scanImageBase64 = null;
+let scanImageType = 'image/jpeg';
+let scanExtractedData = {};
+
+window.scanJobPack = function(){
+  // Reset
+  scanImageBase64 = null;
+  scanExtractedData = {};
+  document.getElementById('scanPreview').style.display = 'none';
+  document.getElementById('scanStatus').style.display = 'none';
+  document.getElementById('scanResults').style.display = 'none';
+  document.getElementById('btnScanProcess').style.display = 'none';
+  document.getElementById('btnScanImport').style.display = 'none';
+  document.getElementById('scanFileInput').value = '';
+  document.getElementById('scanModal').classList.add('open');
+};
+
+window.scanHandleDrop = function(e){
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if(file) scanHandleFile(file);
+};
+
+window.scanHandleFile = function(file){
+  if(!file) return;
+  const status = document.getElementById('scanStatus');
+
+  // Show file name
+  document.getElementById('scanFileName').textContent = file.name + ' (' + Math.round(file.size/1024) + ' KB)';
+
+  // For PDF - tell user we'll send first page
+  if(file.type === 'application/pdf'){
+    // Convert PDF to image using canvas isn't possible directly
+    // We'll send the PDF as a document type to Claude
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      scanImageBase64 = ev.target.result.split(',')[1];
+      scanImageType = 'application/pdf';
+      document.getElementById('scanPreview').style.display = 'block';
+      document.getElementById('scanPreviewImg').style.display = 'none';
+      document.getElementById('scanFileName').textContent = '📄 ' + file.name + ' — PDF ready to scan';
+      document.getElementById('btnScanProcess').style.display = 'inline-block';
+      document.getElementById('scanStatus').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+    return;
+  }
+
+  // For images — show preview
+  scanImageType = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    scanImageBase64 = ev.target.result.split(',')[1];
+    const img = document.getElementById('scanPreviewImg');
+    img.src = ev.target.result;
+    img.style.display = 'block';
+    document.getElementById('scanPreview').style.display = 'block';
+    document.getElementById('btnScanProcess').style.display = 'inline-block';
+    document.getElementById('scanStatus').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+};
+
+window.scanProcess = async function(){
+  if(!scanImageBase64){ alert('Please select a file first.'); return; }
+
+  const status = document.getElementById('scanStatus');
+  const btn = document.getElementById('btnScanProcess');
+  btn.disabled = true;
+  btn.textContent = '⏳ Reading handwriting…';
+  status.style.display = 'block';
+  status.style.background = '#fff8e1';
+  status.style.border = '1px solid #d8a318';
+  status.style.color = '#7a5c00';
+  status.textContent = '🤖 AI is reading your handwritten job pack — this takes 10-20 seconds…';
+  document.getElementById('scanResults').style.display = 'none';
+  document.getElementById('btnScanImport').style.display = 'none';
+
+  const prompt = `You are reading a handwritten or scanned engineering job pack for Jenner Engineering Pty Ltd.
+Extract ALL visible information from this document and return it as a JSON object with these exact keys:
+{
+  "jobNumber": "the job number e.g. P.26.0305",
+  "customer": "customer/client name",
+  "partDescription": "part name or job title",
+  "drawingRev": "drawing number and revision",
+  "material": "material specification",
+  "machineOperation": "machine or operation type",
+  "operator": "operator name(s)",
+  "qtyOrdered": "quantity ordered (number only)",
+  "qtySupplied": "quantity supplied (number only)",
+  "requiredDelivery": "required delivery date in YYYY-MM-DD format if possible, otherwise as written",
+  "dateStarted": "date started in YYYY-MM-DD format if visible",
+  "notes": "any special requirements, notes, thread class, surface finish, weld procedure etc",
+  "items": [{"qty":"","partNumber":"","description":""}]
+}
+If a field is not visible or not written, use an empty string "".
+For items/BOM table, extract each row you can see.
+Return ONLY the JSON object, no other text.`;
+
+  try {
+    // Build the message content
+    let content;
+    if(scanImageType === 'application/pdf'){
+      content = [
+        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: scanImageBase64 } },
+        { type: 'text', text: prompt }
+      ];
+    } else {
+      content = [
+        { type: 'image', source: { type: 'base64', media_type: scanImageType, data: scanImageBase64 } },
+        { type: 'text', text: prompt }
+      ];
+    }
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: content }]
+      })
+    });
+
+    if(!response.ok){
+      throw new Error('API error: ' + response.status + ' ' + response.statusText);
+    }
+
+    const data = await response.json();
+    const text = data.content.map(function(c){ return c.text||''; }).join('');
+
+    // Parse JSON from response
+    let extracted;
+    try {
+      // Strip markdown code fences if present
+      const clean = text.replace(/```json|```/g,'').trim();
+      extracted = JSON.parse(clean);
+    } catch(e){
+      throw new Error('Could not parse AI response. Response was: ' + text.slice(0,200));
+    }
+
+    scanExtractedData = extracted;
+
+    // Show results for review
+    const fields = [
+      ['jobNumber','Job Number'],['customer','Customer'],['partDescription','Part Description'],
+      ['drawingRev','Drawing / Rev'],['material','Material'],['machineOperation','Machine / Operation'],
+      ['operator','Operator'],['qtyOrdered','Qty Ordered'],['qtySupplied','Qty Supplied'],
+      ['requiredDelivery','Required Delivery'],['dateStarted','Date Started'],['notes','Notes']
+    ];
+
+    let gridHtml = '';
+    fields.forEach(function(pair){
+      const key = pair[0]; const label = pair[1];
+      const val = extracted[key] || '';
+      gridHtml += '<div class="field"><label>' + label + '</label>'
+        + '<input type="text" value="' + esc(val) + '" data-scanfield="' + key + '" oninput="scanFieldChange(this)" style="font-size:13px">'
+        + '</div>';
+    });
+    document.getElementById('scanFieldsGrid').innerHTML = gridHtml;
+    document.getElementById('scanResults').style.display = 'block';
+
+    status.style.background = '#d4edda';
+    status.style.border = '1px solid #0b7a4b';
+    status.style.color = '#0b7a4b';
+    status.textContent = '✅ Handwriting read successfully! Review the fields below and correct anything the AI missed, then click "Create Job from Scan".';
+
+    document.getElementById('btnScanImport').style.display = 'inline-block';
+    btn.textContent = '🔄 Re-Scan';
+    btn.disabled = false;
+
+  } catch(err){
+    status.style.background = '#fff0f0';
+    status.style.border = '1px solid #b42318';
+    status.style.color = '#b42318';
+    status.textContent = '❌ Error: ' + err.message;
+    btn.textContent = '🤖 Try Again';
+    btn.disabled = false;
+  }
+};
+
+window.scanFieldChange = function(el){
+  const field = el.dataset.scanfield;
+  if(field) scanExtractedData[field] = el.value;
+};
+
+window.scanImport = function(){
+  if(!scanExtractedData || !Object.keys(scanExtractedData).length){
+    alert('No data to import. Please scan a document first.');
+    return;
+  }
+
+  // Create new job
+  const id = 'job_' + Date.now();
+  const j = defaultJob(id);
+
+  // Fill in extracted fields
+  const fields = ['jobNumber','customer','partDescription','drawingRev','material',
+    'machineOperation','operator','qtyOrdered','qtySupplied','requiredDelivery','dateStarted','notes'];
+  fields.forEach(function(k){
+    if(scanExtractedData[k]) j[k] = String(scanExtractedData[k]);
+  });
+
+  // Fill in items if extracted
+  if(Array.isArray(scanExtractedData.items) && scanExtractedData.items.length){
+    j.items = scanExtractedData.items.map(function(it){
+      return { qty: String(it.qty||''), partNumber: String(it.partNumber||''), description: String(it.description||'') };
+    });
+    while(j.items.length < 3) j.items.push({qty:'',partNumber:'',description:''});
+  }
+
+  j.financialYear = fyLabel(j.dateStarted || new Date());
+  j.savedAt = new Date().toISOString();
+
+  jobs[id] = j;
+  currentJobId = id;
+  activeTab = 'job';
+  try{ sessionStorage.setItem('qms_currentJob', id); }catch(e){}
+  saveLocal();
+  writeAudit(id, 'created', 'job', 'Job created from scanned job pack by ' + currentUser.name);
+  closeModal('scanModal');
+  renderAll();
+  setStatus('Job imported from scan ✓ — please review and save');
+};
+</script>
+
 </body>
 </html>
 
