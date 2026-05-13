@@ -3116,7 +3116,7 @@ Use empty string "" for any field not visible. Return ONLY the JSON, no other te
 
   try {
     // Google Gemini API - supports direct browser calls
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + apiKey;
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
 
     const parts = [
       { inline_data: { mime_type: scanImageMime === 'application/pdf' ? 'application/pdf' : scanImageMime, data: scanImageBase64 } },
