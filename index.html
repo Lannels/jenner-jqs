@@ -2984,7 +2984,7 @@ document.getElementById('sidebarLogo').src  = IMG_LOGO;
       <div id="scanDropZone" style="border:2px dashed #d8a318;border-radius:10px;padding:30px;text-align:center;cursor:pointer;background:#fffdf5;margin-bottom:14px" onclick="document.getElementById('scanFileInput').click()" ondragover="event.preventDefault()" ondrop="scanHandleDrop(event)">
         <div style="font-size:36px;margin-bottom:8px">📄</div>
         <div style="font-weight:700;color:#7a5c00;font-size:14px">Click to select or drag &amp; drop</div>
-        <div style="font-size:12px;color:#aaa;margin-top:4px">Supports: JPG, PNG, PDF (first page), HEIC photos from phone</div>
+        <div style="font-size:12px;color:#aaa;margin-top:4px">Supports: JPG, PNG, PDF, HEIC — scanned PDF or phone photo both work</div>
         <input type="file" id="scanFileInput" accept="image/*,.pdf" style="display:none" onchange="scanHandleFile(this.files[0])">
       </div>
       <div id="scanPreview" style="display:none;margin-bottom:14px;text-align:center">
@@ -3043,17 +3043,16 @@ window.scanHandleFile = function(file){
   // Show file name
   document.getElementById('scanFileName').textContent = file.name + ' (' + Math.round(file.size/1024) + ' KB)';
 
-  // For PDF - tell user we'll send first page
+  // PDF — read and send as document
   if(file.type === 'application/pdf'){
-    // Convert PDF to image using canvas isn't possible directly
-    // We'll send the PDF as a document type to Claude
+    if(file.size > 20*1024*1024){ alert('PDF is too large (max 20MB). Please compress it first.'); return; }
     const reader = new FileReader();
     reader.onload = function(ev){
       scanImageBase64 = ev.target.result.split(',')[1];
       scanImageType = 'application/pdf';
       document.getElementById('scanPreview').style.display = 'block';
       document.getElementById('scanPreviewImg').style.display = 'none';
-      document.getElementById('scanFileName').textContent = '📄 ' + file.name + ' — PDF ready to scan';
+      document.getElementById('scanFileName').textContent = '📄 ' + file.name + ' (' + Math.round(file.size/1024) + ' KB) — PDF ready to scan';
       document.getElementById('btnScanProcess').style.display = 'inline-block';
       document.getElementById('scanStatus').style.display = 'none';
     };
@@ -3061,7 +3060,7 @@ window.scanHandleFile = function(file){
     return;
   }
 
-  // For images — show preview
+  // Image — show preview
   scanImageType = file.type || 'image/jpeg';
   const reader = new FileReader();
   reader.onload = function(ev){
@@ -3121,7 +3120,7 @@ For items/BOM table, extract each row you can see.
 Return ONLY the JSON object, no other text.`;
 
   try {
-    // Build the message content
+    // Build the message content — supports PDF and images
     let content;
     if(scanImageType === 'application/pdf'){
       content = [
@@ -3152,7 +3151,7 @@ Return ONLY the JSON object, no other text.`;
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
+        model: 'claude-3-5-haiku-20241022',
         max_tokens: 1000,
         messages: [{ role: 'user', content: content }]
       })
