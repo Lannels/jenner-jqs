@@ -3148,17 +3148,23 @@ Return ONLY the JSON object, no other text.`;
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'pdfs-2024-09-25',
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-3-5-sonnet-20241022',
         max_tokens: 1000,
         messages: [{ role: 'user', content: content }]
       })
     });
 
     if(!response.ok){
-      throw new Error('API error: ' + response.status + ' ' + response.statusText);
+      let errDetail = response.status + ' ' + response.statusText;
+      try {
+        const errBody = await response.json();
+        if(errBody.error && errBody.error.message) errDetail += ' — ' + errBody.error.message;
+      } catch(e2){}
+      throw new Error('API error: ' + errDetail);
     }
 
     const data = await response.json();
