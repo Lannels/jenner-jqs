@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
@@ -2978,7 +2977,7 @@ document.getElementById('sidebarLogo').src  = IMG_LOGO;
           <input type="password" id="scanApiKey" placeholder="AIza..." style="flex:1;padding:7px 10px;border:1px solid #b0c4f0;border-radius:6px;font-size:12px;font-family:monospace">
           <button onclick="scanSaveKey()" style="background:#175cd3;color:#fff;border:none;border-radius:6px;padding:7px 12px;font-weight:700;font-size:12px;cursor:pointer">Save</button>
         </div>
-        <div style="font-size:11px;color:#777;margin-top:4px">Get a free key at <strong>aistudio.google.com</strong> → API Keys. Key is stored locally on this device only.</div>
+        <div style="font-size:11px;color:#777;margin-top:4px">Get a free key at <strong>console.anthropic.com</strong> → API Keys. Key is stored locally on this device only.</div>
       </div>
       <div id="scanDropZone" style="border:2px dashed #d8a318;border-radius:10px;padding:30px;text-align:center;cursor:pointer;background:#fffdf5;margin-bottom:14px" onclick="document.getElementById('scanFileInput').click()" ondragover="event.preventDefault()" ondrop="scanHandleDrop(event)">
         <div style="font-size:36px;margin-bottom:8px">📄</div>
@@ -2999,7 +2998,7 @@ document.getElementById('sidebarLogo').src  = IMG_LOGO;
     <div class="modal-footer">
       <button class="btn-white" onclick="closeModal('scanModal')">Cancel</button>
       <button class="btn-gold" id="btnScanProcess" onclick="scanProcess()" style="display:none">🤖 Read Handwriting</button>
-      <button class="btn-green" id="btnScanImport" onclick="scanImport()" style="display:none">✅ Create Job from Scan</button>
+      <button class="btn-green" id="btnScanImport" onclick="scanImport()" style="display:none">✅ Fill Current Job from Scan</button>
     </div>
   </div>
 </div>
@@ -3169,7 +3168,7 @@ Use empty string "" for any field not visible. Return ONLY the JSON, no other te
     document.getElementById('scanResults').style.display = 'block';
 
     status.style.background = '#d4edda'; status.style.border = '1px solid #0b7a4b'; status.style.color = '#0b7a4b';
-    status.textContent = '[OK] Handwriting read! Review the fields below - correct anything missed - then click Create Job.';
+    status.textContent = '[OK] Handwriting read! Review the fields below - correct anything missed - then click Fill Current Job.';
     document.getElementById('btnScanImport').style.display = 'inline-block';
     btn.textContent = ' Re-Scan'; btn.disabled = false;
 
@@ -3185,30 +3184,42 @@ window.scanImport = function(){
     alert('No data to import. Please scan a document first.');
     return;
   }
-  const id = 'job_' + Date.now();
-  const j = defaultJob(id);
+
+  if(!currentJobId || !jobs[currentJobId]){
+    alert('Please select the existing job first, then scan the job pack. The scan will fill the currently selected job.');
+    return;
+  }
+
+  const id = currentJobId;
+  const j = jobs[id];
+
   const fields = ['jobNumber','customer','partDescription','drawingRev','material',
     'machineOperation','operator','qtyOrdered','qtySupplied','requiredDelivery','dateStarted','notes'];
-  fields.forEach(function(k){ if(scanExtractedData[k]) j[k] = String(scanExtractedData[k]); });
+
+  fields.forEach(function(k){
+    if(scanExtractedData[k] !== undefined && String(scanExtractedData[k]).trim() !== ''){
+      j[k] = String(scanExtractedData[k]);
+    }
+  });
+
   if(Array.isArray(scanExtractedData.items)&&scanExtractedData.items.length){
     j.items = scanExtractedData.items.map(function(it){
       return {qty:String(it.qty||''),partNumber:String(it.partNumber||''),description:String(it.description||'')};
     });
     while(j.items.length<3) j.items.push({qty:'',partNumber:'',description:''});
   }
+
   j.financialYear = fyLabel(j.dateStarted||new Date());
   j.savedAt = new Date().toISOString();
-  jobs[id] = j;
-  currentJobId = id; activeTab = 'job';
+  activeTab = 'job';
   try{ sessionStorage.setItem('qms_currentJob',id); }catch(e){}
   saveLocal();
-  writeAudit(id,'created','job','Job created from scanned job pack by '+currentUser.name);
+  writeAudit(id,'updated','job','Existing job updated from scanned job pack by '+currentUser.name);
   closeModal('scanModal');
   renderAll();
-  setStatus('Job imported from scan OK - review and save');
+  setStatus('Current job filled from scan OK - review and save');
 };
 </script>
 
 </body>
 </html>
-
