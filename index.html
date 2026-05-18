@@ -189,7 +189,6 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
     <div class="sb-tools">
       <button class="btn-gold btn-sm" onclick="createJob()" id="btnNewJob">+ New Job</button>
       <button class="btn-dark btn-sm" onclick="syncFromServer()" title="Import jobs from a backup file">↓ Import</button>
-      <button class="btn-dark btn-sm" onclick="scanJobPack()" title="Scan a handwritten job pack PDF or photo" style="background:#1a3a5c;border-color:#2a5a8c">📷 Scan Job Pack</button>
       <button class="btn-dark btn-sm" onclick="diagnoseLostJobs()" title="Check for missing jobs" style="background:#7a3c00;border-color:#b05500">🔍 Recover</button>
       <button class="btn-dark btn-sm" onclick="syncToServer()" title="Export all jobs to a backup file">↑ Export</button>
       <button class="btn-dark btn-sm" onclick="showReports()" id="btnReports">📊 Reports</button>
@@ -221,6 +220,16 @@ td input[type=checkbox],td input[type=radio]{width:auto;cursor:pointer;transform
     <div class="tabs" id="tabs"></div>
 
     <section id="panel-job" class="panel active">
+      <div class="card" style="border:2px solid var(--gold);background:#fffdf5">
+        <div class="card-head">Digitise This Job Pack</div>
+        <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div>
+            <div style="font-weight:700;color:#111;font-size:14px">Scan handwritten job pack pages into this selected job</div>
+            <div style="font-size:12px;color:#666;margin-top:3px">Use this after you have selected the correct job. AI will fill Job Info, Pre-Start, In-Process, Final Inspection and sign-off fields, then run the CoC readiness checks.</div>
+          </div>
+          <button class="btn-blue" onclick="scanJobPack()">📷 Digitise Job Pack into Current Job</button>
+        </div>
+      </div>
       <div class="card">
         <div class="card-head">Job Information — Before You Start <span style="font-size:10px;font-weight:400;color:#aaa">JEN-INFO-01 v2.0</span></div>
         <div class="card-body">
@@ -2966,10 +2975,10 @@ document.getElementById('sidebarLogo').src  = IMG_LOGO;
 <!-- SCAN JOB PACK MODAL -->
 <div class="modal-backdrop" id="scanModal">
   <div class="modal" style="width:min(640px,96vw)">
-    <div class="modal-head">📷 Scan Handwritten Job Pack — AI Reader <button onclick="closeModal('scanModal')">✕</button></div>
+    <div class="modal-head">📷 Digitise Handwritten Job Pack into Current Job <button onclick="closeModal('scanModal')">✕</button></div>
     <div class="modal-body">
       <p style="font-size:13px;color:#555;margin-bottom:10px">
-        Upload a scanned PDF or photo of a handwritten job pack. The AI will read the handwriting and fill in the job details automatically.
+        Upload a scanned PDF or clear photos of the handwritten job pack pages. The AI will read Job Info, Pre-Start, In-Process, Final Inspection and sign-offs, then fill the currently selected job only.
       </p>
       <div style="background:#f0f4ff;border:1px solid #b0c4f0;border-radius:8px;padding:10px 14px;margin-bottom:12px">
         <label style="font-size:11px;font-weight:700;color:#333;display:block;margin-bottom:4px">GOOGLE GEMINI API KEY (required — saved on this device only)</label>
@@ -2977,17 +2986,16 @@ document.getElementById('sidebarLogo').src  = IMG_LOGO;
           <input type="password" id="scanApiKey" placeholder="AIza..." style="flex:1;padding:7px 10px;border:1px solid #b0c4f0;border-radius:6px;font-size:12px;font-family:monospace">
           <button onclick="scanSaveKey()" style="background:#175cd3;color:#fff;border:none;border-radius:6px;padding:7px 12px;font-weight:700;font-size:12px;cursor:pointer">Save</button>
         </div>
-        <div style="font-size:11px;color:#777;margin-top:4px">Get a free key at <strong>console.anthropic.com</strong> → API Keys. Key is stored locally on this device only.</div>
+        <div style="font-size:11px;color:#777;margin-top:4px">Get a key at <strong>aistudio.google.com</strong> → Get API key. Key is stored locally on this device only.</div>
       </div>
       <div id="scanDropZone" style="border:2px dashed #d8a318;border-radius:10px;padding:30px;text-align:center;cursor:pointer;background:#fffdf5;margin-bottom:14px" onclick="document.getElementById('scanFileInput').click()" ondragover="event.preventDefault()" ondrop="scanHandleDrop(event)">
         <div style="font-size:36px;margin-bottom:8px">📄</div>
         <div style="font-weight:700;color:#7a5c00;font-size:14px">Click to select or drag &amp; drop</div>
-        <div style="font-size:12px;color:#aaa;margin-top:4px">Supports: JPG, PNG, PDF, HEIC — scanned PDF or phone photo both work</div>
-        <input type="file" id="scanFileInput" accept="image/*,.pdf" style="display:none" onchange="scanHandleFile(this.files[0])">
+        <div style="font-size:12px;color:#aaa;margin-top:4px">Supports: JPG, PNG, PDF, HEIC — use a combined PDF or select multiple clear page photos</div>
+        <input type="file" id="scanFileInput" accept="image/*,.pdf" multiple style="display:none" onchange="scanHandleFiles(this.files)">
       </div>
       <div id="scanPreview" style="display:none;margin-bottom:14px;text-align:center">
-        <img id="scanPreviewImg" style="max-width:100%;max-height:200px;border:1px solid #ddd;border-radius:6px">
-        <div id="scanFileName" style="font-size:12px;color:#888;margin-top:4px"></div>
+        <div id="scanPreviewList" style="font-size:12px;color:#555;text-align:left;background:#fff;border:1px solid #ddd;border-radius:6px;padding:10px"></div>
       </div>
       <div id="scanStatus" style="display:none;padding:12px;border-radius:8px;font-size:13px;margin-bottom:10px"></div>
       <div id="scanResults" style="display:none">
@@ -2997,8 +3005,8 @@ document.getElementById('sidebarLogo').src  = IMG_LOGO;
     </div>
     <div class="modal-footer">
       <button class="btn-white" onclick="closeModal('scanModal')">Cancel</button>
-      <button class="btn-gold" id="btnScanProcess" onclick="scanProcess()" style="display:none">🤖 Read Handwriting</button>
-      <button class="btn-green" id="btnScanImport" onclick="scanImport()" style="display:none">✅ Fill Current Job from Scan</button>
+      <button class="btn-gold" id="btnScanProcess" onclick="scanProcess()" style="display:none">🤖 Read Full Job Pack</button>
+      <button class="btn-green" id="btnScanImport" onclick="scanImport()" style="display:none">✅ Apply to Current Job</button>
     </div>
   </div>
 </div>
@@ -3008,12 +3016,15 @@ document.getElementById('sidebarLogo').src  = IMG_LOGO;
 // SCAN JOB PACK - AI Handwriting Reader
 // Uses Google Gemini (supports direct browser calls)
 // ===================================
-let scanImageBase64 = null;
-let scanImageMime = 'image/jpeg';
+let scanFiles = [];
 let scanExtractedData = {};
 
 window.scanJobPack = function(){
-  scanImageBase64 = null; scanExtractedData = {};
+  if(!currentJobId || !jobs[currentJobId]){
+    alert('Please select or create the existing job first. The scan fills the currently selected job only.');
+    return;
+  }
+  scanFiles = []; scanExtractedData = {};
   document.getElementById('scanPreview').style.display = 'none';
   document.getElementById('scanStatus').style.display = 'none';
   document.getElementById('scanResults').style.display = 'none';
@@ -3022,6 +3033,10 @@ window.scanJobPack = function(){
   document.getElementById('scanFileInput').value = '';
   const saved = localStorage.getItem('qms_gemini_key');
   if(saved) document.getElementById('scanApiKey').value = saved;
+  const j=jobs[currentJobId];
+  const st=document.getElementById('scanStatus');
+  st.style.display='block'; st.style.background='#f0f4ff'; st.style.border='1px solid #b0c4f0'; st.style.color='#333';
+  st.textContent='Selected job: '+(j.jobNumber||j.id)+'. The scan will update this job only.';
   document.getElementById('scanModal').classList.add('open');
 };
 
@@ -3037,91 +3052,156 @@ window.scanSaveKey = function(){
 
 window.scanHandleDrop = function(e){
   e.preventDefault();
-  const file = e.dataTransfer.files[0];
-  if(file) scanHandleFile(file);
+  if(e.dataTransfer.files && e.dataTransfer.files.length) scanHandleFiles(e.dataTransfer.files);
 };
 
-window.scanHandleFile = function(file){
-  if(!file) return;
-  scanImageMime = file.type || 'image/jpeg';
-
-  if(file.size > 20*1024*1024){
-    alert('File too large (max 20MB). Please compress or resize it.');
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = function(ev){
-    scanImageBase64 = ev.target.result.split(',')[1];
-    const preview = document.getElementById('scanPreview');
-    const img = document.getElementById('scanPreviewImg');
-    const name = document.getElementById('scanFileName');
-    preview.style.display = 'block';
-    if(file.type === 'application/pdf'){
-      img.style.display = 'none';
-      name.textContent = ' ' + file.name + ' (' + Math.round(file.size/1024) + ' KB) - ready to scan';
-    } else {
-      img.src = ev.target.result;
-      img.style.display = 'block';
-      name.textContent = file.name + ' (' + Math.round(file.size/1024) + ' KB)';
-    }
-    document.getElementById('btnScanProcess').style.display = 'inline-block';
-    document.getElementById('scanStatus').style.display = 'none';
-  };
-  reader.readAsDataURL(file);
+window.scanHandleFiles = function(files){
+  if(!files || !files.length) return;
+  scanFiles = [];
+  const arr = Array.from(files);
+  const tooLarge = arr.find(f=>f.size > 20*1024*1024);
+  if(tooLarge){ alert('File too large: '+tooLarge.name+' (max 20MB each). Please compress or resize it.'); return; }
+  let pending = arr.length;
+  arr.forEach(file=>{
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      scanFiles.push({
+        name:file.name,
+        size:file.size,
+        mime:file.type || 'image/jpeg',
+        base64:String(ev.target.result).split(',')[1]
+      });
+      pending--;
+      if(pending===0){
+        const preview = document.getElementById('scanPreview');
+        const list = document.getElementById('scanPreviewList');
+        preview.style.display='block';
+        list.innerHTML='<strong>Ready to scan '+scanFiles.length+' file(s):</strong><br>'+scanFiles.map(f=>'• '+esc(f.name)+' ('+Math.round(f.size/1024)+' KB)').join('<br>');
+        document.getElementById('btnScanProcess').style.display = 'inline-block';
+        document.getElementById('scanResults').style.display = 'none';
+        document.getElementById('btnScanImport').style.display = 'none';
+      }
+    };
+    reader.readAsDataURL(file);
+  });
 };
+
+// Backwards compatibility if an older button calls this
+window.scanHandleFile = function(file){ if(file) scanHandleFiles([file]); };
 
 window.scanFieldChange = function(el){
   const field = el.dataset.scanfield;
   if(field) scanExtractedData[field] = el.value;
 };
 
+function boolFromScan(v){
+  if(v===true) return true;
+  if(v===false) return false;
+  const s=String(v||'').trim().toLowerCase();
+  if(['yes','y','true','ok','pass','passed','tick','ticked','checked','complete','completed'].includes(s)) return true;
+  if(['no','n','false','fail','failed','na','n/a',''].includes(s)) return false;
+  return false;
+}
+function scanDate(v){
+  const s=String(v||'').trim();
+  if(!s) return '';
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m=s.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+  if(m){
+    let y=m[3].length===2?'20'+m[3]:m[3];
+    return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+  }
+  return '';
+}
+function scanTime(v){
+  const s=String(v||'').trim();
+  if(/^\d{2}:\d{2}$/.test(s)) return s;
+  const m=s.match(/(\d{1,2})[:.](\d{2})/);
+  return m?m[1].padStart(2,'0')+':'+m[2]:'';
+}
+function applySignoff(target, src){
+  if(!target || !src) return;
+  if(src.operatorName) target.operatorName=String(src.operatorName);
+  if(src.operatorDate) target.operatorDate=scanDate(src.operatorDate)||String(src.operatorDate);
+  if(src.operatorTime) target.operatorTime=scanTime(src.operatorTime)||String(src.operatorTime);
+  if(src.name) target.name=String(src.name);
+  if(src.date) target.date=scanDate(src.date)||String(src.date);
+  if(src.time) target.time=scanTime(src.time)||String(src.time);
+  if(src.signatureKey) target.signatureKey=String(src.signatureKey);
+  if(src.signature || src.initials){ target.signatureText=String(src.signature||src.initials); }
+}
+
 window.scanProcess = async function(){
-  if(!scanImageBase64){ alert('Please select a file first.'); return; }
+  if(!scanFiles.length){ alert('Please select one or more files first.'); return; }
+  if(!currentJobId || !jobs[currentJobId]){ alert('Please select the existing job first.'); return; }
 
   const apiKey = document.getElementById('scanApiKey').value.trim()
     || localStorage.getItem('qms_gemini_key') || '';
   if(!apiKey){
-    alert('Please enter your Google Gemini API key above and click Save.\n\nGet a free key at: aistudio.google.com');
+    alert('Please enter your Google Gemini API key above and click Save.\n\nGet a key at: aistudio.google.com');
     return;
   }
 
   const btn = document.getElementById('btnScanProcess');
   const status = document.getElementById('scanStatus');
-  btn.disabled = true; btn.textContent = '... Reading handwriting...';
+  btn.disabled = true; btn.textContent = '... Reading full job pack...';
   status.style.display = 'block';
   status.style.background = '#fff8e1'; status.style.border = '1px solid #d8a318'; status.style.color = '#7a5c00';
-  status.textContent = ' AI is reading your document - this takes 10-20 seconds...';
+  status.textContent = 'AI is reading the job pack pages. This may take 20-60 seconds for multiple pages.';
   document.getElementById('scanResults').style.display = 'none';
   document.getElementById('btnScanImport').style.display = 'none';
 
-  const prompt = `You are reading a handwritten or scanned engineering job pack for Jenner Engineering Pty Ltd.
-Extract ALL visible information and return ONLY a JSON object with these exact keys:
+  const j=jobs[currentJobId];
+  const prompt = `You are reading handwritten/scanned manufacturing QMS job pack pages for Jenner Engineering Pty Ltd.
+The user has already selected the existing job in the app. Do NOT create a new job. Extract what is visible and map it into the current job.
+
+CURRENT JOB CONTEXT:
+Job Number: ${j.jobNumber||''}
+Customer: ${j.customer||''}
+Part Description: ${j.partDescription||''}
+Drawing/Rev: ${j.drawingRev||''}
+
+Return ONLY valid JSON. No markdown. Use empty strings for unknown text and false for unchecked/unknown checkboxes.
+Use ISO dates YYYY-MM-DD where possible and 24-hour time HH:MM where possible.
+
+JSON schema:
 {
-  "jobNumber": "job number e.g. P.26.0305",
-  "customer": "customer name",
-  "partDescription": "part name or job title",
-  "drawingRev": "drawing number and revision",
-  "material": "material specification",
-  "machineOperation": "machine or operation",
-  "operator": "operator name(s)",
-  "qtyOrdered": "quantity ordered as number",
-  "qtySupplied": "quantity supplied as number",
-  "requiredDelivery": "delivery date as YYYY-MM-DD if possible",
-  "dateStarted": "start date as YYYY-MM-DD if visible",
-  "notes": "special requirements, notes, thread class etc",
-  "items": [{"qty":"","partNumber":"","description":""}]
-}
-Use empty string "" for any field not visible. Return ONLY the JSON, no other text.`;
+  "jobInfo": {
+    "jobNumber":"", "customer":"", "partDescription":"", "drawingRev":"", "material":"", "machineOperation":"", "operator":"", "qtyOrdered":"", "qtySupplied":"", "requiredDelivery":"", "dateStarted":"", "actualDelivery":"", "notes":"",
+    "items":[{"qty":"","partNumber":"","description":""}]
+  },
+  "prestart": {
+    "checks": {
+      "safety":[true,false,true,true,false],
+      "drawing":[true,false,true,false],
+      "machine":[true,false,true]
+    },
+    "signoff": {"operatorName":"", "operatorDate":"", "operatorTime":"", "name":"", "date":"", "time":"", "signature":"", "initials":""}
+  },
+  "inProcess": {
+    "checks":[true,false,true,true,false],
+    "signoff": {"operatorName":"", "operatorDate":"", "operatorTime":"", "name":"", "date":"", "time":"", "signature":"", "initials":""}
+  },
+  "progressInspection": [
+    {"feature":"", "pass":false, "fail":false, "notes":""}
+  ],
+  "finalInspection": {
+    "results": {"setupResult":"", "firstOffResult":"", "inProcessResult":"", "finalDimensional":"", "visualResult":"", "deliveredOnTime":""},
+    "allPass": false,
+    "failNcr": false,
+    "signoff": {"operatorName":"", "operatorDate":"", "operatorTime":"", "name":"", "date":"", "time":"", "signature":"", "initials":""}
+  },
+  "coc": {"number":"", "certifiedBy":"", "date":"", "reference":"", "note":""},
+  "confidenceNotes":"brief note on anything unclear or hard to read"
+}`;
 
   try {
-    // Google Gemini API - supports direct browser calls
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
-
-    const parts = [
-      { inline_data: { mime_type: scanImageMime === 'application/pdf' ? 'application/pdf' : scanImageMime, data: scanImageBase64 } },
-      { text: prompt }
-    ];
+    const parts = [];
+    scanFiles.forEach(f=>{
+      parts.push({ inline_data: { mime_type: f.mime === 'application/pdf' ? 'application/pdf' : f.mime, data: f.base64 } });
+    });
+    parts.push({ text: prompt });
 
     const response = await fetch(url, {
       method: 'POST',
@@ -3144,38 +3224,39 @@ Use empty string "" for any field not visible. Return ONLY the JSON, no other te
       const clean = text.replace(/```json|```/g,'').trim();
       extracted = JSON.parse(clean);
     } catch(e){
-      throw new Error('Could not read AI response. Try again or use a clearer image.');
+      throw new Error('Could not read AI response as JSON. Try again with clearer scans/photos.');
     }
 
     scanExtractedData = extracted;
+    const ji=extracted.jobInfo||{};
+    const ps=extracted.prestart||{};
+    const ip=extracted.inProcess||{};
+    const fi=extracted.finalInspection||{};
+    const prog=Array.isArray(extracted.progressInspection)?extracted.progressInspection:[];
 
-    const fields = [
-      ['jobNumber','Job Number'],['customer','Customer'],['partDescription','Part Description'],
-      ['drawingRev','Drawing / Rev'],['material','Material'],['machineOperation','Machine / Operation'],
-      ['operator','Operator'],['qtyOrdered','Qty Ordered'],['qtySupplied','Qty Supplied'],
-      ['requiredDelivery','Required Delivery'],['dateStarted','Date Started'],['notes','Notes']
+    const summary = [
+      ['Job Number', ji.jobNumber||''], ['Customer', ji.customer||''], ['Drawing / Rev', ji.drawingRev||''],
+      ['Pre-Start checks read', ps.checks?'Yes':'No'], ['Pre-Start sign-off', ps.signoff?.name||ps.signoff?.operatorName||''],
+      ['In-Process checks read', ip.checks?'Yes':'No'], ['In-Process sign-off', ip.signoff?.name||ip.signoff?.operatorName||''],
+      ['Progress/Final lines', String(prog.length)], ['Final sign-off', fi.signoff?.name||fi.signoff?.operatorName||''],
+      ['Notes from AI', extracted.confidenceNotes||'']
     ];
-
-    let gridHtml = '';
-    fields.forEach(function(pair){
-      const key = pair[0]; const label = pair[1];
-      const val = extracted[key] || '';
-      gridHtml += '<div class="field"><label>' + label + '</label>'
-        + '<input type="text" value="' + esc(val) + '" data-scanfield="' + key + '" oninput="scanFieldChange(this)" style="font-size:13px">'
-        + '</div>';
+    let gridHtml='';
+    summary.forEach(([label,val])=>{
+      gridHtml += '<div class="field"><label>'+esc(label)+'</label><input type="text" value="'+esc(val)+'" readonly style="font-size:13px;background:#f5f5f5"></div>';
     });
     document.getElementById('scanFieldsGrid').innerHTML = gridHtml;
     document.getElementById('scanResults').style.display = 'block';
 
     status.style.background = '#d4edda'; status.style.border = '1px solid #0b7a4b'; status.style.color = '#0b7a4b';
-    status.textContent = '[OK] Handwriting read! Review the fields below - correct anything missed - then click Fill Current Job.';
+    status.textContent = '[OK] Job pack read. Review the summary, then apply it to the selected job. You can still edit fields after import.';
     document.getElementById('btnScanImport').style.display = 'inline-block';
-    btn.textContent = ' Re-Scan'; btn.disabled = false;
+    btn.textContent = 'Re-Scan'; btn.disabled = false;
 
   } catch(err){
     status.style.background = '#fff0f0'; status.style.border = '1px solid #b42318'; status.style.color = '#b42318';
     status.textContent = '[X] ' + err.message;
-    btn.textContent = ' Try Again'; btn.disabled = false;
+    btn.textContent = 'Try Again'; btn.disabled = false;
   }
 };
 
@@ -3184,40 +3265,89 @@ window.scanImport = function(){
     alert('No data to import. Please scan a document first.');
     return;
   }
-
   if(!currentJobId || !jobs[currentJobId]){
-    alert('Please select the existing job first, then scan the job pack. The scan will fill the currently selected job.');
+    alert('Please select the existing job first, then scan the job pack.');
     return;
   }
 
-  const id = currentJobId;
-  const j = jobs[id];
+  const id=currentJobId;
+  const j=jobs[id];
+  const d=scanExtractedData;
+  const ji=d.jobInfo || d;
 
-  const fields = ['jobNumber','customer','partDescription','drawingRev','material',
-    'machineOperation','operator','qtyOrdered','qtySupplied','requiredDelivery','dateStarted','notes'];
-
-  fields.forEach(function(k){
-    if(scanExtractedData[k] !== undefined && String(scanExtractedData[k]).trim() !== ''){
-      j[k] = String(scanExtractedData[k]);
+  const fields=['jobNumber','customer','partDescription','drawingRev','material','machineOperation','operator','qtyOrdered','qtySupplied','requiredDelivery','dateStarted','actualDelivery','notes'];
+  fields.forEach(k=>{
+    if(ji[k]!==undefined && String(ji[k]).trim()!==''){
+      if(k.toLowerCase().includes('date') || k==='requiredDelivery' || k==='actualDelivery') j[k]=scanDate(ji[k])||String(ji[k]);
+      else j[k]=String(ji[k]);
     }
   });
-
-  if(Array.isArray(scanExtractedData.items)&&scanExtractedData.items.length){
-    j.items = scanExtractedData.items.map(function(it){
-      return {qty:String(it.qty||''),partNumber:String(it.partNumber||''),description:String(it.description||'')};
-    });
+  if(Array.isArray(ji.items)&&ji.items.length){
+    j.items=ji.items.map(it=>({qty:String(it.qty||''),partNumber:String(it.partNumber||''),description:String(it.description||'')}));
     while(j.items.length<3) j.items.push({qty:'',partNumber:'',description:''});
   }
 
+  // Pre-start checks and sign-off
+  const ps=d.prestart||{};
+  if(ps.checks){
+    ['safety','drawing','machine'].forEach(sec=>{
+      const arr=ps.checks[sec];
+      if(Array.isArray(arr) && Array.isArray(j.prestart?.[sec])){
+        arr.forEach((v,i)=>{ if(j.prestart[sec][i]) j.prestart[sec][i].ok=boolFromScan(v); });
+      }
+    });
+  }
+  if(ps.signoff) applySignoff(j.prestartSignoff, ps.signoff);
+
+  // In-process checks and sign-off
+  const ip=d.inProcess||{};
+  if(Array.isArray(ip.checks)){
+    ip.checks.forEach((v,i)=>{ if(j.inProcess[i]) j.inProcess[i].ok=boolFromScan(v); });
+  }
+  if(ip.signoff) applySignoff(j.inProcessSignoff, ip.signoff);
+
+  // Progress / final inspection lines
+  const prog=Array.isArray(d.progressInspection)?d.progressInspection:[];
+  if(prog.length){
+    j.progress=prog.map((r,idx)=>({
+      feature:String(r.feature||r.dimension||r.item||String(idx+1)),
+      pass:boolFromScan(r.pass),
+      fail:boolFromScan(r.fail),
+      notes:String(r.notes||r.result||'')
+    }));
+    while(j.progress.length<6) j.progress.push({feature:String(j.progress.length+1),pass:false,fail:false,notes:''});
+  }
+
+  // Final inspection summary and final sign-off
+  const fi=d.finalInspection||{};
+  if(fi.results){
+    ['setupResult','firstOffResult','inProcessResult','finalDimensional','visualResult','deliveredOnTime'].forEach(k=>{
+      if(fi.results[k]) j.results[k]=String(fi.results[k]).toUpperCase();
+    });
+  }
+  if(fi.allPass!==undefined) j.finalSignoff.allPass=boolFromScan(fi.allPass);
+  if(fi.failNcr!==undefined) j.finalSignoff.failNcr=boolFromScan(fi.failNcr);
+  if(!j.finalSignoff.allPass && j.progress.length && j.progress.every(r=>r.pass) && j.progress.some(r=>r.pass)) j.finalSignoff.allPass=true;
+  if(fi.signoff) applySignoff(j.finalSignoff, fi.signoff);
+
+  // CoC draft fields only - issue/lock still requires manual authorised issue
+  const coc=d.coc||{};
+  if(coc.number) j.coc.number=String(coc.number);
+  if(coc.certifiedBy) j.coc.certifiedBy=String(coc.certifiedBy);
+  if(coc.date) j.coc.date=scanDate(coc.date)||String(coc.date);
+  if(coc.reference) j.coc.reference=String(coc.reference);
+  if(coc.note) j.coc.note=String(coc.note);
+
   j.financialYear = fyLabel(j.dateStarted||new Date());
   j.savedAt = new Date().toISOString();
-  activeTab = 'job';
   try{ sessionStorage.setItem('qms_currentJob',id); }catch(e){}
   saveLocal();
-  writeAudit(id,'updated','job','Existing job updated from scanned job pack by '+currentUser.name);
+  writeAudit(id,'updated','job','Full handwritten job pack digitised into existing job by '+(currentUser?.name||'user'));
   closeModal('scanModal');
   renderAll();
-  setStatus('Current job filled from scan OK - review and save');
+  const ready=canIssueCoC(j);
+  setStatus(ready?'Job pack digitised. CoC is ready for authorised issue.':'Job pack digitised. Review highlighted sections before CoC issue.');
+  alert(ready ? 'Job pack imported and CoC checks are complete. Review the CoC tab before issuing.' : 'Job pack imported. Please review Pre-Start, In-Process and Final Inspection. Any missing sign-offs or unchecked items will still block the CoC.');
 };
 </script>
 
