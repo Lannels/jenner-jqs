@@ -669,9 +669,39 @@ function sortedJobs(){
   });
 }
 
+
+
+function getCurrentJobSafe(){
+  // Defensive recovery: after AI import or browser refresh, the screen can hold a visible job
+  // while currentJobId is blank/stale. Always recover by selected id, visible job number,
+  // active sidebar card, then most recent job.
+  if(currentJobId && jobs[currentJobId]) return jobs[currentJobId];
+  const visibleNum=(document.getElementById('jobNumber')?.value||'').trim();
+  if(visibleNum){
+    const found=Object.values(jobs).find(x=>String(x.jobNumber||'').trim()===visibleNum);
+    if(found && found.id){ currentJobId=found.id; try{sessionStorage.setItem('qms_currentJob',currentJobId);}catch(e){} return found; }
+  }
+  const active=document.querySelector('.jobcard.active');
+  if(active){
+    const cardNum=(active.querySelector('.jnum')?.textContent||'').trim();
+    const found=Object.values(jobs).find(x=>String(x.id||'')===cardNum || String(x.jobNumber||'').trim()===cardNum);
+    if(found && found.id){ currentJobId=found.id; try{sessionStorage.setItem('qms_currentJob',currentJobId);}catch(e){} return found; }
+  }
+  const first=sortedJobs()[0];
+  if(first && first.id){ currentJobId=first.id; try{sessionStorage.setItem('qms_currentJob',currentJobId);}catch(e){} return first; }
+  return null;
+}
+
+function backupBeforeAIImport(){
+  try{
+    const stamp=new Date().toISOString().replace(/[:.]/g,'-');
+    localStorage.setItem(STORAGE_KEY+'_before_ai_'+stamp, JSON.stringify(jobs));
+  }catch(e){ console.warn('Could not create pre-AI backup', e); }
+}
+
 function saveNow(){
   // Flush all job info inputs to the job object
-  const j=jobs[currentJobId];
+  const j=getCurrentJobSafe();
   if(j){
     ['jobNumber','customer','drawingRev','requiredDelivery',
      'machineOperation','qtyOrdered','qtySupplied','material',
@@ -806,7 +836,7 @@ function renderJobList(){
 }
 
 function renderHero(){
-  const j=jobs[currentJobId];
+  const j=getCurrentJobSafe();
   document.getElementById('heroJobNo').textContent=j?(j.jobNumber||j.id):'No job selected';
   document.getElementById('heroDesc').textContent=j?
     `${j.customer||'No customer'} - ${j.partDescription||'No description'}  FY ${j.financialYear||'-'}`:
@@ -826,7 +856,7 @@ const TAB_DEFS=[
 ];
 
 function renderTabs(){
-  const j=jobs[currentJobId];
+  const j=getCurrentJobSafe();
   document.getElementById('tabs').innerHTML=TAB_DEFS
     .filter(t=>true) // all tabs visible to all users
     .map(t=>{
@@ -911,7 +941,7 @@ function bind(id,getter,setter){
 }
 
 function renderJobPanel(){
-  const j=jobs[currentJobId]; if(!j) return;
+  const j=getCurrentJobSafe(); if(!j) return;
   bind('jobNumber',()=>j.jobNumber,v=>{j.jobNumber=v;j.financialYear=fyLabel(j.dateStarted||new Date());});
   bind('customer',()=>j.customer,v=>j.customer=v);
   bind('drawingRev',()=>j.drawingRev,v=>j.drawingRev=v);
@@ -952,7 +982,7 @@ function renderOperatorCheckboxes(j){
 }
 window.toggleOperatorByIdx=function(idx,checked){
   const name=ALL_STAFF[parseInt(idx)]; if(!name) return;
-  const j=jobs[currentJobId]; if(!j) return;
+  const j=getCurrentJobSafe(); if(!j) return;
   let ops=(j.operator||'').split('/').map(function(s){return s.trim();}).filter(Boolean);
   if(checked){ if(ops.indexOf(name)<0) ops.push(name); }
   else{ ops=ops.filter(function(o){return o!==name;}); }
@@ -2135,7 +2165,7 @@ function pdfSectionHead(doc,text,y){
 // Pages 2-5: Header filled, forms blank
 // ===================================
 window.downloadJobPackPDF=()=>{
-  const j=jobs[currentJobId];
+  let j=getCurrentJobSafe();
   // If currentJobId is null but a job is visible, try to recover
   if(!j){
     // Try to find job by job number currently shown in the input
@@ -3265,17 +3295,22 @@ window.scanImport = function(){
     alert('No data to import. Please scan a document first.');
     return;
   }
-  if(!currentJobId || !jobs[currentJobId]){
+  const selectedJob=getCurrentJobSafe();
+  if(!selectedJob){
     alert('Please select the existing job first, then scan the job pack.');
     return;
   }
 
-  const id=currentJobId;
-  const j=jobs[id];
+  const id=selectedJob.id;
+  const j=selectedJob;
+  currentJobId=id;
+  backupBeforeAIImport();
   const d=scanExtractedData;
   const ji=d.jobInfo || d;
 
-  const fields=['jobNumber','customer','partDescription','drawingRev','material','machineOperation','operator','qtyOrdered','qtySupplied','requiredDelivery','dateStarted','actualDelivery','notes'];
+  const fields=['customer','partDescription','drawingRev','material','machineOperation','operator','qtyOrdered','qtySupplied','requiredDelivery','dateStarted','actualDelivery','notes'];
+  // Never let AI change the internal job id. Only fill the job number if it is blank.
+  if(!String(j.jobNumber||'').trim() && ji.jobNumber!==undefined && String(ji.jobNumber).trim()!=='') j.jobNumber=String(ji.jobNumber);
   fields.forEach(k=>{
     if(ji[k]!==undefined && String(ji[k]).trim()!==''){
       if(k.toLowerCase().includes('date') || k==='requiredDelivery' || k==='actualDelivery') j[k]=scanDate(ji[k])||String(ji[k]);
@@ -3340,6 +3375,7 @@ window.scanImport = function(){
 
   j.financialYear = fyLabel(j.dateStarted||new Date());
   j.savedAt = new Date().toISOString();
+  currentJobId=id;
   try{ sessionStorage.setItem('qms_currentJob',id); }catch(e){}
   saveLocal();
   writeAudit(id,'updated','job','Full handwritten job pack digitised into existing job by '+(currentUser?.name||'user'));
@@ -3353,3 +3389,4 @@ window.scanImport = function(){
 
 </body>
 </html>
+
