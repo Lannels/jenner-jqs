@@ -53,17 +53,19 @@ function isBadGeneratedJob(j){
   return noJobNo && noDescription && id.startsWith("job_");
 }
 function saveLocal(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(jobs));return true}catch(e){console.error(e);alert("Browser storage is still full. Your import was read but not saved. Clear old browser storage/cache, then import again. Do not delete the backup JSON.");return false}}function sortedJobs(){
+  function jobNumValue(j){
+    const s=String(j && j.jobNumber || "").trim();
+    const matches=s.match(/\d+/g);
+    if(matches && matches.length){
+      const main=parseInt(matches[matches.length-1],10);
+      const fy=matches.length>1?parseInt(matches[matches.length-2],10):0;
+      return (fy*1000000)+main;
+    }
+    return -1;
+  }
   return Object.values(jobs).sort((a,b)=>{
-    const jobNum=(j)=>{
-      const s=String(j.jobNumber||"");
-      // Sort Jenner numbers such as P.26.0275 by year and sequence number.
-      const m=s.match(/P\.?(\d+)\.?(\d+)/i) || s.match(/(\d+)\D+(\d+)/);
-      if(m) return (parseInt(m[1],10)*1000000)+parseInt(m[2],10);
-      const n=s.match(/(\d+)/);
-      return n ? parseInt(n[1],10) : 0;
-    };
-    const diff=jobNum(b)-jobNum(a);
-    if(diff) return diff;
+    const na=jobNumValue(a), nb=jobNumValue(b);
+    if(nb!==na) return nb-na;
     return String(b.savedAt||"").localeCompare(String(a.savedAt||""));
   });
 }function ensureCurrent(){if(currentJobId&&jobs[currentJobId])return;const f=sortedJobs()[0];currentJobId=f?f.id:null}function currentJob(){ensureCurrent();return currentJobId?jobs[currentJobId]:null}function setStatus(m){document.getElementById("statusBox").textContent=m}function createJob(){const id=uid();jobs[id]=defaultJob(id);currentJobId=id;saveLocal();renderAll();setStatus("New job created.")}function selectJob(id){currentJobId=id;activeTab="job";renderAll()}
@@ -77,40 +79,36 @@ function renderCoC(j){document.getElementById("cocStatus").innerHTML=readiness(j
 // Recovery import: replace the broken local copy instead of merging bad blank jobs.
 jobs=imported;currentJobId=Object.keys(imported)[0];localStorage.setItem(STORAGE_KEY,JSON.stringify(jobs));renderAll();setStatus("RESTORED "+count+" jobs from backup. Check the job numbers, then click Push Shared.");alert("Restored "+count+" jobs from the backup. The broken blank local copy has been replaced. Now click Push Shared to save the corrected jobs to Supabase.")}catch(e){console.error(e);alert("Could not import backup JSON. The file may not be valid JSON.")};ev.target.value=""};reader.readAsText(f)}
 async function pushAllLocalJobs(){
-  if(!sbClient){
-    alert("Supabase not connected. Check project is resumed.");
-    return;
-  }
-
-  let ok = 0;
-
+  if(!sbClient){alert("Supabase not connected. Check project is resumed.");return}
+  let ok=0;
   for(const j of Object.values(jobs)){
     if(isBadGeneratedJob(j)) continue;
-
-    const row = {
-      job_id: j.id,
-      id: j.id,
-      data: j,
-      job_data: j,
-      saved_at: j.savedAt || new Date().toISOString()
+    const row={
+      job_id:j.id,
+      id:j.id,
+      data:j,
+      job_data:j,
+      saved_at:j.savedAt||new Date().toISOString()
     };
-
-    const { error } = await sbClient
-      .from(window.SHARED_CONFIG.TABLE)
-      .upsert(row, { onConflict: "job_id" });
-
-    if(error){
-      console.error(error);
-      alert("Push failed on " + (j.jobNumber || j.id) + ": " + error.message);
-      return;
-    }
-
+    const {error}=await sbClient.from(window.SHARED_CONFIG.TABLE).upsert(row,{onConflict:"job_id"});
+    if(error){console.error(error);alert("Push failed on "+(j.jobNumber||j.id)+": "+error.message);return}
     ok++;
   }
-
-  setStatus("Pushed " + ok + " jobs to Supabase.");
-  alert("Pushed " + ok + " jobs to Supabase.");
-}{if(!sbClient){alert("Supabase not connected. Check project is resumed.");return}let ok=0;for(const j of Object.values(jobs)){if(isBadGeneratedJob(j))continue;const {error}=await sbClient.from(window.SHARED_CONFIG.TABLE).upsert({id:j.id,job_data:j,saved_at:j.savedAt},{onConflict:"id"});if(error){console.error(error);alert("Push failed on "+(j.jobNumber||j.id)+": "+error.message);return}else ok++}setStatus("Pushed "+ok+" corrected jobs to Supabase.");alert("Pushed "+ok+" corrected jobs to Supabase.")}async function loadSharedJobs(){if(!sbClient){alert("Supabase not connected. Check project is resumed.");return}const{data,error}=await sbClient.from(window.SHARED_CONFIG.TABLE).select("*").limit(1000);if(error){alert("Load failed: "+error.message);return}let loaded=0,skipped=0;(data||[]).forEach(r=>{const jd=normalise(r.job_data||r,r.id);if(isBadGeneratedJob(jd)){skipped++;return;}jobs[jd.id]=jd;loaded++;});saveLocal();renderAll();setStatus("Loaded "+loaded+" shared jobs"+(skipped?"; skipped "+skipped+" broken draft rows.":"."))}
+  setStatus("Pushed "+ok+" corrected jobs to Supabase.");
+  alert("Pushed "+ok+" corrected jobs to Supabase.");
+}async function loadSharedJobs(){
+  if(!sbClient){alert("Supabase not connected. Check project is resumed.");return}
+  const{data,error}=await sbClient.from(window.SHARED_CONFIG.TABLE).select("*").limit(1000);
+  if(error){alert("Load failed: "+error.message);return}
+  let loaded=0,skipped=0;
+  (data||[]).forEach(r=>{
+    const raw=r.job_data||r.data||r;
+    const jd=normalise(raw,r.id||r.job_id);
+    if(isBadGeneratedJob(jd)){skipped++;return;}
+    jobs[jd.id]=jd;loaded++;
+  });
+  saveLocal();renderAll();setStatus("Loaded "+loaded+" shared jobs"+(skipped?"; skipped "+skipped+" broken draft rows.":"."));
+}
 function saveGeminiKey(){localStorage.setItem(GEMINI_KEY,document.getElementById("geminiKey").value.trim());alert("API key saved on this device.")}function digitiseIntoCurrentJob(){const j=currentJob();if(!j){alert("Select a job first.");return}document.getElementById("scanFile").click()}function fileToBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.onerror=rej;r.readAsDataURL(file)})}async function handleScanFile(ev){const file=ev.target.files[0];if(!file)return;const j=currentJob();if(!j){alert("Select a job first.");return}const key=localStorage.getItem(GEMINI_KEY)||"";if(!key){activeTab="audit";renderAll();alert("Paste and save your Gemini API key in Audit/Settings first.");return}setStatus("AI is reading job pack…");const b64=await fileToBase64(file);const mime=file.type||"application/pdf";const prompt='Read this Jenner Engineering handwritten/scanned job pack and return ONLY valid JSON with keys: jobNumber, customer, partDescription, drawingRev, material, machineOperation, operator, qtyOrdered, qtySupplied, requiredDelivery, actualDelivery, notes, items array, prestart array with text done notes, inprocess dimensions array, finalDims dimensions array, finalChecks array, ncrs array. Keep unsure fields blank.';try{const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:mime,data:b64}}]}],generationConfig:{temperature:0.1,responseMimeType:"application/json"}})});const out=await resp.json();if(!resp.ok)throw new Error(out.error?.message||"Gemini request failed");const txt=out.candidates?.[0]?.content?.parts?.[0]?.text||"{}";const extracted=JSON.parse(txt);applyExtracted(j,extracted,file.name);saveLocal();renderAll();setStatus("Scan applied to current job. Review before release.")}catch(e){console.error(e);alert("AI scan failed: "+e.message)}finally{ev.target.value=""}}function putIf(j,k,v){if(v!==undefined&&v!==null&&String(v).trim()!=="")j[k]=String(v)}function applyExtracted(j,x,fileName){audit(j,"AI digitised job pack: "+fileName+" (file content not stored in browser)");["jobNumber","customer","partDescription","drawingRev","material","machineOperation","operator","qtyOrdered","qtySupplied","requiredDelivery","actualDelivery","notes"].forEach(k=>putIf(j,k,x[k]));if(Array.isArray(x.items)&&x.items.length)j.items=x.items.map(i=>({qty:i.qty||"",partNumber:i.partNumber||"",description:i.description||""}));if(Array.isArray(x.prestart)){x.prestart.forEach(ex=>{const row=j.prestart.find(r=>r.text.toLowerCase().includes(String(ex.text||"").toLowerCase().slice(0,10)))||j.prestart.find(r=>String(ex.text||"").toLowerCase().includes(r.text.toLowerCase().slice(0,10)));if(row){if(ex.done!==undefined)row.done=!!ex.done;if(ex.notes)row.notes=ex.notes}})}if(Array.isArray(x.inprocess)&&x.inprocess.length)j.inprocess=x.inprocess.map(d=>({feature:d.feature||"",target:d.target||"",actual:d.actual||"",status:d.status||"PASS",notes:d.notes||""}));if(Array.isArray(x.finalDims)&&x.finalDims.length)j.finalDims=x.finalDims.map(d=>({feature:d.feature||"",target:d.target||"",actual:d.actual||"",status:d.status||"PASS",notes:d.notes||""}));if(Array.isArray(x.finalChecks)){x.finalChecks.forEach(ex=>{const row=j.finalChecks.find(r=>r.text.toLowerCase().includes(String(ex.text||"").toLowerCase().slice(0,10)))||j.finalChecks.find(r=>String(ex.text||"").toLowerCase().includes(r.text.toLowerCase().slice(0,10)));if(row){if(ex.done!==undefined)row.done=!!ex.done;if(ex.notes)row.notes=ex.notes}})}if(Array.isArray(x.ncrs)&&x.ncrs.length)j.ncrs=x.ncrs.map(n=>({description:n.description||"",action:n.action||"",status:n.status||"Open"}));j.status="Ready for Release"}
 function packSafe(v){return String(v??"").replace(/\s+/g," ").trim()}
 function packWrap(doc,text,x,y,w,lineH){
