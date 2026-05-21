@@ -289,54 +289,72 @@ function initScanDropZone(){
 function putIf(j,k,v){
   if(v!==undefined && v!==null && String(v).trim()!=="") j[k]=String(v).trim();
 }
-
+function val(obj, keys){
+  for(const k of keys){
+    if(obj && obj[k]!==undefined && obj[k]!==null && String(obj[k]).trim()!=="") return obj[k];
+  }
+  return "";
+}
+function arrVal(obj, keys){
+  for(const k of keys){
+    if(Array.isArray(obj?.[k]) && obj[k].length) return obj[k];
+  }
+  return [];
+}
 function normBool(v){
   if(v===true || v===false) return v;
   const s=String(v??"").trim().toLowerCase();
-  if(["true","yes","y","ok","pass","passed","complete","completed","tick","ticked","checked","x","✓","✔"].includes(s)) return true;
-  if(["false","no","n","fail","failed","open","blank",""].includes(s)) return false;
+  if(["true","yes","y","ok","okay","pass","passed","complete","completed","tick","ticked","checked","x","✓","✔","1"].includes(s)) return true;
+  if(["false","no","n","fail","failed","open","blank","","0"].includes(s)) return false;
   return false;
 }
-
 function normStatus(v){
   const s=String(v??"").trim().toUpperCase();
-  if(s.includes("FAIL")) return "FAIL";
+  if(s.includes("FAIL") || s==="F") return "FAIL";
   if(s.includes("N/A") || s==="NA") return "N/A";
   return "PASS";
 }
-
 function hasUsefulText(obj){
   if(!obj || typeof obj!=="object") return false;
   return Object.values(obj).some(v=>String(v??"").trim()!=="");
 }
-
 function cleanDim(d){
+  if(!d || typeof d!=="object") d={feature:String(d??"")};
+  const feature=String(val(d,["feature","dimension","dimensionFeature","measurement","item","check","text","name","no","number","#"])||"").trim();
+  const target=String(val(d,["target","nominal","specification","spec","drawingRequirement","required","tolerance"])||"").trim();
+  let actual=String(val(d,["actual","measurementValue","measured","measuredValue","value","recorded","resultValue"])||"").trim();
+  let notes=String(val(d,["notes","note","comment","comments","remarks","observation"])||"").trim();
+  if(!actual && notes && /\d/.test(notes)){
+    actual=notes;
+    notes="";
+  }
   return {
-    feature:String(d?.feature ?? d?.dimension ?? d?.item ?? d?.text ?? "").trim(),
-    target:String(d?.target ?? d?.nominal ?? d?.specification ?? d?.spec ?? "").trim(),
-    actual:String(d?.actual ?? d?.measurement ?? d?.measured ?? "").trim(),
-    status:normStatus(d?.status ?? d?.result ?? (d?.fail ? "FAIL" : d?.pass ? "PASS" : "PASS")),
-    notes:String(d?.notes ?? d?.comment ?? "").trim()
+    feature: feature || "Dimension / feature",
+    target,
+    actual,
+    status:normStatus(val(d,["status","result","passFail","pass_fail"]) || (d.fail ? "FAIL" : d.pass ? "PASS" : "PASS")),
+    notes
   };
 }
-
 function cleanCheck(c, fallbackText){
+  if(!c || typeof c!=="object") c={text:String(c??fallbackText??"")};
   return {
-    text:String(c?.text ?? c?.check ?? c?.item ?? c?.name ?? fallbackText ?? "").trim(),
-    done:normBool(c?.done ?? c?.ok ?? c?.checked ?? c?.pass ?? c?.status),
-    notes:String(c?.notes ?? c?.sign ?? c?.signature ?? c?.comment ?? "").trim()
+    text:String(val(c,["text","check","checkItem","item","name","requirement","description"]) || fallbackText || "").trim(),
+    done:normBool(val(c,["done","ok","checked","complete","completed","tick","ticked","pass","status","result"]) || c.done),
+    notes:String(val(c,["notes","note","sign","signature","signedBy","comment","comments"])||"").trim()
   };
 }
-
 function mergeChecks(existing, incoming, defaults){
   const base=(Array.isArray(existing)&&existing.length?existing:defaults.map(text=>({text,done:false,notes:""}))).map(c=>({...c}));
   if(!Array.isArray(incoming) || !incoming.length) return base;
-
   incoming.forEach(ex=>{
     const inc=cleanCheck(ex);
     if(!inc.text && !inc.notes && !inc.done) return;
-    const key=inc.text.toLowerCase().slice(0,14);
-    let row=base.find(r=>r.text && (r.text.toLowerCase().includes(key) || key.includes(r.text.toLowerCase().slice(0,14))));
+    const incText=inc.text.toLowerCase();
+    let row=base.find(r=>{
+      const rt=String(r.text||"").toLowerCase();
+      return rt && (rt.includes(incText.slice(0,12)) || incText.includes(rt.slice(0,12)) || incText.includes(rt.split(" ")[0]||"~~~~"));
+    });
     if(!row){
       row={text:inc.text || "Scanned checklist item", done:false, notes:""};
       base.push(row);
@@ -346,51 +364,87 @@ function mergeChecks(existing, incoming, defaults){
   });
   return base;
 }
-
 function mergeDims(existing, incoming){
   const cleaned=(Array.isArray(incoming)?incoming:[]).map(cleanDim).filter(d=>hasUsefulText(d));
   if(cleaned.length) return cleaned;
   return (Array.isArray(existing)&&existing.length)?existing:[{feature:"",target:"",actual:"",status:"PASS",notes:""}];
 }
-
 function cleanTime(t, fallbackOperator){
+  if(!t || typeof t!=="object") t={};
   return {
-    operator:String(t?.operator ?? fallbackOperator ?? "").trim(),
-    date:String(t?.date ?? "").trim(),
-    start:String(t?.start ?? t?.clockIn ?? t?.clock_in ?? "").trim(),
-    finish:String(t?.finish ?? t?.clockOut ?? t?.clock_out ?? "").trim(),
-    hours:String(t?.hours ?? t?.hrs ?? "").trim(),
-    stage:String(t?.stage ?? t?.operation ?? "").trim(),
-    chargeable:String(t?.chargeable ?? "Yes").trim() || "Yes",
-    notes:String(t?.notes ?? t?.reason ?? "").trim()
+    operator:String(val(t,["operator","name","employee","staff"]) || fallbackOperator || "").trim(),
+    date:String(val(t,["date","day"])||"").trim(),
+    start:String(val(t,["start","clockIn","clock_in","timeIn","time_in"])||"").trim(),
+    finish:String(val(t,["finish","clockOut","clock_out","timeOut","time_out","end"])||"").trim(),
+    hours:String(val(t,["hours","hrs","total","duration"])||"").trim(),
+    stage:String(val(t,["stage","operation","process","activity"])||"").trim(),
+    chargeable:String(val(t,["chargeable","billable"])||"Yes").trim() || "Yes",
+    notes:String(val(t,["notes","note","reason","description"])||"").trim()
   };
 }
-
+function coerceArray(v){
+  if(Array.isArray(v)) return v;
+  if(v && typeof v==="object") return Object.values(v).filter(x=>x && typeof x==="object");
+  return [];
+}
+function normaliseExtractedAI(src){
+  src = src || {};
+  const jobInfo = src.jobInfo || src.job_info || src.job || src.header || {};
+  const inspection = src.inspection || src.inspections || {};
+  const finalInspection = src.finalInspection || src.final_inspection || inspection.final || {};
+  const pre = src.prestart || src.preStart || src.pre_start || src.prestartChecks || src.preStartChecks || inspection.prestart || inspection.preStart || [];
+  const safety = src.safetyChecks || src.safety || [];
+  const drawing = src.drawingChecks || src.drawingMaterialChecks || src.drawingAndMaterial || [];
+  const machine = src.machineChecks || src.machineTooling || src.toolingChecks || [];
+  const inproc = src.inprocess || src.inProcess || src.in_process || src.inProcessDimensions || src.progress || src.progressInspection || inspection.inprocess || inspection.inProcess || [];
+  const finalDims = src.finalDims || src.finalDimensions || src.final_dimensions || src.finalInspectionDimensions || finalInspection.dimensions || finalInspection.dims || finalInspection.measurements || [];
+  const finalChecks = src.finalChecks || src.finalInspectionChecks || finalInspection.checks || finalInspection.results || [];
+  const time = src.timeEntries || src.timeOnJob || src.timesheet || src.time || src.labour || [];
+  return {
+    jobNumber: val(src,["jobNumber","jobNo","job","job_id","jobId"]) || val(jobInfo,["jobNumber","jobNo","job","job_id","jobId"]),
+    customer: val(src,["customer","client"]) || val(jobInfo,["customer","client"]),
+    partDescription: val(src,["partDescription","description","jobTitle","part","title"]) || val(jobInfo,["partDescription","description","jobTitle","part","title"]),
+    drawingRev: val(src,["drawingRev","drawing","drawingNo","drawingNumber","drawing_rev"]) || val(jobInfo,["drawingRev","drawing","drawingNo","drawingNumber","drawing_rev"]),
+    material: val(src,["material","materialSpec"]) || val(jobInfo,["material","materialSpec"]),
+    machineOperation: val(src,["machineOperation","machine","operation","machine_op"]) || val(jobInfo,["machineOperation","machine","operation","machine_op"]),
+    operator: val(src,["operator","operators","operatorName"]) || val(jobInfo,["operator","operators","operatorName"]),
+    qtyOrdered: val(src,["qtyOrdered","quantityOrdered","qty_ordered"]) || val(jobInfo,["qtyOrdered","quantityOrdered","qty_ordered"]),
+    qtySupplied: val(src,["qtySupplied","quantitySupplied","qty_supplied"]) || val(jobInfo,["qtySupplied","quantitySupplied","qty_supplied"]),
+    requiredDelivery: val(src,["requiredDelivery","dueDate","dateDue","required_delivery"]) || val(jobInfo,["requiredDelivery","dueDate","dateDue","required_delivery"]),
+    actualDelivery: val(src,["actualDelivery","deliveryDate","actual_delivery"]) || val(jobInfo,["actualDelivery","deliveryDate","actual_delivery"]),
+    dateStarted: val(src,["dateStarted","startDate","date_started"]) || val(jobInfo,["dateStarted","startDate","date_started"]),
+    notes: val(src,["notes","specialRequirements","requirements","comments"]) || val(jobInfo,["notes","specialRequirements","requirements","comments"]),
+    items: coerceArray(src.items || src.billOfMaterials || src.bom || jobInfo.items || jobInfo.billOfMaterials || jobInfo.bom),
+    prestart: [...coerceArray(pre), ...coerceArray(safety), ...coerceArray(drawing), ...coerceArray(machine)],
+    inprocess: coerceArray(inproc),
+    finalDims: coerceArray(finalDims),
+    finalChecks: coerceArray(finalChecks),
+    timeEntries: coerceArray(time),
+    ncrs: coerceArray(src.ncrs || src.nonConformances || src.issues || []),
+    release: src.release || src.releaseAuthority || {},
+    coc: src.coc || src.certificateOfConformance || {}
+  };
+}
 function applyExtracted(j,x,fileName){
   const before = JSON.stringify(j);
-  const src = x || {};
+  const src = normaliseExtractedAI(x || {});
   audit(j,"AI digitised job pack: "+fileName+" (file content not stored in browser)");
 
   ["jobNumber","customer","partDescription","drawingRev","material","machineOperation","operator","qtyOrdered","qtySupplied","requiredDelivery","actualDelivery","dateStarted","notes"].forEach(k=>putIf(j,k,src[k]));
 
   if(Array.isArray(src.items) && src.items.length){
     const items=src.items.map(i=>({
-      qty:String(i?.qty ?? i?.quantity ?? "").trim(),
-      partNumber:String(i?.partNumber ?? i?.part_no ?? i?.part ?? "").trim(),
-      description:String(i?.description ?? i?.desc ?? "").trim()
+      qty:String(val(i,["qty","quantity","qtyOrdered"])||"").trim(),
+      partNumber:String(val(i,["partNumber","part_no","part","item","drawing","code"])||"").trim(),
+      description:String(val(i,["description","desc","details","operation"])||"").trim()
     })).filter(hasUsefulText);
     if(items.length) j.items=items;
   }
 
-  j.prestart = mergeChecks(j.prestart, src.prestart || src.prestartChecks, prestartDefaults);
-
-  const incomingInprocess = src.inprocess || src.inProcess || src.inProcessDimensions || src.progress || src.progressInspection;
-  j.inprocess = mergeDims(j.inprocess, incomingInprocess);
-
-  const incomingFinal = src.finalDims || src.finalDimensions || src.finalInspection || src.finalInspectionDimensions;
-  j.finalDims = mergeDims(j.finalDims, incomingFinal);
-
-  j.finalChecks = mergeChecks(j.finalChecks, src.finalChecks || src.finalInspectionChecks, finalCheckDefaults);
+  j.prestart = mergeChecks(j.prestart, src.prestart, prestartDefaults);
+  j.inprocess = mergeDims(j.inprocess, src.inprocess);
+  j.finalDims = mergeDims(j.finalDims, src.finalDims);
+  j.finalChecks = mergeChecks(j.finalChecks, src.finalChecks, finalCheckDefaults);
 
   if(Array.isArray(src.timeEntries) && src.timeEntries.length){
     const rows=src.timeEntries.map(t=>cleanTime(t,j.operator)).filter(hasUsefulText);
@@ -399,32 +453,32 @@ function applyExtracted(j,x,fileName){
 
   if(Array.isArray(src.ncrs) && src.ncrs.length){
     const rows=src.ncrs.map(n=>({
-      description:String(n?.description ?? n?.issue ?? "").trim(),
-      action:String(n?.action ?? n?.correctiveAction ?? n?.corrective_action ?? "").trim(),
-      status:String(n?.status ?? "Open").trim() || "Open"
+      description:String(val(n,["description","issue","details"])||"").trim(),
+      action:String(val(n,["action","correctiveAction","corrective_action","disposition"])||"").trim(),
+      status:String(val(n,["status","state"])||"Open").trim() || "Open"
     })).filter(hasUsefulText);
     if(rows.length) j.ncrs=rows;
   }
 
   if(src.release && typeof src.release==="object"){
     if(src.release.released!==undefined) j.release.released=normBool(src.release.released);
-    putIf(j.release,"releasedBy",src.release.releasedBy);
-    putIf(j.release,"dateTime",src.release.dateTime);
-    putIf(j.release,"comments",src.release.comments);
+    putIf(j.release,"releasedBy",val(src.release,["releasedBy","name","approvedBy","signature"]));
+    putIf(j.release,"dateTime",val(src.release,["dateTime","date","releasedAt"]));
+    putIf(j.release,"comments",val(src.release,["comments","note","notes"]));
   }
 
   if(src.coc && typeof src.coc==="object"){
-    putIf(j.coc,"number",src.coc.number);
-    putIf(j.coc,"certifiedBy",src.coc.certifiedBy);
-    putIf(j.coc,"date",src.coc.date);
-    putIf(j.coc,"note",src.coc.note);
+    putIf(j.coc,"number",val(src.coc,["number","cocNumber","certificateNumber"]));
+    putIf(j.coc,"certifiedBy",val(src.coc,["certifiedBy","name","signedBy"]));
+    putIf(j.coc,"date",val(src.coc,["date","issued","issuedDate"]));
+    putIf(j.coc,"note",val(src.coc,["note","notes","statement"]));
   }
 
   j.status = j.release?.released ? "Released" : "Ready for Release";
   j.savedAt = nowIso();
 
   const changed = JSON.stringify(j)!==before;
-  audit(j, changed ? "AI mapping applied to job info, checks, dimensions, time and release fields" : "AI scan completed but no matching fields were found to update");
+  audit(j, changed ? "AI mapping applied across job info, checklist, dimensions, time, NCR and release fields" : "AI scan completed but no matching fields were found to update");
 }
 function packSafe(v){return String(v??"").replace(/\s+/g," ").trim()}
 function packWrap(doc,text,x,y,w,lineH){
