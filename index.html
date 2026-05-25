@@ -284,11 +284,33 @@ function handleScanFile(ev){const file=ev.target.files&&ev.target.files[0];proce
 function initScanDropZone(){
   const dz=document.getElementById("scanDropZone");
   if(!dz) return;
-  ["dragenter","dragover"].forEach(evt=>dz.addEventListener(evt,e=>{e.preventDefault();e.stopPropagation();dz.classList.add("dragover")}));
-  ["dragleave","drop"].forEach(evt=>dz.addEventListener(evt,e=>{e.preventDefault();e.stopPropagation();dz.classList.remove("dragover")}));
+
+  // Prevent Chrome from opening the PDF/image if it is dropped slightly outside the box.
+  ["dragenter","dragover","dragleave","drop"].forEach(evt=>{
+    document.addEventListener(evt,function(e){
+      if(e.dataTransfer && Array.from(e.dataTransfer.types||[]).includes("Files")){
+        e.preventDefault();
+      }
+    },false);
+  });
+
+  ["dragenter","dragover"].forEach(evt=>dz.addEventListener(evt,e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    dz.classList.add("dragover");
+    if(e.dataTransfer) e.dataTransfer.dropEffect="copy";
+  }));
+
+  ["dragleave","drop"].forEach(evt=>dz.addEventListener(evt,e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    dz.classList.remove("dragover");
+  }));
+
   dz.addEventListener("drop",e=>{
-    const file=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
-    processScanFile(file);
+    const files=e.dataTransfer && e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+    if(!files.length){ alert("No file was dropped. Please drop a PDF or image file."); return; }
+    processScanFile(files[0]);
   });
 }
 function putIf(j,k,v){
@@ -753,6 +775,10 @@ window.clearSignature=clearSignature;
 window.saveStampSetting=saveStampSetting;
 window.setCocStamp=setCocStamp;
 window.applyReleaseDetailsToCoC=applyReleaseDetailsToCoC;
+window.digitiseIntoCurrentJob=digitiseIntoCurrentJob;
+window.handleScanFile=handleScanFile;
+window.processScanFile=processScanFile;
+window.initScanDropZone=initScanDropZone;
 document.addEventListener("click",function(e){
   const b=e.target.closest("button");
   if(!b) return;
