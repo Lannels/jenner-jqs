@@ -686,6 +686,66 @@ function clearSignature(key){const store=getSignatureStore();delete store[key];s
 function loadSignatureSettings(){const stamp=document.getElementById("globalCompanyStamp");if(stamp)stamp.checked=globalStampDefault();const store=getSignatureStore();["carol","colin","gary"].forEach(k=>{const el=document.getElementById("sigPreview_"+k);if(!el)return;const sig=store[k]||DEFAULT_SIGNATURES[k];if(sig)el.innerHTML='<img src="'+sig+'" alt="signature">';else el.textContent="No signature uploaded"})}
 function drawCompanyStamp(doc,x,y){doc.setDrawColor(216,163,24);doc.setLineWidth(0.6);doc.rect(x,y,72,31);doc.setFontSize(8);doc.setTextColor(0,0,0);doc.text("JENNER ENGINEERING PTY LTD",x+4,y+7);doc.text("AUTHORISED COMPANY STAMP",x+4,y+13);doc.text("ABN 27 632 194 373",x+4,y+19);doc.text("13 David Muir Street, Slade Point QLD 4740",x+4,y+25);doc.setDrawColor(0,0,0)}
 function addSignatureToDoc(doc,dataUrl,x,y,w,h){if(!dataUrl)return false;try{const fmt=dataUrl.toLowerCase().includes("image/png")?"PNG":"JPEG";doc.addImage(dataUrl,fmt,x,y,w,h);return true}catch(e){console.warn("Signature image could not be added",e);return false}}
+function drawInspectionSummaryPair(doc,x,y,label,value){
+  doc.setFontSize(7.2);
+  doc.setTextColor(70,70,70);
+  doc.text(String(label||'').toUpperCase(),x,y);
+  doc.setFontSize(10);
+  doc.setTextColor(0,130,90);
+  doc.text(String(value||'-').toUpperCase(),x,y+6);
+  doc.setTextColor(0,0,0);
+}
+function safePass(v){
+  const s=String(v||'').trim();
+  return s?s:'PASS';
+}
+function drawClassicCocHeader(doc,j){
+  doc.setTextColor(70,70,70);
+  doc.setFontSize(7);
+  doc.text(new Date().toLocaleString(),14,12);
+  doc.text('Certificate of Conformance - '+(j.coc.number||''),75,12);
+  try{ doc.addImage(JENNER_LOGO,'JPEG',22,24,28,14); }catch(e){ doc.setFontSize(12); doc.text('JENNER',22,30); }
+  doc.setFontSize(8.5);
+  doc.text('Jenner Engineering Pty Ltd',22,52);
+  doc.text('13 David Muir Street, Slade Point QLD 4740',22,58);
+  doc.text('ABN 27 632 194 373',22,64);
+  doc.setFontSize(7);
+  doc.text('F-CoC-01 ISO 9001:2015 Cl.8.6',128,25);
+  doc.setFontSize(18);
+  doc.setTextColor(65,65,65);
+  doc.text('Certificate of',128,35);
+  doc.text('Conformance',128,45);
+  doc.setTextColor(216,163,24);
+  doc.setFontSize(9);
+  doc.text(j.coc.number||'',128,55);
+  doc.setDrawColor(0,130,90);
+  doc.roundedRect(144,58,31,8,4,4);
+  doc.setFontSize(7);
+  doc.setTextColor(0,130,90);
+  doc.text('OK ALL PASS',148,63.5);
+  doc.setDrawColor(216,163,24);
+  doc.setLineWidth(0.6);
+  doc.line(22,74,178,74);
+  doc.setTextColor(0,0,0);
+}
+function drawClassicStamp(doc,x,y){
+  doc.setDrawColor(90,90,90);
+  doc.setLineWidth(0.4);
+  doc.rect(x,y,70,30);
+  doc.line(x+38,y,x+38,y+30);
+  doc.line(x+38,y+10,x+70,y+10);
+  try{ doc.addImage(JENNER_LOGO,'JPEG',x+4,y+3,28,9); }catch(e){ doc.setFontSize(8); doc.text('JENNER',x+5,y+8); }
+  doc.setFontSize(5);
+  doc.text('ABN 27 632 194 373',x+47,y+6);
+  doc.setFontSize(6);
+  doc.text('C O M P A N Y',x+48,y+15);
+  doc.text('S T A M P',x+51,y+20);
+  doc.setFontSize(7);
+  doc.text('1 3  D A V I D   M U I R   S T R E E T',x+4,y+17);
+  doc.text('S L A D E   P O I N T,',x+4,y+23);
+  doc.text('4 7 4 0 .   Q L D',x+4,y+28);
+  doc.setDrawColor(0,0,0);
+}
 function downloadCoC(){
   const j=currentJob();
   if(!j){alert('No job selected.');return}
@@ -696,40 +756,74 @@ function downloadCoC(){
   if(!j.coc)j.coc={};
   if(!j.coc.certifiedBy)j.coc.certifiedBy=j.release?.releasedBy||'';
   if(!j.coc.date)j.coc.date=today();
-  if(!j.coc.number)j.coc.number=(j.jobNumber||j.id)+'-COC';
+  if(!j.coc.number)j.coc.number='JEN-CoC-'+(j.financialYear||'202526')+'-'+String(j.jobNumber||j.id||'').replace(/\D/g,'').slice(-4).padStart(4,'0');
   if(j.coc.useCompanyStamp===undefined)j.coc.useCompanyStamp=globalStampDefault();
-  pdfHeader(doc,'Certificate of Conformance',j,'JEN-CoC-01');
-  let y=52;
-  fieldBox(doc,14,y,58,9,'CoC Number',j.coc.number);
-  fieldBox(doc,76,y,58,9,'Certified By',j.coc.certifiedBy);
-  fieldBox(doc,138,y,58,9,'Date',j.coc.date);
-  y+=20;
-  doc.setFontSize(9);
-  doc.text('Conformance Statement',14,y);
-  y+=7;
-  y=packWrap(doc,j.coc.note||'',14,y,180,5)+10;
-  fieldBox(doc,14,y,70,9,'Released By',j.release.releasedBy);
-  fieldBox(doc,90,y,70,9,'Release Date',j.release.dateTime);
-  y+=28;
+
+  drawClassicCocHeader(doc,j);
+  let y=86;
+  doc.setFontSize(7.2);
+  doc.setTextColor(70,70,70);
+  doc.text('JOB DETAILS',22,y);
+  y+=12;
+  const leftX=22,rightX=103;
+  const rowGap=14;
+  function labelVal(x,yy,label,val){
+    doc.setFontSize(7);doc.setTextColor(70,70,70);doc.text(String(label).toUpperCase(),x,yy);
+    doc.setFontSize(9);doc.setTextColor(0,0,0);packWrap(doc,val||'-',x,yy+6,68,4.2);
+  }
+  labelVal(leftX,y,'Customer',j.customer); labelVal(rightX,y,'Issued Date',j.coc.date); y+=rowGap;
+  labelVal(leftX,y,'Part Description',j.partDescription); labelVal(rightX,y,'Job Number',j.jobNumber); y+=rowGap;
+  labelVal(leftX,y,'Drawing / Revision',j.drawingRev); labelVal(rightX,y,'Customer PO / Reference',j.coc.reference||j.coc.po||''); y+=rowGap;
+  labelVal(leftX,y,'Material',j.material); labelVal(rightX,y,'Qty Supplied',j.qtySupplied||j.qtyOrdered); y+=18;
+
+  doc.setFontSize(7.2);doc.setTextColor(70,70,70);doc.text('ITEMS SUPPLIED',22,y);y+=9;
+  doc.setFontSize(7);doc.setTextColor(216,163,24);
+  doc.text('Qty',25,y);doc.text('Part Number',48,y);doc.text('Description',94,y);
+  doc.setTextColor(0,0,0);y+=7;
+  (j.items||[]).filter(it=>it.qty||it.partNumber||it.description).slice(0,5).forEach(it=>{
+    doc.setFontSize(8);doc.text(String(it.qty||''),25,y);doc.text(String(it.partNumber||''),48,y);packWrap(doc,it.description||'',94,y,80,4);y+=8;
+  });
+  if(!(j.items||[]).some(it=>it.qty||it.partNumber||it.description)){doc.text('-',25,y);y+=8;}
+  y+=4;
+
+  doc.setFontSize(7.2);doc.setTextColor(70,70,70);doc.text('CERTIFICATION STATEMENT',22,y);y+=7;
+  doc.setDrawColor(216,163,24);doc.setLineWidth(1.2);doc.line(22,y-3,22,y+23);doc.setDrawColor(0,0,0);
+  doc.setFontSize(8.5);doc.setTextColor(70,70,70);
+  y=packWrap(doc,j.coc.note||'We certify that the parts listed on this job conform to the applicable drawing, customer requirements, and final inspection status recorded in this job pack.',28,y,130,5)+9;
+
+  doc.setFontSize(7.2);doc.setTextColor(70,70,70);doc.text('INSPECTION SUMMARY',22,y);y+=10;
+  const results=j.results||{};
+  drawInspectionSummaryPair(doc,22,y,'Setup',safePass(results.setupResult));
+  drawInspectionSummaryPair(doc,103,y,'First-Off',safePass(results.firstOffResult));
+  addPageNo(doc);
+
+  doc.addPage();
+  doc.setTextColor(70,70,70);doc.setFontSize(7);
+  doc.text(new Date().toLocaleString(),14,12);
+  doc.text('Certificate of Conformance - '+(j.coc.number||''),75,12);
+  let y2=26;
+  drawInspectionSummaryPair(doc,22,y2,'In-Process',safePass(results.inProcessResult));
+  drawInspectionSummaryPair(doc,103,y2,'Final Dimensional',safePass(results.finalDimensional));y2+=18;
+  drawInspectionSummaryPair(doc,22,y2,'Visual',safePass(results.visualResult));
+  const ncrRaised=(j.ncrs||[]).length;
+  const ncrClosed=(j.ncrs||[]).filter(n=>String(n.status||'').toLowerCase()==='closed'||String(n.status||'').toLowerCase()==='accepted').length;
+  drawInspectionSummaryPair(doc,103,y2,'NCRs',ncrRaised+' raised '+ncrClosed+' closed');y2+=38;
 
   const certName=j.coc.certifiedBy||j.release.releasedBy||'';
   const sig=signatureForName(certName);
-  doc.setFontSize(9);
-  doc.text('Authorised Signature:',14,y+8);
-  if(sig){
-    addSignatureToDoc(doc,sig,53,y-12,60,18);
-  }
-  doc.setDrawColor(216,163,24);
-  doc.setLineWidth(0.4);
-  doc.line(52,y+10,122,y+10);
-  doc.setDrawColor(0,0,0);
-  doc.text('Name: '+certName,14,y+24);
-  doc.text('Date: '+(j.coc.date||today()),14,y+32);
-  if(j.coc.useCompanyStamp!==false){
-    drawCompanyStamp(doc,128,y+3);
-  }
+  doc.setFontSize(7.2);doc.setTextColor(70,70,70);doc.text('AUTHORISED BY',22,y2);
+  if(sig){ addSignatureToDoc(doc,sig,22,y2+5,30,15); }
+  doc.setFontSize(10);doc.setTextColor(0,0,0);doc.text(certName||'-',22,y2+28);
+  doc.setFontSize(7.5);doc.setTextColor(70,70,70);
+  doc.text('Workshop Manager Jenner',22,y2+34);
+  doc.text('Engineering Pty Ltd',22,y2+39);
+  doc.text('Date: '+(j.coc.date||today()),22,y2+44);
+  if(j.coc.useCompanyStamp!==false){ drawClassicStamp(doc,103,y2+4); }
+  doc.setFontSize(7);doc.setTextColor(110,110,110);
+  doc.text('F-CoC-01 JEN.QMS.01 v2.0 ISO 9001:2015 Retain 7 years (Cl.7.5)',22,265);
+  doc.text('Issued: '+(j.coc.date||today()),142,265);
   addPageNo(doc);
-  audit(j,'CoC PDF downloaded with company stamp/signature support');
+  audit(j,'CoC PDF downloaded in classic Jenner layout with company stamp/signature');
   saveLocal();
   doc.save((j.coc.number||j.jobNumber||'Jenner-CoC')+'.pdf')
 }
