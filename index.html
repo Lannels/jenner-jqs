@@ -15,7 +15,7 @@
 </head>
 <body>
 <div class="app"><aside class="sidebar"><div class="brand"><h1>Jenner Engineering</h1><div>Simplified ISO 9001 QMS</div></div><div id="statusBox" class="status">Starting…</div><div class="toolbar"><button type="button" class="btn-gold" onclick="createJob()">+ New Job</button><button type="button" class="btn-white" onclick="loadSharedJobs()">Load Shared</button><button type="button" class="btn-blue" onclick="pushAllLocalJobs()">Push Shared</button><button type="button" class="btn-green" onclick="exportBackup()">Export Backup</button><label class="buttonlike btn-white">Import<input type="file" accept=".json" style="display:none" onchange="importBackup(event)"></label><button type="button" class="btn-white" onclick="downloadBlankJobPack()">Workshop Pack</button></div><div class="small">Simplified workflow: record evidence and dimensions, then use one final Release Authority to unlock the CoC.</div><div id="jobList" class="joblist"></div></aside>
-<main class="main"><div class="header"><div class="hero"><div class="label">Current Job</div><div class="value" id="heroJobNo">No job selected</div><div class="sub" id="heroTitle">Create or load a job.</div></div><div class="actions no-print"><button type="button" class="btn-white" onclick="saveCurrentJob()">Save</button><button type="button" class="btn-blue" onclick="digitiseIntoCurrentJob()">Digitise Job Pack into Current Job</button><button type="button" class="btn-white" onclick="downloadBlankJobPack()">Download Workshop Pack</button><button type="button" class="btn-white" onclick="downloadCompletedJobPack()">Download Completed Job Pack</button><button type="button" class="btn-green" id="btnCoC" onclick="downloadCoC()">Download CoC</button></div></div><div id="readiness"></div><div id="scanDropZone" class="drop-zone no-print" onclick="digitiseIntoCurrentJob()">📄 Drop handwritten job pack PDF/photo here or click to upload<small>Applies to the currently selected job only. Scanned file is read for AI extraction and not stored in browser storage.</small></div><div class="tabs no-print" id="tabs"></div>
+<main class="main"><div class="header"><div class="hero"><div class="label">Current Job</div><div class="value" id="heroJobNo">No job selected</div><div class="sub" id="heroTitle">Create or load a job.</div></div><div class="actions no-print"><button type="button" class="btn-white" onclick="saveCurrentJob()">Save</button><button type="button" class="btn-blue" onclick="digitiseIntoCurrentJob()">Digitise Job Pack into Current Job</button><button type="button" class="btn-white" onclick="downloadBlankJobPack()">Download Workshop Pack</button><button type="button" class="btn-white" onclick="downloadCompletedJobPack()">Download Completed Job Pack</button><button type="button" class="btn-green" id="btnCoC" onclick="downloadCoC()">Download CoC</button></div></div><div id="readiness"></div><div id="scanDropZone" class="drop-zone no-print" onclick="digitiseIntoCurrentJob()" ondragenter="handleDropZoneDragOver(event)" ondragover="handleDropZoneDragOver(event)" ondragleave="handleDropZoneDragLeave(event)" ondrop="handleDropZoneDrop(event)">📄 Drop handwritten job pack PDF/photo here or click to upload<small>Applies to the currently selected job only. Scanned file is read for AI extraction and not stored in browser storage.</small></div><div class="tabs no-print" id="tabs"></div>
 <section id="panel-job" class="panel active"><div class="card"><div class="card-head">Job Information <span>No sign-off required</span></div><div class="card-body"><div class="grid-3"><div class="field"><label>Job Number</label><input id="jobNumber"></div><div class="field"><label>Customer</label><input id="customer"></div><div class="field"><label>Part Description</label><input id="partDescription"></div><div class="field"><label>Drawing / Rev</label><input id="drawingRev"></div><div class="field"><label>Material</label><input id="material"></div><div class="field"><label>Machine / Operation</label><input id="machineOperation"></div><div class="field"><label>Operator(s)</label><input id="operator"></div><div class="field"><label>Qty Ordered</label><input id="qtyOrdered" type="number"></div><div class="field"><label>Qty Supplied</label><input id="qtySupplied" type="number"></div><div class="field"><label>Required Delivery</label><input id="requiredDelivery" type="date"></div><div class="field"><label>Actual Delivery</label><input id="actualDelivery" type="date"></div><div class="field"><label>Status</label><select id="status"><option>Draft</option><option>In Progress</option><option>Ready for Release</option><option>Released</option><option>On Hold</option></select></div></div><div class="field" style="margin-top:12px"><label>Notes / Special Requirements</label><textarea id="notes"></textarea></div></div></div><div class="card"><div class="card-head">Items / Components <button type="button" class="btn-dark" onclick="addItem()">+ Row</button></div><div class="card-body" style="padding:0"><table><thead><tr><th style="width:80px">Qty</th><th style="width:160px">Part No</th><th>Description</th><th style="width:40px"></th></tr></thead><tbody id="itemsBody"></tbody></table></div></div></section>
 <section id="panel-prestart" class="panel"><div class="notice">Operators tick the checks. The system records edit timestamps. No repeated manual sign-off required.</div><div class="card"><div class="card-head">Pre-Start Checklist</div><div class="card-body" style="padding:0"><table><thead><tr><th>Check</th><th style="width:90px">Done</th><th>Evidence / Notes</th></tr></thead><tbody id="prestartBody"></tbody></table></div></div></section>
 <section id="panel-inprocess" class="panel"><div class="notice">Keep the dimensions. This is the manufacturing evidence. No separate stage signature required.</div><div class="card"><div class="card-head">In-Process Dimensional Records <button type="button" class="btn-dark" onclick="addDim('inprocess')">+ Dimension</button></div><div class="card-body" style="padding:0"><table><thead><tr><th>Feature</th><th>Target</th><th>Actual</th><th style="width:95px">Status</th><th>Notes</th><th style="width:40px"></th></tr></thead><tbody id="inprocessBody"></tbody></table></div></div></section>
@@ -281,6 +281,27 @@ Rules:
   }
 }
 function handleScanFile(ev){const file=ev.target.files&&ev.target.files[0];processScanFile(file).finally(()=>{ev.target.value=""})}
+function handleDropZoneDragOver(e){
+  if(e){ e.preventDefault(); e.stopPropagation(); if(e.dataTransfer) e.dataTransfer.dropEffect="copy"; }
+  const dz=document.getElementById("scanDropZone");
+  if(dz) dz.classList.add("dragover");
+  return false;
+}
+function handleDropZoneDragLeave(e){
+  if(e){ e.preventDefault(); e.stopPropagation(); }
+  const dz=document.getElementById("scanDropZone");
+  if(dz) dz.classList.remove("dragover");
+  return false;
+}
+function handleDropZoneDrop(e){
+  if(e){ e.preventDefault(); e.stopPropagation(); }
+  const dz=document.getElementById("scanDropZone");
+  if(dz) dz.classList.remove("dragover");
+  const files=e && e.dataTransfer && e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+  if(!files.length){ alert("No file was dropped. Please drop a PDF or image file."); return false; }
+  processScanFile(files[0]);
+  return false;
+}
 function initScanDropZone(){
   const dz=document.getElementById("scanDropZone");
   if(!dz) return;
@@ -291,7 +312,7 @@ function initScanDropZone(){
       if(e.dataTransfer && Array.from(e.dataTransfer.types||[]).includes("Files")){
         e.preventDefault();
       }
-    },false);
+    },true);
   });
 
   ["dragenter","dragover"].forEach(evt=>dz.addEventListener(evt,e=>{
@@ -777,6 +798,9 @@ window.setCocStamp=setCocStamp;
 window.applyReleaseDetailsToCoC=applyReleaseDetailsToCoC;
 window.digitiseIntoCurrentJob=digitiseIntoCurrentJob;
 window.handleScanFile=handleScanFile;
+window.handleDropZoneDragOver=handleDropZoneDragOver;
+window.handleDropZoneDragLeave=handleDropZoneDragLeave;
+window.handleDropZoneDrop=handleDropZoneDrop;
 window.processScanFile=processScanFile;
 window.initScanDropZone=initScanDropZone;
 document.addEventListener("click",function(e){
