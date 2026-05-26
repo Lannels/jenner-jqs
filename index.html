@@ -843,22 +843,47 @@ function drawClassicCocHeader(doc,j){
   doc.setTextColor(0,0,0);
 }
 function drawClassicStamp(doc,x,y){
-  doc.setDrawColor(90,90,90);
-  doc.setLineWidth(0.4);
-  doc.rect(x,y,70,30);
-  doc.line(x+38,y,x+38,y+30);
-  doc.line(x+38,y+10,x+70,y+10);
-  try{ doc.addImage(JENNER_LOGO,'PNG',x+4,y+3,28,9); }catch(e){ doc.setFontSize(8); doc.text('JENNER',x+5,y+8); }
-  doc.setFontSize(5);
-  doc.text('ABN 27 632 194 373',x+47,y+6);
-  doc.setFontSize(6);
-  doc.text('C O M P A N Y',x+48,y+15);
-  doc.text('S T A M P',x+51,y+20);
+  // Outer border - double line effect
+  doc.setDrawColor(23,23,23);
+  doc.setLineWidth(0.8);
+  doc.rect(x,y,80,36);
+  doc.setLineWidth(0.3);
+  doc.rect(x+1.5,y+1.5,77,33);
+
+  // Left section: logo + address
+  const logoW=32, logoH=14;
+  try{ doc.addImage(JENNER_LOGO,'PNG',x+4,y+4,logoW,logoH); }catch(e){
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(23,23,23);
+    doc.text('JENNER',x+5,y+13);
+  }
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(5.5);
+  doc.setTextColor(60,60,60);
+  doc.text('13 David Muir Street',x+4,y+22);
+  doc.text('Slade Point QLD 4740',x+4,y+27);
+  doc.text('ABN: 27 632 194 373',x+4,y+32);
+
+  // Divider
+  doc.setDrawColor(23,23,23);
+  doc.setLineWidth(0.5);
+  doc.line(x+40,y+2,x+40,y+34);
+
+  // Right section: COMPANY STAMP text
+  doc.setFillColor(247,237,208);
+  doc.rect(x+40.5,y+1.5,38.5,33,'F');
+  doc.setFont('helvetica','bold');
   doc.setFontSize(7);
-  doc.text('1 3  D A V I D   M U I R   S T R E E T',x+4,y+17);
-  doc.text('S L A D E   P O I N T,',x+4,y+23);
-  doc.text('4 7 4 0 .   Q L D',x+4,y+28);
+  doc.setTextColor(130,100,0);
+  doc.text('COMPANY',x+59,y+14,'center');
+  doc.text('STAMP',x+59,y+21,'center');
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(5.5);
+  doc.setTextColor(100,80,0);
+  doc.text('ISO 9001:2015',x+59,y+28,'center');
+
+  doc.setTextColor(34,34,34);
   doc.setDrawColor(0,0,0);
+  doc.setLineWidth(0.3);
 }
 function downloadCoC(){
   const j=currentJob();
@@ -874,114 +899,198 @@ function downloadCoC(){
   if(!j.coc.certifiedBy)j.coc.certifiedBy=j.release?.releasedBy||'';
   if(!j.coc.date)j.coc.date=today();
   if(!j.coc.number)j.coc.number='JEN-CoC-'+(j.financialYear||'202526')+'-'+String(j.jobNumber||j.id||'').replace(/\D/g,'').slice(-4).padStart(4,'0');
-  if(j.coc.useCompanyStamp===undefined)j.coc.useCompanyStamp=globalStampDefault();
+  if(j.coc.useCompanyStamp===undefined)j.coc.useCompanyStamp=true;
 
-  //  HEADER 
+  const PW=210, PH=297;
+  const ML=14, MR=14, MT=0;
+
+  // == HEADER BAND ==
   doc.setFillColor(23,23,23);
-  doc.rect(0,0,210,20,'F');
-  try{ doc.addImage(JENNER_LOGO,'PNG',5,2,28,14); }catch(e){}
+  doc.rect(0,0,PW,22,'F');
+  // Gold left accent bar
+  doc.setFillColor(216,163,24);
+  doc.rect(0,0,5,22,'F');
+  // Logo
+  try{ doc.addImage(JENNER_LOGO,'PNG',8,3,30,15); }catch(e){}
+  // Company name
   doc.setFont('helvetica','bold');
-  doc.setFontSize(10);
-  doc.setTextColor(216,163,24);
-  doc.text('Jenner Engineering Pty Ltd',38,9);
+  doc.setFontSize(12);
+  doc.setTextColor(255,255,255);
+  doc.text('Jenner Engineering Pty Ltd',44,10);
   doc.setFont('helvetica','normal');
   doc.setFontSize(7.5);
-  doc.setTextColor(200,200,200);
-  doc.text('Certificate of Conformance',38,15);
-  doc.setFontSize(7);
-  doc.setTextColor(160,160,160);
-  doc.text('F-CoC-01',140,7);
-  doc.text('13 David Muir Street, Slade Point QLD 4740',140,12);
-  doc.text('ABN 27 632 194 373',140,17);
-  doc.setDrawColor(216,163,24);
-  doc.setLineWidth(0.4);
-  doc.line(0,20,210,20);
+  doc.setTextColor(216,163,24);
+  doc.text('Quality Assured Precision Engineering',44,16);
+  // Right side details
+  doc.setFontSize(6.5);
+  doc.setTextColor(180,180,180);
+  doc.text('13 David Muir Street, Slade Point QLD 4740',PW-MR,8,'right');
+  doc.text('ABN 27 632 194 373',PW-MR,13,'right');
+  doc.text('F-CoC-01 | ISO 9001:2015 Cl.8.6',PW-MR,18,'right');
 
-  //  TITLE BAR 
-  doc.setFillColor(247,237,208);
-  doc.rect(10,24,190,9,'F');
+  // == GOLD DIVIDER ==
+  doc.setFillColor(216,163,24);
+  doc.rect(0,22,PW,1.5,'F');
+
+  // == TITLE SECTION ==
+  let y=30;
   doc.setFont('helvetica','bold');
-  doc.setFontSize(11);
+  doc.setFontSize(18);
   doc.setTextColor(23,23,23);
-  doc.text('CERTIFICATE OF CONFORMANCE',14,30.5);
+  doc.text('CERTIFICATE OF CONFORMANCE',PW/2,y,'center');
+  // Underline title
+  const titleW=doc.getTextWidth('CERTIFICATE OF CONFORMANCE');
+  doc.setDrawColor(216,163,24);
+  doc.setLineWidth(0.8);
+  doc.line(PW/2-titleW/2,y+2,PW/2+titleW/2,y+2);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(8);
+  doc.setTextColor(100,100,100);
+  doc.text('This document certifies that the goods described below have been inspected and conform to the specified requirements',PW/2,y+8,'center');
+  y+=16;
 
-  //  DATA FIELDS (box style matching sample) 
-  function fieldBox(label,value,x,y,w,h2){
-    doc.setDrawColor(210,210,210);
-    doc.setFillColor(255,255,255);
-    doc.rect(x,y,w,h2,'FD');
+  // == DATA FIELDS ==
+  function labelledBox(label,value,bx,by,bw,bh){
+    // Outer box
+    doc.setDrawColor(200,200,200);
+    doc.setLineWidth(0.3);
+    doc.setFillColor(252,252,252);
+    doc.rect(bx,by,bw,bh,'FD');
+    // Gold top accent
+    doc.setFillColor(216,163,24);
+    doc.rect(bx,by,bw,1,'F');
+    // Label
     doc.setFont('helvetica','bold');
-    doc.setFontSize(6.5);
-    doc.setTextColor(130,130,130);
-    doc.text(label.toUpperCase(),x+2,y+4);
+    doc.setFontSize(6);
+    doc.setTextColor(120,90,0);
+    doc.text(label.toUpperCase(),bx+3,by+5.5);
+    // Value
     doc.setFont('helvetica','normal');
     doc.setFontSize(9);
-    doc.setTextColor(34,34,34);
-    const lines=doc.splitTextToSize(String(value||'--'),w-4);
-    doc.text(lines,x+2,y+9);
-    return y+h2;
+    doc.setTextColor(23,23,23);
+    const lines=doc.splitTextToSize(String(value||'--'),bw-6);
+    doc.text(lines,bx+3,by+11);
   }
 
-  let y=36;
-  // Row 1: CoC Number full width
-  const cocH=14;
-  fieldBox('CoC Number',j.coc.number||'',10,y,190,cocH); y+=cocH+1;
-  // Row 2: Customer | Issued Date
-  const r2h=14;
-  fieldBox('Customer',j.customer||'',10,y,125,r2h);
-  fieldBox('Issued Date',j.coc.date||'',137,y,63,r2h);
-  y+=r2h+1;
-  // Row 3: Part Description (tall - may be long)
-  const descLines=doc.splitTextToSize(String(j.partDescription||''),184);
-  const descH=Math.max(16,descLines.length*5+10);
-  fieldBox('Part Description',j.partDescription||'',10,y,190,descH); y+=descH+1;
-  // Row 4: Drawing / Revision (tall)
-  const drLines=doc.splitTextToSize(String(j.drawingRev||''),184);
-  const drH=Math.max(16,drLines.length*5+10);
-  fieldBox('Drawing / Revision',j.drawingRev||'',10,y,190,drH); y+=drH+1;
-  // Row 5: Qty Supplied | Certified By
-  fieldBox('Qty Supplied',j.qtySupplied||j.qtyOrdered||'',10,y,63,14);
-  fieldBox('Certified By',j.coc.certifiedBy||'',75,y,63,14);
-  fieldBox('Reference',j.coc.reference||j.coc.po||'',140,y,60,14);
-  y+=15;
+  // Row 1: CoC Number | Issued Date
+  const rh=18;
+  labelledBox('Certificate Number',j.coc.number||'',ML,y,120,rh);
+  labelledBox('Date of Issue',j.coc.date||'',ML+122,y,PW-ML-MR-122,rh);
+  y+=rh+3;
 
-  //  CERTIFICATE NOTE 
-  doc.setDrawColor(210,210,210);
-  doc.setFillColor(255,255,255);
-  const noteLines=doc.splitTextToSize(String(j.coc.note||'We certify that the parts listed on this job conform to the applicable drawing, customer requirements, and final inspection status recorded in this job pack.'),184);
-  const noteH=Math.max(20,noteLines.length*5+10);
-  doc.rect(10,y,190,noteH,'FD');
+  // Row 2: Customer | Reference/PO
+  labelledBox('Customer / Client',j.customer||'',ML,y,120,rh);
+  labelledBox('Customer PO / Reference',j.coc.reference||j.coc.po||'',ML+122,y,PW-ML-MR-122,rh);
+  y+=rh+3;
+
+  // Row 3: Part Description (auto height)
+  const descText=String(j.partDescription||'');
+  doc.setFontSize(9);
+  const descLines=doc.splitTextToSize(descText,PW-ML-MR-6);
+  const descH=Math.max(18,descLines.length*5.5+10);
+  labelledBox('Part / Item Description',descText,ML,y,PW-ML-MR,descH);
+  y+=descH+3;
+
+  // Row 4: Drawing/Rev (auto height)
+  const drText=String(j.drawingRev||'');
+  const drLines=doc.splitTextToSize(drText,PW-ML-MR-6);
+  const drH=Math.max(18,drLines.length*5.5+10);
+  labelledBox('Drawing Number / Revision',drText,ML,y,PW-ML-MR,drH);
+  y+=drH+3;
+
+  // Row 5: Material | Qty Ordered | Qty Supplied
+  const w5=(PW-ML-MR-6)/3;
+  labelledBox('Material Specification',j.material||'',ML,y,w5,rh);
+  labelledBox('Quantity Ordered',j.qtyOrdered||'',ML+w5+3,y,w5,rh);
+  labelledBox('Quantity Supplied',j.qtySupplied||'',ML+w5*2+6,y,w5,rh);
+  y+=rh+3;
+
+  // Row 6: Certified By | Job Number
+  labelledBox('Certified By',j.coc.certifiedBy||'',ML,y,120,rh);
+  labelledBox('Job Number',j.jobNumber||'',ML+122,y,PW-ML-MR-122,rh);
+  y+=rh+5;
+
+  // == CERTIFICATION STATEMENT ==
+  const noteText=String(j.coc.note||'We certify that the parts listed on this certificate of conformance have been manufactured and inspected in accordance with the applicable drawings, specifications and customer requirements. All inspection records are retained in the associated job pack and are available upon request.');
+  doc.setFontSize(8.5);
+  const noteLines=doc.splitTextToSize(noteText,PW-ML-MR-10);
+  const noteH=Math.max(22,noteLines.length*5.5+14);
+  // Box with gold left border
+  doc.setFillColor(255,252,242);
+  doc.setDrawColor(216,163,24);
+  doc.setLineWidth(0.3);
+  doc.rect(ML,y,PW-ML-MR,noteH,'FD');
+  doc.setFillColor(216,163,24);
+  doc.rect(ML,y,3,noteH,'F');
   doc.setFont('helvetica','bold');
   doc.setFontSize(6.5);
-  doc.setTextColor(130,130,130);
-  doc.text('CERTIFICATE NOTE',12,y+4);
-  doc.setFont('helvetica','normal');
+  doc.setTextColor(120,90,0);
+  doc.text('CERTIFICATION STATEMENT',ML+6,y+5);
+  doc.setFont('helvetica','italic');
   doc.setFontSize(8.5);
-  doc.setTextColor(34,34,34);
-  doc.text(noteLines,12,y+10);
+  doc.setTextColor(40,40,40);
+  doc.text(noteLines,ML+6,y+11);
   y+=noteH+8;
 
-  //  SIGNATURE + STAMP 
-  const certName=j.coc.certifiedBy||j.release?.releasedBy||'';
-  const sig=signatureForName(certName);
-  if(sig){ try{ addSignatureToDoc(doc,sig,12,y,50,20); }catch(e){} }
-  doc.setFont('helvetica','normal');
-  doc.setFontSize(9);
-  doc.setTextColor(34,34,34);
-  doc.text(certName||'',12,y+26);
-  doc.setFontSize(7.5);
-  doc.setTextColor(100,100,100);
-  doc.text('Workshop Manager, Jenner Engineering Pty Ltd',12,y+32);
-  if(j.coc.useCompanyStamp!==false){ drawClassicStamp(doc,110,y); }
-
-  //  FOOTER 
+  // == SIGNATURE + STAMP SECTION ==
+  const sigSectionH=42;
+  // Background
+  doc.setFillColor(248,248,248);
   doc.setDrawColor(200,200,200);
   doc.setLineWidth(0.3);
-  doc.line(10,283,200,283);
+  doc.rect(ML,y,PW-ML-MR,sigSectionH,'FD');
+
+  // Left: Authorised signature block
+  doc.setFillColor(216,163,24);
+  doc.rect(ML,y,3,sigSectionH,'F');
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(6.5);
+  doc.setTextColor(80,80,80);
+  doc.text('AUTHORISED SIGNATURE',ML+6,y+6);
+
+  const certName=j.coc.certifiedBy||j.release?.releasedBy||'';
+  const sig=signatureForName(certName);
+  if(sig){
+    try{ doc.addImage(sig,'PNG',ML+6,y+8,55,20); }catch(e){}
+  }
+  // Signature line
+  doc.setDrawColor(23,23,23);
+  doc.setLineWidth(0.5);
+  doc.line(ML+6,y+31,ML+70,y+31);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(23,23,23);
+  doc.text(certName,ML+6,y+36);
+  doc.setFont('helvetica','normal');
   doc.setFontSize(7);
-  doc.setTextColor(150,150,150);
-  doc.text('F-CoC-01 - JEN.QMS.01 v2.0 - ISO 9001:2015 - Jenner Engineering Pty Ltd - Retain 7 years',10,287);
-  doc.text('Page 1 of 1',200,287,'right');
+  doc.setTextColor(80,80,80);
+  doc.text('Workshop Manager | Jenner Engineering Pty Ltd',ML+6,y+40);
+
+  // Right: Company stamp
+  if(j.coc.useCompanyStamp!==false){
+    drawClassicStamp(doc,PW-MR-82,y+3);
+  }
+
+  // == ISO CERTIFICATION BAND ==
+  y+=sigSectionH+6;
+  doc.setFillColor(23,23,23);
+  doc.rect(ML,y,PW-ML-MR,8,'F');
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(180,180,180);
+  doc.text('This certificate is issued under Jenner Engineering Quality Management System | JEN.QMS.01 v2.0 | Certified to ISO 9001:2015',PW/2,y+5,'center');
+
+  // == FOOTER ==
+  doc.setDrawColor(216,163,24);
+  doc.setLineWidth(0.5);
+  doc.line(0,PH-8,PW,PH-8);
+  doc.setFillColor(216,163,24);
+  doc.rect(0,PH-8,5,8,'F');
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(100,100,100);
+  doc.text('F-CoC-01 | JEN.QMS.01 v2.0 | ISO 9001:2015 | Jenner Engineering Pty Ltd | Retain minimum 7 years per Cl.7.5',ML+1,PH-3);
+  doc.text('Page 1 of 1',PW-MR,PH-3,'right');
 
   audit(j,'CoC PDF downloaded');
   saveLocal();
