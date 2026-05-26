@@ -222,7 +222,28 @@ function renderNCRs(j){document.getElementById("ncrBody").innerHTML=j.ncrs.map((
   renderJobList();
 }function setNCR(i,f,v){const j=currentJob();j.ncrs[i][f]=v;audit(j,"Updated NCR/issue");saveLocal();renderReadiness()}function delNCR(i){const j=currentJob();j.ncrs.splice(i,1);audit(j,"Deleted NCR/issue");saveLocal();renderAll()}
 function renderRelease(j){document.getElementById("releasedBy").value=j.release.releasedBy||"";document.getElementById("releaseDateTime").value=j.release.dateTime||"";document.getElementById("releaseComments").value=j.release.comments||"";document.getElementById("releasedBy").onchange=e=>{j.release.releasedBy=e.target.value;saveLocal()};document.getElementById("releaseComments").oninput=e=>{j.release.comments=e.target.value;saveLocal()}}function releaseJob(){const j=currentJob();const r=readiness(j);const missing=r.missing.filter(x=>x!=="Release authority");if(missing.length){alert("Cannot release yet. Missing: "+missing.join(", "));return}if(!document.getElementById("releasedBy").value){alert("Select Released By first.");return}j.release.released=true;j.release.releasedBy=document.getElementById("releasedBy").value;j.release.dateTime=new Date().toLocaleString();j.release.comments=document.getElementById("releaseComments").value||"Job verified complete and conforms to drawing, customer and inspection requirements.";j.status="Released";if(!j.coc.certifiedBy)j.coc.certifiedBy=j.release.releasedBy;if(!j.coc.date)j.coc.date=today();if(!j.coc.number)j.coc.number=(j.jobNumber||j.id)+"-COC";audit(j,"Job released by "+j.release.releasedBy);saveLocal();renderAll();alert("Job released. CoC is now ready.")}function unreleaseJob(){const j=currentJob();if(!confirm("Remove release authority? CoC will be locked again."))return;j.release.released=false;j.status="Ready for Release";audit(j,"Release removed");saveLocal();renderAll()}
-function renderCoC(j){document.getElementById("cocStatus").innerHTML=readiness(j).ok?'<div class="notice green">CoC ready for issue.</div>':'<div class="notice red">CoC locked until required evidence is complete and Release Authority is approved.</div>';if(j.coc.useCompanyStamp===undefined)j.coc.useCompanyStamp=globalStampDefault();bind("cocNumber",j.coc.number,(j,v)=>j.coc.number=v);bind("cocCertifiedBy",j.coc.certifiedBy,(j,v)=>j.coc.certifiedBy=v);bind("cocDate",j.coc.date,(j,v)=>j.coc.date=v);bind("cocNote",j.coc.note,(j,v)=>j.coc.note=v);const stamp=document.getElementById("useCompanyStamp");if(stamp)stamp.checked=j.coc.useCompanyStamp!==false}
+function renderCoC(j){
+  if(!j.coc)j.coc={};
+  // Auto-populate CoC fields from migration data if job is marked as released but fields empty
+  const alreadyReleased=!!(j.release?.released||j.cocIssued||j.coc?.issued);
+  if(alreadyReleased){
+    if(!j.coc.number)j.coc.number='JEN-CoC-'+(j.financialYear||'202526')+'-'+String(j.jobNumber||'').replace(/\D/g,'').slice(-4).padStart(4,'0');
+    if(!j.coc.certifiedBy)j.coc.certifiedBy=j.release?.releasedBy||j.coc?.certifiedBy||'';
+    if(!j.coc.date)j.coc.date=(j.release?.dateTime||j.cocIssuedAt||'').split('T')[0]||today();
+    if(!j.coc.note)j.coc.note='We certify that the parts listed on this job conform to the applicable drawing, customer requirements, and final inspection status recorded in this job pack.';
+    document.getElementById("cocStatus").innerHTML='<div class="notice green">&#10003; Certificate of Conformance has been issued for this job. Fields below show the issued details. You can download the CoC PDF using the button above.</div>';
+  } else {
+    document.getElementById("cocStatus").innerHTML=readiness(j).ok?'<div class="notice green">CoC ready for issue.</div>':'<div class="notice red">CoC locked until required evidence is complete and Release Authority is approved.</div>';
+  }
+  if(j.coc.useCompanyStamp===undefined)j.coc.useCompanyStamp=globalStampDefault();
+  bind("cocNumber",j.coc.number,(j,v)=>j.coc.number=v);
+  bind("cocCertifiedBy",j.coc.certifiedBy,(j,v)=>j.coc.certifiedBy=v);
+  bind("cocDate",j.coc.date,(j,v)=>j.coc.date=v);
+  bind("cocNote",j.coc.note,(j,v)=>j.coc.note=v);
+  const stamp=document.getElementById("useCompanyStamp");
+  if(stamp)stamp.checked=j.coc.useCompanyStamp!==false;
+  saveLocal();
+}
 function setCocStamp(v){const j=currentJob();if(!j)return;if(!j.coc)j.coc={};j.coc.useCompanyStamp=!!v;audit(j,"Updated CoC company stamp setting");saveLocal()}
 function applyReleaseDetailsToCoC(){const j=currentJob();if(!j)return;if(!j.coc)j.coc={};if(!j.coc.certifiedBy)j.coc.certifiedBy=j.release?.releasedBy||"";if(!j.coc.date)j.coc.date=today();if(!j.coc.number)j.coc.number=(j.jobNumber||j.id)+"-COC";j.coc.useCompanyStamp=true;audit(j,"Applied release details to CoC");saveLocal();renderCurrent();setStatus("Release details applied to CoC.")}
 function renderAudit(j){document.getElementById("auditLog").innerHTML=(j.audit||[]).slice(0,80).map(a=>`<div style="border-bottom:1px solid #eee;padding:6px 0"><strong>${esc(new Date(a.at).toLocaleString())}</strong> -- ${esc(a.action)}</div>`).join("")||"No audit entries."}function saveCurrentJob(show=true){const j=currentJob();if(!j){alert("No job selected.");return}audit(j,"Saved");saveLocal();renderAll();if(show)setStatus("Saved locally.")}function exportBackup(){const data=JSON.stringify(jobs,null,2);const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type:"application/json"}));a.download="Jenner-QMS-Backup-"+today()+".json";a.click();URL.revokeObjectURL(a.href)}function normaliseImportRoot(raw){if(Array.isArray(raw))return Object.fromEntries(raw.map((v,i)=>[v.id||("job_"+i),v]));if(raw&&typeof raw==="object"&&raw.jobs&&typeof raw.jobs==="object")return raw.jobs;if(raw&&typeof raw==="object"&&raw.job_data)return {[raw.id||raw.job_data.id||uid()]:raw.job_data};return raw&&typeof raw==="object"?raw:{}}function importBackup(ev){
@@ -829,8 +850,11 @@ function drawClassicStamp(doc,x,y){
 function downloadCoC(){
   const j=currentJob();
   if(!j){alert('No job selected.');return}
-  const r=readiness(j);
-  if(!r.ok){alert('CoC is locked. Missing: '+r.missing.join(', '));return}
+  const alreadyIssued=!!(j.release?.released||j.cocIssued||j.coc?.issued);
+  if(!alreadyIssued){
+    const r=readiness(j);
+    if(!r.ok){alert('CoC is locked. Missing: '+r.missing.join(', '));return}
+  }
   const{jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   if(!j.coc)j.coc={};
