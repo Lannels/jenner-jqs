@@ -16,7 +16,7 @@
 <body>
 <div class="app"><aside class="sidebar"><div class="brand"><h1>Jenner Engineering</h1><div>Simplified ISO 9001 QMS</div></div><div id="statusBox" class="status">Starting…</div><div class="toolbar"><button type="button" class="btn-gold" onclick="createJob()">+ New Job</button><button type="button" class="btn-white" onclick="loadSharedJobs()">Load Shared</button><button type="button" class="btn-blue" onclick="pushAllLocalJobs()">Push Shared</button><button type="button" class="btn-green" onclick="exportBackup()">Export Backup</button><label class="buttonlike btn-white">Import<input type="file" accept=".json" style="display:none" onchange="importBackup(event)"></label><button type="button" class="btn-white" onclick="downloadBlankJobPack()">Workshop Pack</button></div><div class="small">Simplified workflow: record evidence and dimensions, then use one final Release Authority to unlock the CoC.</div><div id="jobList" class="joblist"></div></aside>
 <main class="main"><div class="header"><div class="hero"><div class="label">Current Job</div><div class="value" id="heroJobNo">No job selected</div><div class="sub" id="heroTitle">Create or load a job.</div></div><div class="actions no-print"><button type="button" class="btn-white" onclick="saveCurrentJob()">Save</button><button type="button" class="btn-blue" onclick="digitiseIntoCurrentJob()">Digitise Job Pack into Current Job</button><button type="button" class="btn-white" onclick="downloadBlankJobPack()">Download Workshop Pack</button><button type="button" class="btn-white" onclick="downloadCompletedJobPack()">Download Completed Job Pack</button><button type="button" class="btn-green" id="btnCoC" onclick="downloadCoC()">Download CoC</button></div></div><div id="readiness"></div><div id="scanDropZone" class="drop-zone no-print" onclick="digitiseIntoCurrentJob()" ondragenter="handleDropZoneDragOver(event)" ondragover="handleDropZoneDragOver(event)" ondragleave="handleDropZoneDragLeave(event)" ondrop="handleDropZoneDrop(event)">📄 Drop handwritten job pack PDF/photo here or click to upload<small>Applies to the currently selected job only. Scanned file is read for AI extraction and not stored in browser storage.</small></div><div class="tabs no-print" id="tabs"></div>
-<section id="panel-job" class="panel active"><div class="card"><div class="card-head">Job Information <span>No sign-off required</span></div><div class="card-body"><div class="grid-3"><div class="field"><label>Job Number</label><input id="jobNumber"></div><div class="field"><label>Customer</label><input id="customer"></div><div class="field"><label>Part Description</label><input id="partDescription"></div><div class="field"><label>Drawing / Rev</label><input id="drawingRev"></div><div class="field"><label>Material</label><input id="material"></div><div class="field"><label>Machine / Operation</label><input id="machineOperation"></div><div class="field"><label>Operator(s)</label><input id="operator"></div><div class="field"><label>Qty Ordered</label><input id="qtyOrdered" type="number"></div><div class="field"><label>Qty Supplied</label><input id="qtySupplied" type="number"></div><div class="field"><label>Required Delivery</label><input id="requiredDelivery" type="date"></div><div class="field"><label>Actual Delivery</label><input id="actualDelivery" type="date"></div><div class="field"><label>Status</label><select id="status"><option>Draft</option><option>In Progress</option><option>Ready for Release</option><option>Released</option><option>On Hold</option></select></div></div><div class="field" style="margin-top:12px"><label>Notes / Special Requirements</label><textarea id="notes"></textarea></div></div></div><div class="card"><div class="card-head">Items / Components <button type="button" class="btn-dark" onclick="addItem()">+ Row</button></div><div class="card-body" style="padding:0"><table><thead><tr><th style="width:80px">Qty</th><th style="width:160px">Part No</th><th>Description</th><th style="width:40px"></th></tr></thead><tbody id="itemsBody"></tbody></table></div></div></section>
+<section id="panel-job" class="panel active"><div class="card"><div class="card-head">Job Information <span>No sign-off required</span></div><div class="card-body"><div class="grid-3"><div class="field"><label>Job Number</label><input id="jobNumber"></div><div class="field"><label>Customer</label><input id="customer"></div><div class="field"><label>Part Description</label><input id="partDescription"></div><div class="field"><label>Drawing / Rev</label><input id="drawingRev"></div><div class="field"><label>Material</label><input id="material"></div><div class="field"><label>Machine / Operation</label><input id="machineOperation"></div><div class="field"><label>Operator(s)</label><input id="operator"></div><div class="field"><label>Qty Ordered</label><input id="qtyOrdered" type="number"></div><div class="field"><label>Qty Supplied</label><input id="qtySupplied" type="number"></div><div class="field"><label>Required Delivery</label><input id="requiredDelivery" type="date"></div><div class="field"><label>Actual Delivery</label><input id="actualDelivery" type="date"></div><div class="field"><label>Status</label><select id="status"><option>Draft</option><option>In Progress</option><option>Ready for Release</option><option>Released</option><option>On Hold</option></select></div></div><div class="field" style="margin-top:12px"><label>Notes / Special Requirements</label><textarea id="notes"></textarea></div></div></div><div class="card"><div class="card-head">Items / Components <button type="button" class="btn-dark" onclick="addItem()">+ Row</button></div><div class="card-body" style="padding:0"><table><thead><tr><th style="width:80px">Qty</th><th style="width:160px">Part No</th><th>Description</th><th style="width:40px"></th></tr></thead><tbody id="itemsBody"></tbody></table></div></div><div class="card"><div class="card-head">Drawing Attachments <label class="buttonlike btn-dark" style="font-size:11px;padding:5px 9px">+ Add Drawing PDF <input type="file" accept=".pdf,image/*" multiple style="display:none" onchange="attachDrawings(event)"></label></div><div class="card-body"><div id="drawingAttachList"><span style="color:#aaa;font-size:12px">No drawings attached. Click to add PDFs or images.</span></div></div></div></section>
 <section id="panel-prestart" class="panel"><div class="notice">Operators tick the checks. The system records edit timestamps. No repeated manual sign-off required.</div><div class="card"><div class="card-head">Pre-Start Checklist</div><div class="card-body" style="padding:0"><table><thead><tr><th>Check</th><th style="width:90px">Done</th><th>Evidence / Notes</th></tr></thead><tbody id="prestartBody"></tbody></table></div></div></section>
 <section id="panel-inprocess" class="panel"><div class="notice">Keep the dimensions. This is the manufacturing evidence. No separate stage signature required.</div><div class="card"><div class="card-head">In-Process Dimensional Records <button type="button" class="btn-dark" onclick="addDim('inprocess')">+ Dimension</button></div><div class="card-body" style="padding:0"><table><thead><tr><th>Feature</th><th>Target</th><th>Actual</th><th style="width:95px">Status</th><th>Notes</th><th style="width:40px"></th></tr></thead><tbody id="inprocessBody"></tbody></table></div></div></section>
 <section id="panel-final" class="panel"><div class="card"><div class="card-head">Final Inspection Dimensional Records <button type="button" class="btn-dark" onclick="addDim('final')">+ Dimension</button></div><div class="card-body" style="padding:0"><table><thead><tr><th>Feature</th><th>Target</th><th>Actual</th><th style="width:95px">Status</th><th>Notes</th><th style="width:40px"></th></tr></thead><tbody id="finalBody"></tbody></table></div></div><div class="card"><div class="card-head">Final Verification Checks</div><div class="card-body" style="padding:0"><table><thead><tr><th>Check</th><th style="width:90px">Done</th><th>Evidence / Notes</th></tr></thead><tbody id="finalChecksBody"></tbody></table></div></div></section>
@@ -80,7 +80,7 @@ function audit(j, action){
   j.audit.unshift({at: nowIso(), action: String(action || "Updated")});
   j.savedAt = nowIso();
 }
-const LEGACY_STORAGE_KEYS=["jenner_qms_v3","jenner_qms_full_shared_v1","jenner_qms_simplified_iso_v1"];function stripLargePayloads(x){if(Array.isArray(x))return x.map(stripLargePayloads);if(x&&typeof x==="object"){const o={};for(const[k,v]of Object.entries(x)){const lk=k.toLowerCase();if(typeof v==="string"&&v.length>2000&&(lk.includes("pdf")||lk.includes("base64")||lk.includes("image")||lk.includes("scan")||lk.includes("attachment")||lk.includes("drawing"))){if(lk.includes("name"))o[k]=v;else o[k+"Name"]=x[k+"Name"]||"file removed from browser backup - store in Supabase Storage";continue}o[k]=stripLargePayloads(v)}return o}return x}function mapChecks(rows,defaults){if(!Array.isArray(rows)||!rows.length)return defaults.map(text=>({text,done:false,notes:""}));return rows.map(r=>({text:r.text||r.check||r.item||"",done:!!(r.done||r.ok||r.pass===true||String(r.status||"").toUpperCase()==="PASS"),notes:r.notes||r.sign||""}))}function mapDims(rows){if(!Array.isArray(rows)||!rows.length)return[{feature:"",target:"",actual:"",status:"PASS",notes:""}];return rows.map(r=>({feature:r.feature||r.text||"",target:r.target||r.nominal||"",actual:r.actual||r.measurement||r.notes||"",status:(r.fail?"FAIL":(r.status||r.result||(r.pass?"PASS":"PASS"))),notes:r.notes&&r.actual?r.notes:""}))}function migrateJob(raw,idFallback){raw=stripLargePayloads(raw||{});let j=defaultJob(raw.id||idFallback||uid());Object.assign(j,raw);j.id=raw.id||idFallback||j.id;j.items=Array.isArray(raw.items)&&raw.items.length?raw.items:[{qty:"",partNumber:"",description:""}];j.prestart=mapChecks(raw.prestart||raw.prestartChecks,prestartDefaults);const progressDims=mapDims(raw.progress||raw.progressInspection||[]);const explicitInprocess=Array.isArray(raw.inprocess)&&raw.inprocess.length?mapDims(raw.inprocess):[];j.inprocess=explicitInprocess.length?explicitInprocess:progressDims;j.finalDims=Array.isArray(raw.finalDims)&&raw.finalDims.length?mapDims(raw.finalDims):(Array.isArray(raw.finalInspection)&&raw.finalInspection.length?mapDims(raw.finalInspection):progressDims);j.finalChecks=mapChecks(raw.finalChecks||raw.finalInspectionChecks,finalCheckDefaults);if(raw.finalSignoff?.allPass||raw.results?.finalDimensional==="PASS"){j.finalChecks=j.finalChecks.map(c=>({...c,done:c.done||true}))}j.timeEntries=Array.isArray(raw.timeEntries)&&raw.timeEntries.length?raw.timeEntries.map(t=>({operator:t.operator||raw.operator||"",date:t.date||"",start:t.start||t.clockIn||"",finish:t.finish||t.clockOut||"",hours:t.hours||"",stage:t.stage||"",chargeable:t.chargeable||"Yes",notes:t.notes||""})):Array.from({length:8},()=>({operator:"",date:"",start:"",finish:"",hours:"",stage:"",chargeable:"Yes",notes:""}));j.ncrs=Array.isArray(raw.ncrs)?raw.ncrs:[];const released=!!(raw.release?.released||raw.cocIssued||raw.coc?.issued||raw.finalSignoff?.allPass);j.release={released,releasedBy:raw.release?.releasedBy||raw.finalSignoff?.name||raw.coc?.certifiedBy||"",dateTime:raw.release?.dateTime||raw.cocIssuedAt||((raw.finalSignoff?.date||"")+(raw.finalSignoff?.time?"T"+raw.finalSignoff.time:"")),comments:raw.release?.comments||"Migrated from previous job pack format."};j.coc={...defaultJob("").coc,...(raw.coc||{})};if(j.coc.useCompanyStamp===undefined)j.coc.useCompanyStamp=true;if(raw.cocIssued)j.coc.issued=j.coc.issued||raw.cocIssuedAt||today();j.audit=[];if(Array.isArray(raw.audit))j.audit.push(...raw.audit.map(a=>({at:a.at||a.timestamp||nowIso(),action:a.action||a.detail||"Audit entry"})));if(Array.isArray(raw.auditLog))j.audit.push(...raw.auditLog.map(a=>({at:a.at||a.timestamp||nowIso(),action:[a.action,a.detail].filter(Boolean).join(" -- ")||"Audit entry"})));if(!j.audit.length)j.audit=[{at:nowIso(),action:"Imported from backup"}];j.savedAt=raw.savedAt||nowIso();return j}function normalise(raw,idFallback){return migrateJob(raw,idFallback)}function jobDataScore(j){
+const LEGACY_STORAGE_KEYS=["jenner_qms_v3","jenner_qms_full_shared_v1","jenner_qms_simplified_iso_v1"];function stripLargePayloads(x){if(Array.isArray(x))return x.map(stripLargePayloads);if(x&&typeof x==="object"){const o={};for(const[k,v]of Object.entries(x)){const lk=k.toLowerCase();if(typeof v==="string"&&v.length>2000&&(lk.includes("pdf")||lk.includes("base64")||lk.includes("image")||lk.includes("scan")||lk.includes("attachment")||lk.includes("drawing"))){if(lk.includes("name"))o[k]=v;else o[k+"Name"]=x[k+"Name"]||"file removed from browser backup - store in Supabase Storage";continue}o[k]=stripLargePayloads(v)}return o}return x}function mapChecks(rows,defaults){if(!Array.isArray(rows)||!rows.length)return defaults.map(text=>({text,done:false,notes:""}));return rows.map(r=>({text:r.text||r.check||r.item||"",done:!!(r.done||r.ok||r.pass===true||String(r.status||"").toUpperCase()==="PASS"),notes:r.notes||r.sign||""}))}function mapDims(rows){if(!Array.isArray(rows)||!rows.length)return[{feature:"",target:"",actual:"",status:"PASS",notes:""}];return rows.map(r=>({feature:r.feature||r.text||"",target:r.target||r.nominal||"",actual:r.actual||r.measurement||r.notes||"",status:(r.fail?"FAIL":(r.status||r.result||(r.pass?"PASS":"PASS"))),notes:r.notes&&r.actual?r.notes:""}))}function migrateJob(raw,idFallback){raw=stripLargePayloads(raw||{});let j=defaultJob(raw.id||idFallback||uid());Object.assign(j,raw);j.id=raw.id||idFallback||j.id;j.items=Array.isArray(raw.items)&&raw.items.length?raw.items:[{qty:"",partNumber:"",description:""}];j.prestart=mapChecks(raw.prestart||raw.prestartChecks,prestartDefaults);const progressDims=mapDims(raw.progress||raw.progressInspection||[]);const explicitInprocess=Array.isArray(raw.inprocess)&&raw.inprocess.length?mapDims(raw.inprocess):[];j.inprocess=explicitInprocess.length?explicitInprocess:progressDims;j.finalDims=Array.isArray(raw.finalDims)&&raw.finalDims.length?mapDims(raw.finalDims):(Array.isArray(raw.finalInspection)&&raw.finalInspection.length?mapDims(raw.finalInspection):progressDims);j.finalChecks=mapChecks(raw.finalChecks||raw.finalInspectionChecks,finalCheckDefaults);if(raw.finalSignoff?.allPass||raw.results?.finalDimensional==="PASS"){j.finalChecks=j.finalChecks.map(c=>({...c,done:c.done||true}))}j.timeEntries=Array.isArray(raw.timeEntries)&&raw.timeEntries.length?raw.timeEntries.map(t=>({operator:t.operator||raw.operator||"",date:t.date||"",start:t.start||t.clockIn||"",finish:t.finish||t.clockOut||"",hours:t.hours||"",stage:t.stage||"",chargeable:t.chargeable||"Yes",notes:t.notes||""})):Array.from({length:8},()=>({operator:"",date:"",start:"",finish:"",hours:"",stage:"",chargeable:"Yes",notes:""}));j.ncrs=Array.isArray(raw.ncrs)?raw.ncrs:[];j.drawings=Array.isArray(raw.drawings)?raw.drawings:(raw.drawings?[raw.drawings]:[]);const released=!!(raw.release?.released||raw.cocIssued||raw.coc?.issued);j.release={released,releasedBy:raw.release?.releasedBy||raw.finalSignoff?.name||raw.coc?.certifiedBy||"",dateTime:raw.release?.dateTime||raw.cocIssuedAt||((raw.finalSignoff?.date||"")+(raw.finalSignoff?.time?"T"+raw.finalSignoff.time:"")),comments:raw.release?.comments||"Migrated from previous job pack format."};j.coc={...defaultJob("").coc,...(raw.coc||{})};if(j.coc.useCompanyStamp===undefined)j.coc.useCompanyStamp=true;if(raw.cocIssued&&(raw.coc?.number||raw.coc?.certifiedBy||raw.cocIssuedAt))j.coc.issued=j.coc.issued||raw.cocIssuedAt||today();j.audit=[];if(Array.isArray(raw.audit))j.audit.push(...raw.audit.map(a=>({at:a.at||a.timestamp||nowIso(),action:a.action||a.detail||"Audit entry"})));if(Array.isArray(raw.auditLog))j.audit.push(...raw.auditLog.map(a=>({at:a.at||a.timestamp||nowIso(),action:[a.action,a.detail].filter(Boolean).join(" -- ")||"Audit entry"})));if(!j.audit.length)j.audit=[{at:nowIso(),action:"Imported from backup"}];j.savedAt=raw.savedAt||nowIso();return j}function normalise(raw,idFallback){return migrateJob(raw,idFallback)}function jobDataScore(j){
   if(!j||typeof j!=="object") return -1;
   let score=0;
   if(j.jobNumber)score+=50;
@@ -173,7 +173,7 @@ function renderTabs(){const defs=[["job","Job Info"],["prestart","Pre-Start"],["
   }).join("") || '<div class="tiny">No jobs visible. Use Import Backup or Load Shared.</div>';
 }
 function readiness(j=currentJob()){if(!j)return{ok:false,missing:["No job selected"]};let m=[];if(!j.jobNumber)m.push("Job number");if(!j.customer)m.push("Customer");if(!j.drawingRev)m.push("Drawing / Rev");if(!j.prestart.every(x=>x.done))m.push("Pre-start checks");if(!j.finalChecks.every(x=>x.done))m.push("Final verification checks");if(!hasMeasurement(j.finalDims))m.push("Final dimensions");if(j.finalDims.some(x=>x.status==="FAIL"))m.push("Failed final dimension unresolved");if(j.ncrs.some(x=>x.status!=="Closed"&&x.status!=="Accepted"))m.push("Open NCRs");if(!j.release?.released)m.push("Release authority");return{ok:m.length===0,missing:m}}function hasMeasurement(arr){return Array.isArray(arr)&&arr.some(x=>x.feature||x.target||x.actual)}function renderReadiness(){const box=document.getElementById("readiness"),j=currentJob();if(!j){box.innerHTML='<div class="notice red">No job selected.</div>';return}const r=readiness(j),pre=r.missing.filter(x=>x!=="Release authority");box.innerHTML=`<div class="notice ${r.ok?'green':(pre.length===0?'green':'red')}"><strong>CoC Readiness:</strong> ${r.ok?'READY -- CoC can be issued.':pre.length===0?'Evidence complete. Release Authority still required.':'Not ready -- missing: '+pre.join(", ")}</div>`;const btn=document.getElementById("btnCoC");if(btn)btn.disabled=!r.ok}
-function renderCurrent(){const j=currentJob();if(!j)return;bind("jobNumber",j.jobNumber,(j,v)=>j.jobNumber=v);bind("customer",j.customer,(j,v)=>j.customer=v);bind("partDescription",j.partDescription,(j,v)=>j.partDescription=v);bind("drawingRev",j.drawingRev,(j,v)=>j.drawingRev=v);bind("material",j.material,(j,v)=>j.material=v);bind("machineOperation",j.machineOperation,(j,v)=>j.machineOperation=v);bind("operator",j.operator,(j,v)=>j.operator=v);bind("qtyOrdered",j.qtyOrdered,(j,v)=>j.qtyOrdered=v);bind("qtySupplied",j.qtySupplied,(j,v)=>j.qtySupplied=v);bind("requiredDelivery",j.requiredDelivery,(j,v)=>j.requiredDelivery=v);bind("actualDelivery",j.actualDelivery,(j,v)=>j.actualDelivery=v);bind("status",j.status,(j,v)=>j.status=v);bind("notes",j.notes,(j,v)=>j.notes=v);renderItems(j);renderChecks("prestartBody",j.prestart,"prestart");renderDims("inprocessBody",j.inprocess,"inprocess");renderDims("finalBody",j.finalDims,"final");renderChecks("finalChecksBody",j.finalChecks,"finalChecks");renderTime(j);renderNCRs(j);renderRelease(j);renderCoC(j);renderAudit(j)}function renderItems(j){document.getElementById("itemsBody").innerHTML=j.items.map((it,i)=>`<tr><td><input value="${esc(it.qty)}" onchange="setItem(${i},'qty',this.value)"></td><td><input value="${esc(it.partNumber)}" onchange="setItem(${i},'partNumber',this.value)"></td><td><input value="${esc(it.description)}" onchange="setItem(${i},'description',this.value)"></td><td><button type="button" class="btn-red" onclick="delItem(${i})"></button></td></tr>`).join("")}function addItem(){
+function renderCurrent(){const j=currentJob();if(!j)return;bind("jobNumber",j.jobNumber,(j,v)=>j.jobNumber=v);bind("customer",j.customer,(j,v)=>j.customer=v);bind("partDescription",j.partDescription,(j,v)=>j.partDescription=v);bind("drawingRev",j.drawingRev,(j,v)=>j.drawingRev=v);bind("material",j.material,(j,v)=>j.material=v);bind("machineOperation",j.machineOperation,(j,v)=>j.machineOperation=v);bind("operator",j.operator,(j,v)=>j.operator=v);bind("qtyOrdered",j.qtyOrdered,(j,v)=>j.qtyOrdered=v);bind("qtySupplied",j.qtySupplied,(j,v)=>j.qtySupplied=v);bind("requiredDelivery",j.requiredDelivery,(j,v)=>j.requiredDelivery=v);bind("actualDelivery",j.actualDelivery,(j,v)=>j.actualDelivery=v);bind("status",j.status,(j,v)=>j.status=v);bind("notes",j.notes,(j,v)=>j.notes=v);renderItems(j);renderChecks("prestartBody",j.prestart,"prestart");renderDims("inprocessBody",j.inprocess,"inprocess");renderDims("finalBody",j.finalDims,"final");renderChecks("finalChecksBody",j.finalChecks,"finalChecks");renderTime(j);renderNCRs(j);renderRelease(j);renderCoC(j);renderDrawings(j);renderAudit(j)}function renderItems(j){document.getElementById("itemsBody").innerHTML=j.items.map((it,i)=>`<tr><td><input value="${esc(it.qty)}" onchange="setItem(${i},'qty',this.value)"></td><td><input value="${esc(it.partNumber)}" onchange="setItem(${i},'partNumber',this.value)"></td><td><input value="${esc(it.description)}" onchange="setItem(${i},'description',this.value)"></td><td><button type="button" class="btn-red" onclick="delItem(${i})"></button></td></tr>`).join("")}function addItem(){
   const j=currentJob();
   if(!j){alert("Select or create a job first.");return;}
   repairJobShape(j);
@@ -832,86 +832,125 @@ function downloadCoC(){
   const r=readiness(j);
   if(!r.ok){alert('CoC is locked. Missing: '+r.missing.join(', '));return}
   const{jsPDF}=window.jspdf;
-  const doc=new jsPDF();
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   if(!j.coc)j.coc={};
   if(!j.coc.certifiedBy)j.coc.certifiedBy=j.release?.releasedBy||'';
   if(!j.coc.date)j.coc.date=today();
   if(!j.coc.number)j.coc.number='JEN-CoC-'+(j.financialYear||'202526')+'-'+String(j.jobNumber||j.id||'').replace(/\D/g,'').slice(-4).padStart(4,'0');
   if(j.coc.useCompanyStamp===undefined)j.coc.useCompanyStamp=globalStampDefault();
 
-  const results=j.results||{};
-  const ncrRaised=(j.ncrs||[]).length;
-  const ncrClosed=(j.ncrs||[]).filter(n=>String(n.status||'').toLowerCase()==='closed'||String(n.status||'').toLowerCase()==='accepted').length;
+  //  HEADER 
+  doc.setFillColor(23,23,23);
+  doc.rect(0,0,210,20,'F');
+  try{ doc.addImage(JENNER_LOGO,'PNG',5,2,28,14); }catch(e){}
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(10);
+  doc.setTextColor(216,163,24);
+  doc.text('Jenner Engineering Pty Ltd',38,9);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(200,200,200);
+  doc.text('Certificate of Conformance',38,15);
+  doc.setFontSize(7);
+  doc.setTextColor(160,160,160);
+  doc.text('F-CoC-01',140,7);
+  doc.text('13 David Muir Street, Slade Point QLD 4740',140,12);
+  doc.text('ABN 27 632 194 373',140,17);
+  doc.setDrawColor(216,163,24);
+  doc.setLineWidth(0.4);
+  doc.line(0,20,210,20);
 
-  drawClassicCocHeader(doc,j);
-  let y=86;
-  doc.setFontSize(7.2);
-  doc.setTextColor(70,70,70);
-  doc.text('JOB DETAILS',22,y);
-  y+=12;
-  const leftX=22,rightX=103;
-  const rowGap=14;
-  function labelVal(x,yy,label,val){
-    doc.setFontSize(7);doc.setTextColor(70,70,70);doc.text(String(label).toUpperCase(),x,yy);
-    doc.setFontSize(9);doc.setTextColor(0,0,0);packWrap(doc,val||'-',x,yy+6,68,4.2);
+  //  TITLE BAR 
+  doc.setFillColor(247,237,208);
+  doc.rect(10,24,190,9,'F');
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(11);
+  doc.setTextColor(23,23,23);
+  doc.text('CERTIFICATE OF CONFORMANCE',14,30.5);
+
+  //  DATA FIELDS (box style matching sample) 
+  function fieldBox(label,value,x,y,w,h2){
+    doc.setDrawColor(210,210,210);
+    doc.setFillColor(255,255,255);
+    doc.rect(x,y,w,h2,'FD');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(6.5);
+    doc.setTextColor(130,130,130);
+    doc.text(label.toUpperCase(),x+2,y+4);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(9);
+    doc.setTextColor(34,34,34);
+    const lines=doc.splitTextToSize(String(value||'--'),w-4);
+    doc.text(lines,x+2,y+9);
+    return y+h2;
   }
-  labelVal(leftX,y,'Customer',j.customer); labelVal(rightX,y,'Issued Date',j.coc.date); y+=rowGap;
-  labelVal(leftX,y,'Part Description',j.partDescription); labelVal(rightX,y,'Job Number',j.jobNumber); y+=rowGap;
-  labelVal(leftX,y,'Drawing / Revision',j.drawingRev); labelVal(rightX,y,'Customer PO / Reference',j.coc.reference||j.coc.po||j.customerReference||''); y+=rowGap;
-  labelVal(leftX,y,'Material',j.material); labelVal(rightX,y,'Qty Supplied',j.qtySupplied||j.qtyOrdered); y+=18;
 
-  doc.setFontSize(7.2);doc.setTextColor(70,70,70);doc.text('ITEMS SUPPLIED',22,y);y+=9;
-  doc.setFontSize(7);doc.setTextColor(216,163,24);
-  doc.text('Qty',25,y);doc.text('Part Number',48,y);doc.text('Description',94,y);
-  doc.setTextColor(0,0,0);y+=7;
-  const supplied=(j.items||[]).filter(it=>it.qty||it.partNumber||it.description).slice(0,5);
-  if(supplied.length){
-    supplied.forEach(it=>{
-      doc.setFontSize(8);doc.text(String(it.qty||''),25,y);doc.text(String(it.partNumber||''),48,y);packWrap(doc,it.description||'',94,y,80,4);y+=8;
-    });
-  }else{doc.text('-',25,y);y+=8;}
-  y+=4;
+  let y=36;
+  // Row 1: CoC Number full width
+  const cocH=14;
+  fieldBox('CoC Number',j.coc.number||'',10,y,190,cocH); y+=cocH+1;
+  // Row 2: Customer | Issued Date
+  const r2h=14;
+  fieldBox('Customer',j.customer||'',10,y,125,r2h);
+  fieldBox('Issued Date',j.coc.date||'',137,y,63,r2h);
+  y+=r2h+1;
+  // Row 3: Part Description (tall - may be long)
+  const descLines=doc.splitTextToSize(String(j.partDescription||''),184);
+  const descH=Math.max(16,descLines.length*5+10);
+  fieldBox('Part Description',j.partDescription||'',10,y,190,descH); y+=descH+1;
+  // Row 4: Drawing / Revision (tall)
+  const drLines=doc.splitTextToSize(String(j.drawingRev||''),184);
+  const drH=Math.max(16,drLines.length*5+10);
+  fieldBox('Drawing / Revision',j.drawingRev||'',10,y,190,drH); y+=drH+1;
+  // Row 5: Qty Supplied | Certified By
+  fieldBox('Qty Supplied',j.qtySupplied||j.qtyOrdered||'',10,y,63,14);
+  fieldBox('Certified By',j.coc.certifiedBy||'',75,y,63,14);
+  fieldBox('Reference',j.coc.reference||j.coc.po||'',140,y,60,14);
+  y+=15;
 
-  doc.setFontSize(7.2);doc.setTextColor(70,70,70);doc.text('CERTIFICATION STATEMENT',22,y);y+=7;
-  doc.setDrawColor(216,163,24);doc.setLineWidth(1.2);doc.line(22,y-3,22,y+24);doc.setDrawColor(0,0,0);
-  doc.setFontSize(8.5);doc.setTextColor(70,70,70);
-  y=packWrap(doc,j.coc.note||'We certify that the parts listed on this job conform to the applicable drawing, customer requirements, and final inspection status recorded in this job pack.',28,y,130,5)+9;
+  //  CERTIFICATE NOTE 
+  doc.setDrawColor(210,210,210);
+  doc.setFillColor(255,255,255);
+  const noteLines=doc.splitTextToSize(String(j.coc.note||'We certify that the parts listed on this job conform to the applicable drawing, customer requirements, and final inspection status recorded in this job pack.'),184);
+  const noteH=Math.max(20,noteLines.length*5+10);
+  doc.rect(10,y,190,noteH,'FD');
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(6.5);
+  doc.setTextColor(130,130,130);
+  doc.text('CERTIFICATE NOTE',12,y+4);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(34,34,34);
+  doc.text(noteLines,12,y+10);
+  y+=noteH+8;
 
-  doc.setFontSize(7.2);doc.setTextColor(70,70,70);doc.text('INSPECTION SUMMARY',22,y);y+=10;
-  drawInspectionSummaryPair(doc,22,y,'Setup',safePass(results.setupResult));
-  drawInspectionSummaryPair(doc,103,y,'First-Off',safePass(results.firstOffResult));
-  addPageNo(doc);
-
-  doc.addPage();
-  doc.setTextColor(70,70,70);doc.setFontSize(7);
-  const issuedTime = j.coc?.issuedTime || j.coc?.dateTime || new Date().toLocaleString();
-  doc.text(issuedTime,14,12);
-  doc.text('Certificate of Conformance - '+(j.coc.number||''),75,12);
-  let y2=26;
-  drawInspectionSummaryPair(doc,22,y2,'In-Process',safePass(results.inProcessResult));
-  drawInspectionSummaryPair(doc,103,y2,'Final Dimensional',safePass(results.finalDimensional));y2+=18;
-  drawInspectionSummaryPair(doc,22,y2,'Visual',safePass(results.visualResult));
-  drawInspectionSummaryPair(doc,103,y2,'NCRs',ncrRaised+' raised '+ncrClosed+' closed');
-  y2+=38;
-
+  //  SIGNATURE + STAMP 
   const certName=j.coc.certifiedBy||j.release?.releasedBy||'';
   const sig=signatureForName(certName);
-  doc.setFontSize(7.2);doc.setTextColor(70,70,70);doc.text('AUTHORISED BY',22,y2);
-  if(sig){ addSignatureToDoc(doc,sig,22,y2+5,30,15); }
-  doc.setFontSize(10);doc.setTextColor(0,0,0);doc.text(certName||'-',22,y2+28);
-  doc.setFontSize(7.5);doc.setTextColor(70,70,70);
-  doc.text('Workshop Manager Jenner',22,y2+34);
-  doc.text('Engineering Pty Ltd',22,y2+39);
-  doc.text('Date: '+(j.coc.date||today()),22,y2+44);
-  if(j.coc.useCompanyStamp!==false){ drawClassicStamp(doc,103,y2+4); }
-  doc.setFontSize(7);doc.setTextColor(110,110,110);
-  doc.text('F-CoC-01 JEN.QMS.01 v2.0 ISO 9001:2015 Retain 7 years (Cl.7.5)',22,265);
-  doc.text('Issued: '+(j.coc.date||today()),142,265);
-  addPageNo(doc);
-  audit(j,'CoC PDF downloaded in classic Jenner layout with company stamp/signature');
+  if(sig){ try{ addSignatureToDoc(doc,sig,12,y,50,20); }catch(e){} }
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(9);
+  doc.setTextColor(34,34,34);
+  doc.text(certName||'',12,y+26);
+  doc.setFontSize(7.5);
+  doc.setTextColor(100,100,100);
+  doc.text('Workshop Manager, Jenner Engineering Pty Ltd',12,y+32);
+  if(j.coc.useCompanyStamp!==false){ drawClassicStamp(doc,110,y); }
+
+  //  FOOTER 
+  doc.setDrawColor(200,200,200);
+  doc.setLineWidth(0.3);
+  doc.line(10,283,200,283);
+  doc.setFontSize(7);
+  doc.setTextColor(150,150,150);
+  doc.text('F-CoC-01 - JEN.QMS.01 v2.0 - ISO 9001:2015 - Jenner Engineering Pty Ltd - Retain 7 years',10,287);
+  doc.text('Page 1 of 1',200,287,'right');
+
+  audit(j,'CoC PDF downloaded');
   saveLocal();
-  doc.save((j.coc.number||j.jobNumber||'Jenner-CoC')+'.pdf')
+  doc.save((j.coc.number||j.jobNumber||'Jenner-CoC')+'.pdf');
 }
+
 function jobRegisterRows(){return sortedJobs().filter(j=>!isBadGeneratedJob(j)).map(j=>({"Job No":j.jobNumber||'',"Customer":j.customer||'',"Description":j.partDescription||'',"Drawing / Rev":j.drawingRev||'',"Material":j.material||'',"Operator":j.operator||'',"Status":j.status||'',"Due":j.requiredDelivery||'',"Actual Delivery":j.actualDelivery||'',"Released":j.release?.released?'Yes':'No',"Released By":j.release?.releasedBy||'',"Release Date":j.release?.dateTime||'',"CoC Number":j.coc?.number||'',"CoC Date":j.coc?.date||j.coc?.issued||'',"Total Hours":totalJobHours(j),"Saved At":j.savedAt||''}))}
 function timeRows(){const rows=[];sortedJobs().forEach(j=>(j.timeEntries||[]).forEach(t=>{if(t.operator||t.date||t.hours||t.stage||t.start||t.finish){rows.push({"Job No":j.jobNumber||'',"Customer":j.customer||'',"Operator":t.operator||'',"Date":t.date||'',"Start":t.start||'',"Finish":t.finish||'',"Hours":t.hours||'',"Chargeable":t.chargeable||'',"Stage":t.stage||'',"Notes":t.notes||''})}}));return rows}
 function ncrRows(){const rows=[];sortedJobs().forEach(j=>(j.ncrs||[]).forEach(n=>rows.push({"Job No":j.jobNumber||'',"Customer":j.customer||'',"Description":n.description||'',"Action":n.action||'',"Status":n.status||''})));return rows}
@@ -1004,4 +1043,66 @@ function init(){
   initScanDropZone();
 }
 init();
+
+// =================== DRAWING ATTACHMENTS ===================
+window.attachDrawings = function(evt) {
+  const files = Array.from(evt.target.files);
+  if (!files.length) return;
+  const j = currentJob();
+  if (!j) return;
+  if (!j.drawings) j.drawings = [];
+  files.forEach(function(f) {
+    if (f.size > 15 * 1024 * 1024) { alert(f.name + ' is over 15MB. Please compress first.'); return; }
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      j.drawings.push({ name: f.name, data: ev.target.result.split(',')[1], type: f.type });
+      saveLocal();
+      renderDrawings(j);
+    };
+    reader.readAsDataURL(f);
+  });
+  evt.target.value = '';
+};
+
+function renderDrawings(j) {
+  const el = document.getElementById('drawingAttachList');
+  if (!el || !j) return;
+  const drawings = j.drawings || [];
+  if (!drawings.length) {
+    el.innerHTML = '<span style="color:#aaa;font-size:12px">No drawings attached. Click + Add Drawing PDF to attach one or more drawings.</span>';
+    return;
+  }
+  el.innerHTML = drawings.map(function(d, i) {
+    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0f0f0">'
+      + '<span style="font-size:18px">&#128196;</span>'
+      + '<span style="font-weight:700;font-size:13px;flex:1">' + esc(d.name) + '</span>'
+      + '<button class="btn-white" style="font-size:11px;padding:4px 8px" onclick="viewDrawingAttach(' + i + ')">View</button>'
+      + '<button class="btn-red" style="font-size:11px;padding:4px 8px" onclick="removeDrawingAttach(' + i + ')">Remove</button>'
+      + '</div>';
+  }).join('');
+}
+
+window.viewDrawingAttach = function(i) {
+  const j = currentJob();
+  const d = j && j.drawings && j.drawings[i];
+  if (!d) return;
+  const w = window.open('');
+  if (!w) { alert('Popup blocked. Please allow popups for this site.'); return; }
+  if (d.type === 'application/pdf' || d.name.toLowerCase().endsWith('.pdf')) {
+    w.document.write('<title>' + d.name + '</title><iframe src="data:application/pdf;base64,' + d.data + '" width="100%" height="100%" style="border:none;margin:0"></iframe>');
+  } else {
+    w.document.write('<title>' + d.name + '</title><img src="data:' + (d.type||'image/jpeg') + ';base64,' + d.data + '" style="max-width:100%;margin:10px auto;display:block">');
+  }
+  w.document.close();
+};
+
+window.removeDrawingAttach = function(i) {
+  const j = currentJob();
+  if (!j || !j.drawings) return;
+  if (!confirm('Remove drawing "' + j.drawings[i].name + '"?')) return;
+  j.drawings.splice(i, 1);
+  saveLocal();
+  renderDrawings(j);
+};
+// =================== END DRAWING ATTACHMENTS ===================
 </script></body></html>
