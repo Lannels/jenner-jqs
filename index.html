@@ -80,21 +80,64 @@ function audit(j, action){
   j.audit.unshift({at: nowIso(), action: String(action || "Updated")});
   j.savedAt = nowIso();
 }
-const LEGACY_STORAGE_KEYS=["jenner_qms_v3","jenner_qms_full_shared_v1","jenner_qms_simplified_iso_v1"];function stripLargePayloads(x){if(Array.isArray(x))return x.map(stripLargePayloads);if(x&&typeof x==="object"){const o={};for(const[k,v]of Object.entries(x)){const lk=k.toLowerCase();if(typeof v==="string"&&v.length>2000&&(lk.includes("pdf")||lk.includes("base64")||lk.includes("image")||lk.includes("scan")||lk.includes("attachment")||lk.includes("drawing"))){if(lk.includes("name"))o[k]=v;else o[k+"Name"]=x[k+"Name"]||"file removed from browser backup - store in Supabase Storage";continue}o[k]=stripLargePayloads(v)}return o}return x}function mapChecks(rows,defaults){if(!Array.isArray(rows)||!rows.length)return defaults.map(text=>({text,done:false,notes:""}));return rows.map(r=>({text:r.text||r.check||r.item||"",done:!!(r.done||r.ok||r.pass===true||String(r.status||"").toUpperCase()==="PASS"),notes:r.notes||r.sign||""}))}function mapDims(rows){if(!Array.isArray(rows)||!rows.length)return[{feature:"",target:"",actual:"",status:"PASS",notes:""}];return rows.map(r=>({feature:r.feature||r.text||"",target:r.target||r.nominal||"",actual:r.actual||r.measurement||r.notes||"",status:(r.fail?"FAIL":(r.status||r.result||(r.pass?"PASS":"PASS"))),notes:r.notes&&r.actual?r.notes:""}))}function migrateJob(raw,idFallback){raw=stripLargePayloads(raw||{});let j=defaultJob(raw.id||idFallback||uid());Object.assign(j,raw);j.id=raw.id||idFallback||j.id;j.items=Array.isArray(raw.items)&&raw.items.length?raw.items:[{qty:"",partNumber:"",description:""}];j.prestart=mapChecks(raw.prestart||raw.prestartChecks,prestartDefaults);const progressDims=mapDims(raw.progress||raw.progressInspection||[]);const explicitInprocess=Array.isArray(raw.inprocess)&&raw.inprocess.length?mapDims(raw.inprocess):[];j.inprocess=explicitInprocess.length?explicitInprocess:progressDims;j.finalDims=Array.isArray(raw.finalDims)&&raw.finalDims.length?mapDims(raw.finalDims):(Array.isArray(raw.finalInspection)&&raw.finalInspection.length?mapDims(raw.finalInspection):progressDims);j.finalChecks=mapChecks(raw.finalChecks||raw.finalInspectionChecks,finalCheckDefaults);if(raw.finalSignoff?.allPass||raw.results?.finalDimensional==="PASS"){j.finalChecks=j.finalChecks.map(c=>({...c,done:c.done||true}))}j.timeEntries=Array.isArray(raw.timeEntries)&&raw.timeEntries.length?raw.timeEntries.map(t=>({operator:t.operator||raw.operator||"",date:t.date||"",start:t.start||t.clockIn||"",finish:t.finish||t.clockOut||"",hours:t.hours||"",stage:t.stage||"",chargeable:t.chargeable||"Yes",notes:t.notes||""})):Array.from({length:8},()=>({operator:"",date:"",start:"",finish:"",hours:"",stage:"",chargeable:"Yes",notes:""}));j.ncrs=Array.isArray(raw.ncrs)?raw.ncrs:[];const released=!!(raw.release?.released||raw.cocIssued||raw.coc?.issued||raw.finalSignoff?.allPass);j.release={released,releasedBy:raw.release?.releasedBy||raw.finalSignoff?.name||raw.coc?.certifiedBy||"",dateTime:raw.release?.dateTime||raw.cocIssuedAt||((raw.finalSignoff?.date||"")+(raw.finalSignoff?.time?"T"+raw.finalSignoff.time:"")),comments:raw.release?.comments||"Migrated from previous job pack format."};j.coc={...defaultJob("").coc,...(raw.coc||{})};if(j.coc.useCompanyStamp===undefined)j.coc.useCompanyStamp=true;if(raw.cocIssued)j.coc.issued=j.coc.issued||raw.cocIssuedAt||today();j.audit=[];if(Array.isArray(raw.audit))j.audit.push(...raw.audit.map(a=>({at:a.at||a.timestamp||nowIso(),action:a.action||a.detail||"Audit entry"})));if(Array.isArray(raw.auditLog))j.audit.push(...raw.auditLog.map(a=>({at:a.at||a.timestamp||nowIso(),action:[a.action,a.detail].filter(Boolean).join(" — ")||"Audit entry"})));if(!j.audit.length)j.audit=[{at:nowIso(),action:"Imported from backup"}];j.savedAt=raw.savedAt||nowIso();return j}function normalise(raw,idFallback){return migrateJob(raw,idFallback)}function loadLocal(){
+const LEGACY_STORAGE_KEYS=["jenner_qms_v3","jenner_qms_full_shared_v1","jenner_qms_simplified_iso_v1"];function stripLargePayloads(x){if(Array.isArray(x))return x.map(stripLargePayloads);if(x&&typeof x==="object"){const o={};for(const[k,v]of Object.entries(x)){const lk=k.toLowerCase();if(typeof v==="string"&&v.length>2000&&(lk.includes("pdf")||lk.includes("base64")||lk.includes("image")||lk.includes("scan")||lk.includes("attachment")||lk.includes("drawing"))){if(lk.includes("name"))o[k]=v;else o[k+"Name"]=x[k+"Name"]||"file removed from browser backup - store in Supabase Storage";continue}o[k]=stripLargePayloads(v)}return o}return x}function mapChecks(rows,defaults){if(!Array.isArray(rows)||!rows.length)return defaults.map(text=>({text,done:false,notes:""}));return rows.map(r=>({text:r.text||r.check||r.item||"",done:!!(r.done||r.ok||r.pass===true||String(r.status||"").toUpperCase()==="PASS"),notes:r.notes||r.sign||""}))}function mapDims(rows){if(!Array.isArray(rows)||!rows.length)return[{feature:"",target:"",actual:"",status:"PASS",notes:""}];return rows.map(r=>({feature:r.feature||r.text||"",target:r.target||r.nominal||"",actual:r.actual||r.measurement||r.notes||"",status:(r.fail?"FAIL":(r.status||r.result||(r.pass?"PASS":"PASS"))),notes:r.notes&&r.actual?r.notes:""}))}function migrateJob(raw,idFallback){raw=stripLargePayloads(raw||{});let j=defaultJob(raw.id||idFallback||uid());Object.assign(j,raw);j.id=raw.id||idFallback||j.id;j.items=Array.isArray(raw.items)&&raw.items.length?raw.items:[{qty:"",partNumber:"",description:""}];j.prestart=mapChecks(raw.prestart||raw.prestartChecks,prestartDefaults);const progressDims=mapDims(raw.progress||raw.progressInspection||[]);const explicitInprocess=Array.isArray(raw.inprocess)&&raw.inprocess.length?mapDims(raw.inprocess):[];j.inprocess=explicitInprocess.length?explicitInprocess:progressDims;j.finalDims=Array.isArray(raw.finalDims)&&raw.finalDims.length?mapDims(raw.finalDims):(Array.isArray(raw.finalInspection)&&raw.finalInspection.length?mapDims(raw.finalInspection):progressDims);j.finalChecks=mapChecks(raw.finalChecks||raw.finalInspectionChecks,finalCheckDefaults);if(raw.finalSignoff?.allPass||raw.results?.finalDimensional==="PASS"){j.finalChecks=j.finalChecks.map(c=>({...c,done:c.done||true}))}j.timeEntries=Array.isArray(raw.timeEntries)&&raw.timeEntries.length?raw.timeEntries.map(t=>({operator:t.operator||raw.operator||"",date:t.date||"",start:t.start||t.clockIn||"",finish:t.finish||t.clockOut||"",hours:t.hours||"",stage:t.stage||"",chargeable:t.chargeable||"Yes",notes:t.notes||""})):Array.from({length:8},()=>({operator:"",date:"",start:"",finish:"",hours:"",stage:"",chargeable:"Yes",notes:""}));j.ncrs=Array.isArray(raw.ncrs)?raw.ncrs:[];const released=!!(raw.release?.released||raw.cocIssued||raw.coc?.issued||raw.finalSignoff?.allPass);j.release={released,releasedBy:raw.release?.releasedBy||raw.finalSignoff?.name||raw.coc?.certifiedBy||"",dateTime:raw.release?.dateTime||raw.cocIssuedAt||((raw.finalSignoff?.date||"")+(raw.finalSignoff?.time?"T"+raw.finalSignoff.time:"")),comments:raw.release?.comments||"Migrated from previous job pack format."};j.coc={...defaultJob("").coc,...(raw.coc||{})};if(j.coc.useCompanyStamp===undefined)j.coc.useCompanyStamp=true;if(raw.cocIssued)j.coc.issued=j.coc.issued||raw.cocIssuedAt||today();j.audit=[];if(Array.isArray(raw.audit))j.audit.push(...raw.audit.map(a=>({at:a.at||a.timestamp||nowIso(),action:a.action||a.detail||"Audit entry"})));if(Array.isArray(raw.auditLog))j.audit.push(...raw.auditLog.map(a=>({at:a.at||a.timestamp||nowIso(),action:[a.action,a.detail].filter(Boolean).join(" — ")||"Audit entry"})));if(!j.audit.length)j.audit=[{at:nowIso(),action:"Imported from backup"}];j.savedAt=raw.savedAt||nowIso();return j}function normalise(raw,idFallback){return migrateJob(raw,idFallback)}function jobDataScore(j){
+  if(!j||typeof j!=="object") return -1;
+  let score=0;
+  if(j.jobNumber)score+=50;
+  if(j.customer)score+=20;
+  if(j.partDescription)score+=20;
+  if(j.drawingRev)score+=10;
+  if(j.cocIssued||j.coc?.issued)score+=80;
+  if(j.release?.released)score+=50;
+  if(Array.isArray(j.items))score+=Math.min(20,j.items.filter(x=>x&&Object.values(x).some(Boolean)).length*4);
+  if(Array.isArray(j.inprocess))score+=Math.min(20,j.inprocess.filter(x=>x&&Object.values(x).some(Boolean)).length*3);
+  if(Array.isArray(j.finalDims))score+=Math.min(25,j.finalDims.filter(x=>x&&Object.values(x).some(Boolean)).length*4);
+  if(Array.isArray(j.timeEntries))score+=Math.min(20,j.timeEntries.filter(x=>x&&Object.values(x).some(Boolean)).length*2);
+  if(Array.isArray(j.audit))score+=Math.min(15,j.audit.length);
+  return score;
+}
+function mergeJobRecord(existing,incoming){
+  if(!incoming||isBadGeneratedJob(incoming)) return existing;
+  if(!existing||isBadGeneratedJob(existing)) return incoming;
+  const e=repairJobShape(existing), i=repairJobShape(incoming);
+  const base=jobDataScore(i)>=jobDataScore(e)?{...e,...i}:{...i,...e};
+  base.id=e.id||i.id;
+  base.jobNumber=base.jobNumber||e.jobNumber||i.jobNumber;
+  base.customer=base.customer||e.customer||i.customer;
+  base.partDescription=base.partDescription||e.partDescription||i.partDescription;
+  base.coc={...(e.coc||{}),...(i.coc||{}),...(base.coc||{})};
+  if(e.cocIssued||i.cocIssued) base.cocIssued=true;
+  base.cocIssuedAt=base.cocIssuedAt||i.cocIssuedAt||e.cocIssuedAt||base.coc?.issued||"";
+  base.cocIssuedBy=base.cocIssuedBy||i.cocIssuedBy||e.cocIssuedBy||base.coc?.certifiedBy||"";
+  if(e.release?.released||i.release?.released){base.release={...(e.release||{}),...(i.release||{}),...(base.release||{}),released:true};}
+  base.audit=[...(Array.isArray(e.audit)?e.audit:[]),...(Array.isArray(i.audit)?i.audit:[])].filter(Boolean);
+  const seen=new Set();
+  base.audit=base.audit.filter(a=>{const k=(a.at||a.timestamp||'')+'|'+(a.action||a.detail||''); if(seen.has(k))return false; seen.add(k); return true;}).slice(-250);
+  return repairJobShape(base);
+}
+function loadLocal(){
   jobs={};
-  try{
-    const raw=localStorage.getItem(STORAGE_KEY);
-    if(!raw){setStatus("No local jobs loaded. Import backup or Load Shared.");return;}
-    const parsed=JSON.parse(raw);
-    const root=normaliseImportRoot(parsed);
-    Object.entries(root).forEach(([k,v])=>{if(v&&typeof v==="object"){const j=normalise(v,k); if(j && (j.jobNumber || j.customer || j.partDescription)) jobs[j.id]=j;}});
-    ensureCurrent();
-    setStatus("Loaded "+Object.keys(jobs).length+" local job(s).");
-  }catch(e){
-    console.error("Local load failed",e);
-    jobs={};
-    setStatus("Local browser copy could not be read. Import the cleaned backup.");
-  }
+  let loaded=0;
+  const keys=[STORAGE_KEY,"jenner_qms_simplified_iso_v1","jenner_qms_full_shared_v1","jenner_qms_v3"].filter((v,i,a)=>v&&a.indexOf(v)===i);
+  keys.forEach(key=>{
+    try{
+      const raw=localStorage.getItem(key);
+      if(!raw) return;
+      const parsed=JSON.parse(raw);
+      const root=normaliseImportRoot(parsed);
+      Object.entries(root).forEach(([k,v])=>{
+        if(v&&typeof v==="object"){
+          const j=normalise(v,k);
+          if(j && (j.jobNumber||j.customer||j.partDescription)){
+            jobs[j.id]=mergeJobRecord(jobs[j.id],j); loaded++;
+          }
+        }
+      });
+    }catch(e){console.warn("Could not read local storage key",key,e)}
+  });
+  ensureCurrent();
+  if(loaded){saveLocal();setStatus("Recovered "+Object.keys(jobs).length+" local job(s) from browser storage.");}
+  else setStatus("No local jobs loaded. Import backup or Load Shared.");
 }
 function isBadGeneratedJob(j){
   if(!j) return true;
@@ -120,7 +163,15 @@ function saveLocal(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(jobs));
     return String(b.savedAt||"").localeCompare(String(a.savedAt||""));
   });
 }function ensureCurrent(){if(currentJobId&&jobs[currentJobId])return;const f=sortedJobs()[0];currentJobId=f?f.id:null}function currentJob(){ensureCurrent();if(currentJobId&&jobs[currentJobId]){repairJobShape(jobs[currentJobId]);return jobs[currentJobId]}return null}function setStatus(m){document.getElementById("statusBox").textContent=m}function createJob(){const id=uid();jobs[id]=defaultJob(id);currentJobId=id;saveLocal();renderAll();setStatus("New job created.")}function selectJob(id){currentJobId=id;activeTab="job";renderAll()}
-function renderTabs(){const defs=[["job","Job Info"],["prestart","Pre-Start"],["inprocess","In-Process Dimensions"],["final","Final Inspection"],["time","Time on Job"],["ncr","NCRs"],["release","Release"],["coc","CoC"],["audit","Audit/Settings"],["reports","Reports"]];document.getElementById("tabs").innerHTML=defs.map(([id,l])=>`<button type="button" class="tab ${activeTab===id?'active':''}" onclick="showTab('${id}')">${l}</button>`).join("")}function showTab(id){activeTab=id;renderTabs();document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));const panel=document.getElementById("panel-"+id);if(panel)panel.classList.add("active");if(id==="reports")renderReports()}function bind(id,val,fn){const el=document.getElementById(id);if(!el)return;el.value=val??"";el.oninput=e=>{const j=currentJob();if(!j)return;fn(j,e.target.value);audit(j,"Edited "+id);saveLocal();renderHeaderOnly()}}function renderAll(){renderTabs();renderJobList();renderHeaderOnly();renderCurrent();showTab(activeTab)}function renderHeaderOnly(){const j=currentJob();document.getElementById("heroJobNo").textContent=j?(j.jobNumber||j.id):"No job selected";document.getElementById("heroTitle").textContent=j?`${j.customer||"No customer"} — ${j.partDescription||"No description"}`:"Create or load a job.";renderReadiness()}function renderJobList(){document.getElementById("jobList").innerHTML=sortedJobs().map(j=>`<div class="jobcard ${j.id===currentJobId?'active':''}" onclick="selectJob('${j.id}')"><div class="num">${esc(j.jobNumber||j.id)}</div><div class="title">${esc(j.partDescription||"Untitled job")}</div><div class="meta">${esc(j.customer||"No customer")}<br>${j.release?.released?'<span class="badge b-ok">Released</span>':'<span class="badge b-warn">'+esc(j.status||"Draft")+'</span>'}</div></div>`).join("")}
+function renderTabs(){const defs=[["job","Job Info"],["prestart","Pre-Start"],["inprocess","In-Process Dimensions"],["final","Final Inspection"],["time","Time on Job"],["ncr","NCRs"],["release","Release"],["coc","CoC"],["audit","Audit/Settings"],["reports","Reports"]];document.getElementById("tabs").innerHTML=defs.map(([id,l])=>`<button type="button" class="tab ${activeTab===id?'active':''}" onclick="showTab('${id}')">${l}</button>`).join("")}function showTab(id){activeTab=id;renderTabs();document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));const panel=document.getElementById("panel-"+id);if(panel)panel.classList.add("active");if(id==="reports")renderReports()}function bind(id,val,fn){const el=document.getElementById(id);if(!el)return;el.value=val??"";el.oninput=e=>{const j=currentJob();if(!j)return;fn(j,e.target.value);audit(j,"Edited "+id);saveLocal();renderHeaderOnly()}}function renderAll(){renderTabs();renderJobList();renderHeaderOnly();renderCurrent();showTab(activeTab)}function renderHeaderOnly(){const j=currentJob();document.getElementById("heroJobNo").textContent=j?(j.jobNumber||j.id):"No job selected";document.getElementById("heroTitle").textContent=j?`${j.customer||"No customer"} — ${j.partDescription||"No description"}`:"Create or load a job.";renderReadiness()}function renderJobList(){
+  const visible=sortedJobs().filter(j=>!isBadGeneratedJob(j));
+  document.getElementById("jobList").innerHTML=visible.map(j=>{
+    const issued=!!(j.cocIssued||j.coc?.issued);
+    const released=!!(j.release?.released);
+    const badge=issued?'<span class="badge b-ok">CoC Issued</span>':(released?'<span class="badge b-ok">Released</span>':'<span class="badge b-warn">'+esc(j.status||"Draft")+'</span>');
+    return `<div class="jobcard ${j.id===currentJobId?'active':''}" onclick="selectJob('${j.id}')"><div class="num">${esc(j.jobNumber||j.id)}</div><div class="title">${esc(j.partDescription||"Untitled job")}</div><div class="meta">${esc(j.customer||"No customer")}<br>${badge}</div></div>`;
+  }).join("") || '<div class="tiny">No jobs visible. Use Import Backup or Load Shared.</div>';
+}
 function readiness(j=currentJob()){if(!j)return{ok:false,missing:["No job selected"]};let m=[];if(!j.jobNumber)m.push("Job number");if(!j.customer)m.push("Customer");if(!j.drawingRev)m.push("Drawing / Rev");if(!j.prestart.every(x=>x.done))m.push("Pre-start checks");if(!j.finalChecks.every(x=>x.done))m.push("Final verification checks");if(!hasMeasurement(j.finalDims))m.push("Final dimensions");if(j.finalDims.some(x=>x.status==="FAIL"))m.push("Failed final dimension unresolved");if(j.ncrs.some(x=>x.status!=="Closed"&&x.status!=="Accepted"))m.push("Open NCRs");if(!j.release?.released)m.push("Release authority");return{ok:m.length===0,missing:m}}function hasMeasurement(arr){return Array.isArray(arr)&&arr.some(x=>x.feature||x.target||x.actual)}function renderReadiness(){const box=document.getElementById("readiness"),j=currentJob();if(!j){box.innerHTML='<div class="notice red">No job selected.</div>';return}const r=readiness(j),pre=r.missing.filter(x=>x!=="Release authority");box.innerHTML=`<div class="notice ${r.ok?'green':(pre.length===0?'green':'red')}"><strong>CoC Readiness:</strong> ${r.ok?'READY — CoC can be issued.':pre.length===0?'Evidence complete. Release Authority still required.':'Not ready — missing: '+pre.join(", ")}</div>`;const btn=document.getElementById("btnCoC");if(btn)btn.disabled=!r.ok}
 function renderCurrent(){const j=currentJob();if(!j)return;bind("jobNumber",j.jobNumber,(j,v)=>j.jobNumber=v);bind("customer",j.customer,(j,v)=>j.customer=v);bind("partDescription",j.partDescription,(j,v)=>j.partDescription=v);bind("drawingRev",j.drawingRev,(j,v)=>j.drawingRev=v);bind("material",j.material,(j,v)=>j.material=v);bind("machineOperation",j.machineOperation,(j,v)=>j.machineOperation=v);bind("operator",j.operator,(j,v)=>j.operator=v);bind("qtyOrdered",j.qtyOrdered,(j,v)=>j.qtyOrdered=v);bind("qtySupplied",j.qtySupplied,(j,v)=>j.qtySupplied=v);bind("requiredDelivery",j.requiredDelivery,(j,v)=>j.requiredDelivery=v);bind("actualDelivery",j.actualDelivery,(j,v)=>j.actualDelivery=v);bind("status",j.status,(j,v)=>j.status=v);bind("notes",j.notes,(j,v)=>j.notes=v);renderItems(j);renderChecks("prestartBody",j.prestart,"prestart");renderDims("inprocessBody",j.inprocess,"inprocess");renderDims("finalBody",j.finalDims,"final");renderChecks("finalChecksBody",j.finalChecks,"finalChecks");renderTime(j);renderNCRs(j);renderRelease(j);renderCoC(j);renderAudit(j)}function renderItems(j){document.getElementById("itemsBody").innerHTML=j.items.map((it,i)=>`<tr><td><input value="${esc(it.qty)}" onchange="setItem(${i},'qty',this.value)"></td><td><input value="${esc(it.partNumber)}" onchange="setItem(${i},'partNumber',this.value)"></td><td><input value="${esc(it.description)}" onchange="setItem(${i},'description',this.value)"></td><td><button type="button" class="btn-red" onclick="delItem(${i})">×</button></td></tr>`).join("")}function addItem(){
   const j=currentJob();
@@ -174,9 +225,33 @@ function renderRelease(j){document.getElementById("releasedBy").value=j.release.
 function renderCoC(j){document.getElementById("cocStatus").innerHTML=readiness(j).ok?'<div class="notice green">CoC ready for issue.</div>':'<div class="notice red">CoC locked until required evidence is complete and Release Authority is approved.</div>';if(j.coc.useCompanyStamp===undefined)j.coc.useCompanyStamp=globalStampDefault();bind("cocNumber",j.coc.number,(j,v)=>j.coc.number=v);bind("cocCertifiedBy",j.coc.certifiedBy,(j,v)=>j.coc.certifiedBy=v);bind("cocDate",j.coc.date,(j,v)=>j.coc.date=v);bind("cocNote",j.coc.note,(j,v)=>j.coc.note=v);const stamp=document.getElementById("useCompanyStamp");if(stamp)stamp.checked=j.coc.useCompanyStamp!==false}
 function setCocStamp(v){const j=currentJob();if(!j)return;if(!j.coc)j.coc={};j.coc.useCompanyStamp=!!v;audit(j,"Updated CoC company stamp setting");saveLocal()}
 function applyReleaseDetailsToCoC(){const j=currentJob();if(!j)return;if(!j.coc)j.coc={};if(!j.coc.certifiedBy)j.coc.certifiedBy=j.release?.releasedBy||"";if(!j.coc.date)j.coc.date=today();if(!j.coc.number)j.coc.number=(j.jobNumber||j.id)+"-COC";j.coc.useCompanyStamp=true;audit(j,"Applied release details to CoC");saveLocal();renderCurrent();setStatus("Release details applied to CoC.")}
-function renderAudit(j){document.getElementById("auditLog").innerHTML=(j.audit||[]).slice(0,80).map(a=>`<div style="border-bottom:1px solid #eee;padding:6px 0"><strong>${esc(new Date(a.at).toLocaleString())}</strong> — ${esc(a.action)}</div>`).join("")||"No audit entries."}function saveCurrentJob(show=true){const j=currentJob();if(!j){alert("No job selected.");return}audit(j,"Saved");saveLocal();renderAll();if(show)setStatus("Saved locally.")}function exportBackup(){const data=JSON.stringify(jobs,null,2);const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type:"application/json"}));a.download="Jenner-QMS-Backup-"+today()+".json";a.click();URL.revokeObjectURL(a.href)}function normaliseImportRoot(raw){if(Array.isArray(raw))return Object.fromEntries(raw.map((v,i)=>[v.id||("job_"+i),v]));if(raw&&typeof raw==="object"&&raw.jobs&&typeof raw.jobs==="object")return raw.jobs;if(raw&&typeof raw==="object"&&raw.job_data)return {[raw.id||raw.job_data.id||uid()]:raw.job_data};return raw&&typeof raw==="object"?raw:{}}function importBackup(ev){const f=ev.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=()=>{try{const raw=JSON.parse(reader.result);const root=normaliseImportRoot(raw);const imported={};Object.entries(root).forEach(([k,v])=>{if(v&&typeof v==="object"){const j=normalise(v,k);if(j && (j.jobNumber||j.customer||j.partDescription))imported[j.id]=j}});const count=Object.keys(imported).length;if(!count){alert("The backup opened, but no jobs were found in it.");return}
-// Recovery import: replace the broken local copy instead of merging bad blank jobs.
-jobs=imported;currentJobId=Object.keys(imported)[0];localStorage.setItem(STORAGE_KEY,JSON.stringify(jobs));renderAll();setStatus("RESTORED "+count+" jobs from backup. Check the job numbers, then click Push Shared.");alert("Restored "+count+" jobs from the backup. The broken blank local copy has been replaced. Now click Push Shared to save the corrected jobs to Supabase.")}catch(e){console.error(e);alert("Could not import backup JSON. The file may not be valid JSON.")};ev.target.value=""};reader.readAsText(f)}
+function renderAudit(j){document.getElementById("auditLog").innerHTML=(j.audit||[]).slice(0,80).map(a=>`<div style="border-bottom:1px solid #eee;padding:6px 0"><strong>${esc(new Date(a.at).toLocaleString())}</strong> — ${esc(a.action)}</div>`).join("")||"No audit entries."}function saveCurrentJob(show=true){const j=currentJob();if(!j){alert("No job selected.");return}audit(j,"Saved");saveLocal();renderAll();if(show)setStatus("Saved locally.")}function exportBackup(){const data=JSON.stringify(jobs,null,2);const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type:"application/json"}));a.download="Jenner-QMS-Backup-"+today()+".json";a.click();URL.revokeObjectURL(a.href)}function normaliseImportRoot(raw){if(Array.isArray(raw))return Object.fromEntries(raw.map((v,i)=>[v.id||("job_"+i),v]));if(raw&&typeof raw==="object"&&raw.jobs&&typeof raw.jobs==="object")return raw.jobs;if(raw&&typeof raw==="object"&&raw.job_data)return {[raw.id||raw.job_data.id||uid()]:raw.job_data};return raw&&typeof raw==="object"?raw:{}}function importBackup(ev){
+  const f=ev.target.files[0]; if(!f)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const raw=JSON.parse(reader.result);
+      const root=normaliseImportRoot(raw);
+      const imported={};
+      Object.entries(root).forEach(([k,v])=>{
+        if(v&&typeof v==="object"){
+          const j=normalise(v,k);
+          if(j && (j.jobNumber||j.customer||j.partDescription)) imported[j.id]=j;
+        }
+      });
+      const count=Object.keys(imported).length;
+      if(!count){alert("The backup opened, but no jobs were found in it.");return}
+      try{localStorage.setItem(STORAGE_KEY+"_pre_import_"+Date.now(),JSON.stringify(jobs));}catch(_){}
+      Object.values(imported).forEach(j=>{jobs[j.id]=mergeJobRecord(jobs[j.id],j)});
+      currentJobId=Object.keys(imported)[0];
+      saveLocal(); renderAll();
+      setStatus("Imported/merged "+count+" jobs. Existing issued CoCs and job data were preserved where richer.");
+      alert("Imported/merged "+count+" jobs. Now check the job list, then Push Shared when ready.");
+    }catch(e){console.error(e);alert("Could not import backup JSON. The file may not be valid JSON.")}
+    ev.target.value="";
+  };
+  reader.readAsText(f);
+}
 async function pushAllLocalJobs(){
   if(!sbClient){alert("Supabase not connected. Check project is resumed.");return}
   let ok=0;
@@ -197,16 +272,19 @@ async function pushAllLocalJobs(){
   alert("Pushed "+ok+" corrected jobs to Supabase.");
 }async function loadSharedJobs(){
   if(!sbClient){alert("Supabase not connected. Check project is resumed.");return}
+  try{localStorage.setItem(STORAGE_KEY+"_pre_shared_load_"+Date.now(),JSON.stringify(jobs));}catch(_){}
   const{data,error}=await sbClient.from(window.SHARED_CONFIG.TABLE).select("*").limit(1000);
   if(error){alert("Load failed: "+error.message);return}
-  let loaded=0,skipped=0;
+  let loaded=0,skipped=0,merged=0;
   (data||[]).forEach(r=>{
     const raw=r.job_data||r.data||r;
     const jd=normalise(raw,r.id||r.job_id);
     if(isBadGeneratedJob(jd)){skipped++;return;}
-    jobs[jd.id]=jd;loaded++;
+    jobs[jd.id]=mergeJobRecord(jobs[jd.id],jd);
+    loaded++; merged++;
   });
-  saveLocal();renderAll();setStatus("Loaded "+loaded+" shared jobs"+(skipped?"; skipped "+skipped+" broken draft rows.":"."));
+  saveLocal(); renderAll();
+  setStatus("Loaded/merged "+loaded+" shared jobs"+(skipped?"; skipped "+skipped+" broken draft rows.":"."));
 }
 function saveGeminiKey(){localStorage.setItem(GEMINI_KEY,document.getElementById("geminiKey").value.trim());alert("API key saved on this device.")}
 function digitiseIntoCurrentJob(){const j=currentJob();if(!j){alert("Select a job first.");return}document.getElementById("scanFile").click()}
