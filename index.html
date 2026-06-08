@@ -135,8 +135,12 @@ function loadLocal(){
       });
     }catch(e){console.warn("Could not read local storage key",key,e)}
   });
+  // Proactively remove legacy keys to free space
+  ["jenner_qms_v3","jenner_qms_full_shared_v1","jenner_qms_simplified_iso_v1"].forEach(k=>{
+    if(k!==STORAGE_KEY){try{localStorage.removeItem(k);}catch(e){}}
+  });
   ensureCurrent();
-  if(loaded){saveLocal();setStatus("Recovered "+Object.keys(jobs).length+" local job(s) from browser storage.");}
+  if(loaded){saveLocal();setStatus("Loaded "+Object.keys(jobs).length+" job(s). Legacy storage keys cleared.");}
   else setStatus("No local jobs loaded. Import backup or Load Shared.");
 }
 function isBadGeneratedJob(j){
@@ -146,7 +150,45 @@ function isBadGeneratedJob(j){
   const noDescription=!String(j.partDescription||"").trim() || String(j.partDescription||"").trim().toLowerCase()==="untitled job";
   return noJobNo && noDescription && id.startsWith("job_");
 }
-function saveLocal(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(jobs));return true}catch(e){console.error(e);alert("Browser storage is still full. Your import was read but not saved. Clear old browser storage/cache, then import again. Do not delete the backup JSON.");return false}}function sortedJobs(){
+function stripJobsForStorage(jobsObj){
+  const out={};
+  Object.entries(jobsObj).forEach(([id,j])=>{
+    const jc=JSON.parse(JSON.stringify(j));
+    // Strip any residual base64 drawing data (drawings are now in Supabase Storage)
+    if(Array.isArray(jc.drawings)){
+      jc.drawings=jc.drawings.map(d=>({name:d.name,path:d.path||null,type:d.type||null,uploadedAt:d.uploadedAt||null}));
+    }
+    // Trim audit log to last 200 entries per job
+    if(Array.isArray(jc.audit)&&jc.audit.length>200){
+      jc.audit=jc.audit.slice(0,200);
+    }
+    out[id]=jc;
+  });
+  return out;
+}
+function saveLocal(){
+  try{
+    // Clear any legacy large keys first
+    ["jenner_qms_v3","jenner_qms_full_shared_v1"].forEach(k=>{
+      try{if(localStorage.getItem(k))localStorage.removeItem(k);}catch(e){}
+    });
+    const payload=JSON.stringify(stripJobsForStorage(jobs));
+    localStorage.setItem(STORAGE_KEY,payload);
+    return true;
+  }catch(e){
+    console.error(e);
+    // Try emergency save with stripped audit logs
+    try{
+      Object.values(jobs).forEach(j=>{if(Array.isArray(j.audit))j.audit=j.audit.slice(0,20);});
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(stripJobsForStorage(jobs)));
+      setStatus("Saved (audit logs trimmed to fit storage).");
+      return true;
+    }catch(e2){
+      alert("Browser storage is full even after cleanup. Please use Export Backup to save your data, then clear site data in browser settings and re-import.");
+      return false;
+    }
+  }
+}function sortedJobs(){
   function jobNumValue(j){
     const s=String(j && j.jobNumber || "").trim();
     const matches=s.match(/\d+/g);
@@ -1191,22 +1233,48 @@ function init(){
 init();
 
 // =================== DRAWING ATTACHMENTS ===================
-window.attachDrawings = function(evt) {
+// =================== DRAWING ATTACHMENTS — SUPABASE STORAGE ===================
+// Drawings are stored in Supabase Storage bucket "job-pack-drawings".
+// Only the file path and name are saved in localStorage — no base64 data.
+
+async function getSupabaseClient() {
+  if (sbClient) return sbClient;
+  if (window.supabase && window.SHARED_CONFIG) {
+    sbClient = window.supabase.createClient(
+      window.SHARED_CONFIG.SUPABASE_URL,
+      window.SHARED_CONFIG.SUPABASE_ANON_KEY
+    );
+  }
+  return sbClient;
+}
+
+window.attachDrawings = async function(evt) {
   const files = Array.from(evt.target.files);
   if (!files.length) return;
   const j = currentJob();
-  if (!j) return;
+  if (!j) { alert('Select or create a job first.'); return; }
   if (!j.drawings) j.drawings = [];
-  files.forEach(function(f) {
-    if (f.size > 15 * 1024 * 1024) { alert(f.name + ' is over 15MB. Please compress first.'); return; }
-    const reader = new FileReader();
-    reader.onload = function(ev) {
-      j.drawings.push({ name: f.name, data: ev.target.result.split(',')[1], type: f.type });
-      saveLocal();
-      renderDrawings(j);
-    };
-    reader.readAsDataURL(f);
-  });
+  const sb = await getSupabaseClient();
+  if (!sb) { alert('Supabase not available. Cannot upload drawings.'); return; }
+
+  for (const f of files) {
+    if (f.size > 20 * 1024 * 1024) { alert(f.name + ' is over 20MB. Please compress first.'); continue; }
+    setStatus('Uploading ' + f.name + '...');
+    // Path: jobId/timestamp_filename (keeps files organised by job)
+    const safeName = f.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const path = j.id + '/' + Date.now() + '_' + safeName;
+    const { error } = await sb.storage.from('job-pack-drawings').upload(path, f, { upsert: false });
+    if (error) {
+      alert('Upload failed for ' + f.name + ': ' + error.message);
+      setStatus('Upload failed.');
+      continue;
+    }
+    j.drawings.push({ name: f.name, path: path, type: f.type, uploadedAt: new Date().toISOString() });
+    audit(j, 'Drawing uploaded to Supabase: ' + f.name);
+    saveLocal();
+    renderDrawings(j);
+    setStatus('Drawing uploaded: ' + f.name);
+  }
   evt.target.value = '';
 };
 
@@ -1219,36 +1287,53 @@ function renderDrawings(j) {
     return;
   }
   el.innerHTML = drawings.map(function(d, i) {
-    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0f0f0">'
-      + '<span style="font-size:18px">&#128196;</span>'
-      + '<span style="font-weight:700;font-size:13px;flex:1">' + esc(d.name) + '</span>'
-      + '<button class="btn-white" style="font-size:11px;padding:4px 8px" onclick="viewDrawingAttach(' + i + ')">View</button>'
+    const hasPath = !!d.path;
+    const uploadedLabel = d.uploadedAt
+      ? '<span style="font-size:11px;color:#0b7a4b;margin-left:6px">&#10003; Saved to Supabase ' + d.uploadedAt.slice(0,10) + '</span>'
+      : '<span style="font-size:11px;color:#b42318;margin-left:6px">&#9888; Not uploaded</span>';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f0f0f0">'
+      + '<span style="font-size:20px">&#128196;</span>'
+      + '<span style="font-weight:700;font-size:13px;flex:1">' + esc(d.name) + uploadedLabel + '</span>'
+      + (hasPath ? '<button class="btn-white" style="font-size:11px;padding:4px 8px" onclick="viewDrawingAttach(' + i + ')">View</button>' : '')
       + '<button class="btn-red" style="font-size:11px;padding:4px 8px" onclick="removeDrawingAttach(' + i + ')">Remove</button>'
       + '</div>';
   }).join('');
 }
 
-window.viewDrawingAttach = function(i) {
+window.viewDrawingAttach = async function(i) {
   const j = currentJob();
   const d = j && j.drawings && j.drawings[i];
-  if (!d) return;
-  const w = window.open('');
-  if (!w) { alert('Popup blocked. Please allow popups for this site.'); return; }
-  if (d.type === 'application/pdf' || d.name.toLowerCase().endsWith('.pdf')) {
-    w.document.write('<title>' + d.name + '</title><iframe src="data:application/pdf;base64,' + d.data + '" width="100%" height="100%" style="border:none;margin:0"></iframe>');
-  } else {
-    w.document.write('<title>' + d.name + '</title><img src="data:' + (d.type||'image/jpeg') + ';base64,' + d.data + '" style="max-width:100%;margin:10px auto;display:block">');
-  }
-  w.document.close();
+  if (!d || !d.path) { alert('No file path recorded for this drawing.'); return; }
+  const sb = await getSupabaseClient();
+  if (!sb) { alert('Supabase not available.'); return; }
+  setStatus('Opening ' + d.name + '...');
+  const { data, error } = await sb.storage.from('job-pack-drawings').createSignedUrl(d.path, 300); // 5-min URL
+  if (error || !data?.signedUrl) { alert('Could not get download link: ' + (error?.message || 'unknown error')); return; }
+  window.open(data.signedUrl, '_blank');
+  setStatus('Opened ' + d.name + '.');
 };
 
-window.removeDrawingAttach = function(i) {
+window.removeDrawingAttach = async function(i) {
   const j = currentJob();
   if (!j || !j.drawings) return;
-  if (!confirm('Remove drawing "' + j.drawings[i].name + '"?')) return;
+  const d = j.drawings[i];
+  if (!confirm('Remove drawing "' + d.name + '"?\n\nThis will also delete it from Supabase Storage.')) return;
+  // Delete from Supabase Storage if it has a path
+  if (d.path) {
+    const sb = await getSupabaseClient();
+    if (sb) {
+      const { error } = await sb.storage.from('job-pack-drawings').remove([d.path]);
+      if (error) {
+        const proceed = confirm('Could not delete from Supabase (' + error.message + '). Remove from job list anyway?');
+        if (!proceed) return;
+      }
+    }
+  }
+  audit(j, 'Drawing removed: ' + d.name);
   j.drawings.splice(i, 1);
   saveLocal();
   renderDrawings(j);
+  setStatus('Drawing removed.');
 };
 // =================== END DRAWING ATTACHMENTS ===================
 </script></body></html>
