@@ -1150,6 +1150,14 @@ function timeRows(){const rows=[];sortedJobs().forEach(j=>(j.timeEntries||[]).fo
 function ncrRows(){const rows=[];sortedJobs().forEach(j=>(j.ncrs||[]).forEach(n=>rows.push({"Job No":j.jobNumber||'',"Customer":j.customer||'',"Description":n.description||'',"Action":n.action||'',"Status":n.status||''})));return rows}
 function cocRows(){return sortedJobs().filter(j=>j.coc?.number||j.release?.released||j.cocIssued).map(j=>({"Job No":j.jobNumber||'',"Customer":j.customer||'',"CoC Number":j.coc?.number||'',"Certified By":j.coc?.certifiedBy||j.release?.releasedBy||'',"CoC Date":j.coc?.date||j.coc?.issued||'',"Released":j.release?.released?'Yes':'No',"Released By":j.release?.releasedBy||'',"Release Date":j.release?.dateTime||''}))}
 function auditRows(){const rows=[];sortedJobs().forEach(j=>(j.audit||[]).forEach(a=>rows.push({"Job No":j.jobNumber||'',"Customer":j.customer||'',"Timestamp":a.at||a.timestamp||'',"Action":a.action||a.detail||''})));return rows}
+function totalJobHours(j){
+  if(!Array.isArray(j.timeEntries)) return '0.00';
+  const total = j.timeEntries.reduce((sum, t) => {
+    const h = parseFloat(t.hours);
+    return sum + (isNaN(h) ? 0 : h);
+  }, 0);
+  return total.toFixed(2);
+}
 function parseDateValue(v){if(!v)return null;const d=new Date(v);return isNaN(d.getTime())?null:d}
 function jobDateForReport(j){return parseDateValue(j.actualDelivery)||parseDateValue(j.requiredDelivery)||parseDateValue(j.savedAt)||parseDateValue(j.dateCompleted)||parseDateValue(j.dateStarted)}
 function monthKeyFromDate(d){if(!d)return"Unknown";return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")}
