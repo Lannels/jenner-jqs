@@ -415,10 +415,11 @@ Rules:
 - If time rows are handwritten, capture operator, date, clock/start, finish, hours and stage.
 - Use ISO dates YYYY-MM-DD where possible.
 - Keep unsure fields blank rather than guessing.`;
-    const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4096,messages:[{role:"user",content:[{type:"text",text:prompt},{type:"document",source:{type:"base64",media_type:mime,data:b64}}]}]})});
+    const edgeFnUrl=window.SHARED_CONFIG.SUPABASE_URL+"/functions/v1/digitise-jobpack";
+    const resp=await fetch(edgeFnUrl,{method:"POST",headers:{"Content-Type":"application/json","apikey":window.SHARED_CONFIG.SUPABASE_ANON_KEY},body:JSON.stringify({prompt,mime,b64})});
     const out=await resp.json();
-    if(!resp.ok)throw new Error(out.error?.message||"Anthropic API request failed");
-    const rawTxt=out.content?.[0]?.text||"{}";
+    if(!resp.ok)throw new Error(out.error||"AI request failed");
+    const rawTxt=out.text||"{}";
     const cleanTxt=rawTxt.replace(/```json|```/g,"").trim();
     const extracted=JSON.parse(cleanTxt);
     applyExtracted(j,extracted,file.name||"dropped file");
