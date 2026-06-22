@@ -2096,6 +2096,345 @@ function init(){
   setStatus("Ready. " + Object.keys(jobs).length + " job(s) loaded.");
 }
 
+// ============================================================
+// V4 HOURS ON JOB — QUICK CAPTURE, DETAILED TIME & MACHINE REPORTING
+// ============================================================
+const V3_REPAIR_JOB_FOR_HOURS = repairJob;
+const V3_RENDER_REPORTS_FOR_HOURS = renderReports;
+const V3_INIT_FOR_HOURS = init;
+
+function timeEntryId(){ return 'time_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
+function cleanNumber(value, fallback){
+  const n = parseFloat(value);
+  return Number.isFinite(n) && n >= 0 ? n : (fallback ?? 0);
+}
+function displayHours(value){ return cleanNumber(value,0).toFixed(2); }
+function timeMachine(entry, job){
+  return String(entry?.machine || job?.machineOperation || '').trim() || 'Not allocated';
+}
+function calcNetHours(start, finish, breakMinutes){
+  const raw = parseFloat(calcHours(start, finish));
+  if(!Number.isFinite(raw)) return '';
+  const net = Math.max(0, raw - (cleanNumber(breakMinutes,0) / 60));
+  return net.toFixed(2);
+}
+function normaliseTimeEntry(raw, job, index){
+  const t = raw || {};
+  return {
+    id: t.id || ('time_' + (job?.id || 'job') + '_' + index),
+    operator: t.operator || '',
+    date: isoDate(t.date) || '',
+    start: t.start || '',
+    finish: t.finish || '',
+    breakMinutes: t.breakMinutes === undefined || t.breakMinutes === null || t.breakMinutes === '' ? '' : String(t.breakMinutes),
+    hours: t.hours === undefined || t.hours === null ? '' : String(t.hours),
+    activity: t.activity || t.stage || 'Machining',
+    stage: t.stage || '',
+    machine: t.machine || '',
+    notes: t.notes || '',
+    createdAt: isoTime(t.createdAt || job?.createdAt || ''),
+    updatedAt: isoTime(t.updatedAt || '')
+  };
+}
+
+// Preserve all prior job data while adding the V4 time-entry fields.
+repairJob = function(input, idFallback){
+  const source = deepClone(input || {});
+  const j = V3_REPAIR_JOB_FOR_HOURS(source, idFallback);
+  const sourceEntries = Array.isArray(source.timeEntries) ? source.timeEntries : [];
+  j.timeEntries = (j.timeEntries || []).map((entry, i) => normaliseTimeEntry(Object.assign({}, sourceEntries[i] || {}, entry), j, i));
+  return j;
+};
+
+totalHours = function(job){
+  return (job?.timeEntries || []).reduce((sum, t) => sum + cleanNumber(t.hours,0), 0);
+};
+function activityHours(job, activity){
+  const wanted = String(activity || '').toLowerCase();
+  return (job?.timeEntries || []).filter(t => reportActivity(t).toLowerCase() === wanted).reduce((sum,t) => sum + cleanNumber(t.hours,0), 0);
+}
+function hoursSummaryMarkup(job){
+  const total = totalHours(job);
+  const machining = activityHours(job,'Machining');
+  const setup = activityHours(job,'Setup');
+  const inspection = activityHours(job,'Inspection');
+  const rework = activityHours(job,'Rework');
+  return '<div class="hours-summary">'+
+    '<div><span>Total job hours</span><strong>'+displayHours(total)+'</strong></div>'+
+    '<div><span>Machining</span><strong>'+displayHours(machining)+'</strong></div>'+
+    '<div><span>Setup</span><strong>'+displayHours(setup)+'</strong></div>'+
+    '<div><span>Inspection</span><strong>'+displayHours(inspection)+'</strong></div>'+
+    '<div><span>Rework</span><strong>'+displayHours(rework)+'</strong></div>'+
+  '</div>';
+}
+function activityOptions(selected){
+  const values=['Setup','Machining','Inspection','Rework','Packing / dispatch','Other'];
+  return values.map(v => '<option value="'+esc(v)+'" '+(String(selected||'Machining')===v?'selected':'')+'>'+esc(v)+'</option>').join('');
+}
+function setQuickHoursDefaults(job){
+  const date=document.getElementById('quickHoursDate');
+  const operator=document.getElementById('quickHoursOperator');
+  const machine=document.getElementById('quickHoursMachine');
+  const activity=document.getElementById('quickHoursActivity');
+  if(date && !date.value) date.value=today();
+  if(operator && !operator.value) operator.value=job?.operator||'';
+  if(machine && !machine.value) machine.value=job?.machineOperation||'';
+  if(activity && !activity.value) activity.value='Machining';
+}
+function recordQuickHours(){
+  const job=currentJob(); if(!job) return;
+  const operator=(document.getElementById('quickHoursOperator')?.value||'').trim();
+  const date=document.getElementById('quickHoursDate')?.value||today();
+  const activity=document.getElementById('quickHoursActivity')?.value||'Machining';
+  const machine=(document.getElementById('quickHoursMachine')?.value||'').trim();
+  const hours=cleanNumber(document.getElementById('quickHoursAmount')?.value, -1);
+  const notes=(document.getElementById('quickHoursNotes')?.value||'').trim();
+  if(!operator){ alert('Enter the operator before recording hours.'); return; }
+  if(!date){ alert('Select the date worked.'); return; }
+  if(hours <= 0){ alert('Enter the number of hours worked.'); return; }
+  job.timeEntries = job.timeEntries || [];
+  job.timeEntries.push(normaliseTimeEntry({
+    id:timeEntryId(), operator, date, hours:hours.toFixed(2), activity, machine, notes,
+    start:'', finish:'', breakMinutes:'', createdAt:nowIso(), updatedAt:nowIso()
+  },job,job.timeEntries.length));
+  audit(job,'Hours recorded: '+hours.toFixed(2)+' '+activity+' hour(s) by '+operator+(machine?' on '+machine:''));
+  saveLocal();
+  const amount=document.getElementById('quickHoursAmount'); if(amount) amount.value='';
+  const note=document.getElementById('quickHoursNotes'); if(note) note.value='';
+  renderTimePanel(job); renderJobList();
+  setStatus(hours.toFixed(2)+' hour(s) recorded against '+(job.jobNumber||'this job')+'.');
+}
+
+renderTimePanel = function(job){
+  const body=document.getElementById('timeBody'); if(!body) return;
+  job.timeEntries = (job.timeEntries || []).map((t,i)=>normaliseTimeEntry(t,job,i));
+  const summary=document.getElementById('hoursSummary'); if(summary) summary.innerHTML=hoursSummaryMarkup(job);
+  setQuickHoursDefaults(job);
+  body.innerHTML=(job.timeEntries||[]).map((r,i)=>'<tr>'+ 
+    '<td><input value="'+esc(r.operator)+'" onchange="setTime('+i+',\'operator\',this.value)" aria-label="Operator"></td>'+ 
+    '<td><input type="date" value="'+esc(r.date)+'" onchange="setTime('+i+',\'date\',this.value)" aria-label="Date"></td>'+ 
+    '<td><select onchange="setTime('+i+',\'activity\',this.value)" aria-label="Activity">'+activityOptions(reportActivity(r))+'</select></td>'+ 
+    '<td><input value="'+esc(r.machine)+'" placeholder="e.g. Haas VF6" onchange="setTime('+i+',\'machine\',this.value)" aria-label="Machine"></td>'+ 
+    '<td><input type="time" value="'+esc(r.start)+'" onchange="setTime('+i+',\'start\',this.value)" aria-label="Start time"></td>'+ 
+    '<td><input type="time" value="'+esc(r.finish)+'" onchange="setTime('+i+',\'finish\',this.value)" aria-label="Finish time"></td>'+ 
+    '<td><input type="number" min="0" step="1" value="'+esc(r.breakMinutes)+'" placeholder="0" onchange="setTime('+i+',\'breakMinutes\',this.value)" aria-label="Break minutes"></td>'+ 
+    '<td><input type="number" min="0" step="0.01" value="'+esc(r.hours)+'" placeholder="0.00" onchange="setTime('+i+',\'hours\',this.value)" aria-label="Net hours"></td>'+ 
+    '<td><input value="'+esc(r.notes)+'" onchange="setTime('+i+',\'notes\',this.value)" aria-label="Notes"></td>'+ 
+    '<td><button title="Delete time entry" style="background:var(--red);color:white;border:0;border-radius:6px;padding:3px 8px;cursor:pointer" onclick="delTime('+i+')">✕</button></td></tr>').join('');
+};
+
+setTime = function(i, field, value){
+  const job=currentJob(); if(!job || !job.timeEntries?.[i]) return;
+  const entry=job.timeEntries[i];
+  entry[field]=value;
+  if((field==='start'||field==='finish'||field==='breakMinutes') && entry.start && entry.finish){
+    entry.hours=calcNetHours(entry.start,entry.finish,entry.breakMinutes);
+    renderTimePanel(job);
+  }
+  entry.updatedAt=nowIso();
+  job.savedAt=nowIso(); job.lastModifiedByDevice=deviceId();
+  saveLocal();
+  const summary=document.getElementById('hoursSummary'); if(summary) summary.innerHTML=hoursSummaryMarkup(job);
+  renderJobList();
+};
+addTimeRow = function(){
+  const job=currentJob(); if(!job) return;
+  job.timeEntries=job.timeEntries||[];
+  job.timeEntries.push(normaliseTimeEntry({
+    id:timeEntryId(), operator:job.operator||'', date:today(), activity:'Machining', machine:job.machineOperation||'',
+    start:'',finish:'',breakMinutes:'',hours:'',notes:'',createdAt:nowIso(),updatedAt:nowIso()
+  },job,job.timeEntries.length));
+  audit(job,'Detailed hours entry added'); saveLocal(); renderTimePanel(job);
+};
+delTime = function(i){
+  const job=currentJob(); if(!job || !job.timeEntries?.[i]) return;
+  const entry=job.timeEntries[i];
+  if(!confirm('Delete this '+displayHours(entry.hours)+' hour time entry?')) return;
+  job.timeEntries.splice(i,1); audit(job,'Hours entry deleted'); saveLocal(); renderTimePanel(job); renderJobList();
+};
+
+function renderHoursByMachineReport(){
+  const panel=document.getElementById('panel-reports'); if(!panel || document.getElementById('machineHoursReport')) return;
+  const period=filteredReportJobs(); const map={};
+  period.forEach(job=>(job.timeEntries||[]).forEach(t=>{
+    const key=timeMachine(t,job); const x=map[key]=map[key]||{hours:0,setup:0,machining:0,inspection:0,rework:0};
+    const hours=cleanNumber(t.hours,0); const a=reportActivity(t).toLowerCase(); x.hours+=hours;
+    if(a==='setup') x.setup+=hours; else if(a==='machining') x.machining+=hours; else if(a==='inspection') x.inspection+=hours; else if(a==='rework') x.rework+=hours;
+  }));
+  const rows=Object.entries(map).sort((a,b)=>b[1].hours-a[1].hours).map(([name,x])=>'<tr><td>'+esc(name)+'</td><td>'+displayHours(x.hours)+'</td><td>'+displayHours(x.setup)+'</td><td>'+displayHours(x.machining)+'</td><td>'+displayHours(x.inspection)+'</td><td>'+displayHours(x.rework)+'</td></tr>').join('') || '<tr><td colspan="6" style="color:#888">No recorded hours for this filter.</td></tr>';
+  const card=document.createElement('div'); card.id='machineHoursReport'; card.className='card';
+  card.innerHTML='<div class="card-head">Machine / Operation Hours</div><div class="card-body" style="padding:0;overflow:auto"><table><thead><tr><th>Machine / operation</th><th>Total</th><th>Setup</th><th>Machining</th><th>Inspection</th><th>Rework</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  const jobRegister=[...panel.querySelectorAll('.card')].find(c=>(c.querySelector('.card-head')?.textContent||'').includes('Job Register'));
+  if(jobRegister) panel.insertBefore(card,jobRegister); else panel.appendChild(card);
+}
+renderReports = function(){ V3_RENDER_REPORTS_FOR_HOURS(); renderHoursByMachineReport(); };
+
+downloadTimeCSV = function(){
+  const rows=[];
+  reportExportJobs().forEach(job=>(job.timeEntries||[]).forEach(t=>{
+    if(t.operator||t.date||t.hours||t.start||t.finish) rows.push({
+      'Job No':job.jobNumber||'', Customer:job.customer||'', 'Part / Description':job.partDescription||'',
+      'Work Type':job.workType||'', 'Job Machine / Operation':job.machineOperation||'',
+      Operator:t.operator||'', Date:t.date||'', Activity:reportActivity(t), 'Time Entry Machine':timeMachine(t,job),
+      Start:t.start||'', Finish:t.finish||'', 'Break Minutes':t.breakMinutes||'', 'Net Hours':t.hours||'', Notes:t.notes||''
+    });
+  }));
+  const headers=['Job No','Customer','Part / Description','Work Type','Job Machine / Operation','Operator','Date','Activity','Time Entry Machine','Start','Finish','Break Minutes','Net Hours','Notes'];
+  triggerDownload(URL.createObjectURL(new Blob([toCSV(headers,rows)],{type:'text/csv;charset=utf-8'})),'Jenner-QMS-Time-Register-'+today()+'.csv');
+};
+
+function enhanceHoursUi(){
+  const styleId='hoursV4Style';
+  if(!document.getElementById(styleId)){
+    const style=document.createElement('style'); style.id=styleId;
+    style.textContent='\n#panel-time .card-body{overflow:auto}.hours-quick-grid{display:grid;grid-template-columns:1.15fr .8fr .9fr 1.1fr .65fr 1.6fr auto;gap:10px;align-items:end}.hours-quick-grid .field{margin-bottom:0}.hours-summary{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:9px;margin-bottom:14px}.hours-summary>div{background:#fff;border:1px solid var(--line);border-left:5px solid var(--gold);border-radius:8px;padding:9px}.hours-summary span{display:block;font-size:10px;text-transform:uppercase;font-weight:800;color:var(--muted)}.hours-summary strong{display:block;font-size:20px;margin-top:3px;color:var(--black)}#timeBody input,#timeBody select{width:100%;min-width:86px;border:1px solid #ddd;border-radius:5px;font:inherit;font-size:12px;padding:5px}#timeBody td{min-width:86px}.hours-guide{font-size:12px;color:#666;margin-top:10px}@media(max-width:1150px){.hours-quick-grid{grid-template-columns:1fr 1fr 1fr}.hours-summary{grid-template-columns:1fr 1fr}}@media(max-width:600px){.hours-quick-grid,.hours-summary{grid-template-columns:1fr}}';
+    document.head.appendChild(style);
+  }
+  const nav=[...document.querySelectorAll('#topActions button')].find(b=>b.getAttribute('onclick')==="showPanel('time')");
+  if(nav) nav.textContent='⏱ Hours on Job';
+  const panel=document.getElementById('panel-time'); if(!panel) return;
+  const notice=panel.querySelector('.notice'); if(notice) notice.innerHTML='Record all labour hours against this job. Use <strong>Quick Record</strong> for simple hour entries, or use the detailed table for start/finish and unpaid breaks. These hours feed straight into the Job Register, operator report, machine report and time CSV.';
+  if(!document.getElementById('hoursQuickCard')){
+    const card=document.createElement('div'); card.id='hoursQuickCard'; card.className='card';
+    card.innerHTML='<div class="card-head">Hours on Job — Quick Record</div><div class="card-body"><div id="hoursSummary"></div><div class="hours-quick-grid">'+
+      '<div class="field"><label>Operator</label><input id="quickHoursOperator" placeholder="Who did the work?"></div>'+ 
+      '<div class="field"><label>Date</label><input id="quickHoursDate" type="date"></div>'+ 
+      '<div class="field"><label>Activity</label><select id="quickHoursActivity">'+activityOptions('Machining')+'</select></div>'+ 
+      '<div class="field"><label>Machine / Operation</label><input id="quickHoursMachine" placeholder="Optional"></div>'+ 
+      '<div class="field"><label>Hours</label><input id="quickHoursAmount" type="number" min="0" step="0.01" placeholder="0.00"></div>'+ 
+      '<div class="field"><label>Note (optional)</label><input id="quickHoursNotes" placeholder="e.g. CNC turn shaft"></div>'+ 
+      '<button class="btn-green" onclick="recordQuickHours()">+ Record Hours</button></div>'+ 
+      '<div class="hours-guide">For an uninterrupted job, simply enter the person, activity and total hours. Use the detailed entries below where you need a start time, finish time and break deduction.</div></div>';
+    const anchor=panel.querySelector('.card'); if(anchor) panel.insertBefore(card,anchor); else panel.appendChild(card);
+  }
+  const head=panel.querySelector('thead tr'); if(head) head.innerHTML='<th>Operator</th><th>Date</th><th>Activity</th><th>Machine</th><th>Start</th><th>Finish</th><th>Break min</th><th>Net hours</th><th>Notes</th><th style="width:36px"></th>';
+  const title=[...panel.querySelectorAll('.card-head')].find(h=>h.textContent.includes('Time on Job')); if(title) title.innerHTML='Detailed Hours <button class="btn-white" style="font-size:11px;padding:5px 9px" onclick="addTimeRow()">+ Detailed Entry</button>';
+}
+
+
+
+// ============================================================
+// V5 DOWNLOADABLE WORKPACK HOURS — EDITABLE AND RE-IMPORTABLE
+// ============================================================
+function workpackActivitySelect(selected){
+  const values=['Setup','Machining','Inspection','Rework','Packing / dispatch','Other'];
+  return values.map(v=>'<option value="'+esc(v)+'" '+(String(selected||'Machining')===v?'selected':'')+'>'+esc(v)+'</option>').join('');
+}
+function workpackInput(value, type, field, extra){
+  return '<input data-field="'+esc(field)+'" type="'+esc(type||'text')+'" value="'+esc(value||'')+'" '+(extra||'')+'>';
+}
+function workpackTimeRowMarkup(entry){
+  const t=entry||{};
+  return '<tr>'+
+    '<td>'+workpackInput(t.date,'date','date')+'</td>'+
+    '<td>'+workpackInput(t.operator,'text','operator')+'</td>'+
+    '<td><select data-field="activity">'+workpackActivitySelect(t.activity||t.stage||'Machining')+'</select></td>'+
+    '<td>'+workpackInput(t.machine,'text','machine','placeholder="Machine / operation"')+'</td>'+
+    '<td>'+workpackInput(t.start,'time','start')+'</td>'+
+    '<td>'+workpackInput(t.finish,'time','finish')+'</td>'+
+    '<td>'+workpackInput(t.breakMinutes,'number','breakMinutes','min="0" step="1" placeholder="0"')+'</td>'+
+    '<td>'+workpackInput(t.hours,'number','hours','min="0" step="0.01" placeholder="0.00"')+'</td>'+
+    '<td>'+workpackInput(t.notes,'text','notes','placeholder="What was done?"')+'</td>'+
+    '<td class="screen-only"><button type="button" class="remove-row" onclick="removeWorkpackHourRow(this)">✕</button></td>'+
+  '</tr>';
+}
+function workpackDataFor(j){
+  return {format:'jenner-workpack',version:2,exportedAt:nowIso(),job:{
+    jobNumber:j.jobNumber||'',customer:j.customer||'',customerReference:j.customerReference||j.coc?.reference||'',
+    partDescription:j.partDescription||'',drawingRev:j.drawingRev||'',material:j.material||'',machineOperation:j.machineOperation||'',
+    workType:j.workType||'',operator:j.operator||'',qtyOrdered:j.qtyOrdered||'',requiredDelivery:j.requiredDelivery||'',notes:j.notes||'',
+    timeEntries:(j.timeEntries||[]).map((t,i)=>normaliseTimeEntry(t,j,i))
+  }};
+}
+function downloadableWorkpackScript(){
+  return '<script>(function(){'+
+    'function h(v){return String(v==null?"":v).replace(/[&<>"\\\']/g,function(c){return ({"&":"&amp;","<":"&lt;",">":"&gt;","\\\"":"&quot;","\\\'":"&#39;"})[c];});}'+
+    'function activities(selected){var a=["Setup","Machining","Inspection","Rework","Packing / dispatch","Other"];return a.map(function(v){return "<option value=\\\""+h(v)+"\\\" "+(String(selected||"Machining")==v?"selected":"")+">"+h(v)+"</option>";}).join("");}'+
+    'function input(v,type,field,extra){return "<input data-field=\\\""+h(field)+"\\\" type=\\\""+h(type||"text")+"\\\" value=\\\""+h(v||"")+"\\\" "+(extra||"")+">";}'+
+    'function row(e){e=e||{};return "<tr><td>"+input(e.date,"date","date")+"</td><td>"+input(e.operator,"text","operator")+"</td><td><select data-field=\\\"activity\\\">"+activities(e.activity||e.stage||"Machining")+"</select></td><td>"+input(e.machine,"text","machine","placeholder=\\\"Machine / operation\\\"")+"</td><td>"+input(e.start,"time","start")+"</td><td>"+input(e.finish,"time","finish")+"</td><td>"+input(e.breakMinutes,"number","breakMinutes","min=\\\"0\\\" step=\\\"1\\\" placeholder=\\\"0\\\"")+"</td><td>"+input(e.hours,"number","hours","min=\\\"0\\\" step=\\\"0.01\\\" placeholder=\\\"0.00\\\"")+"</td><td>"+input(e.notes,"text","notes","placeholder=\\\"What was done?\\\"")+"</td><td class=\\\"screen-only\\\"><button type=\\\"button\\\" class=\\\"remove-row\\\" onclick=\\\"removeWorkpackHourRow(this)\\\">✕</button></td></tr>";}'+
+    'function net(tr){var s=tr.querySelector("[data-field=start]").value,f=tr.querySelector("[data-field=finish]").value,b=parseFloat(tr.querySelector("[data-field=breakMinutes]").value||0);if(!s||!f)return;var sp=s.split(":"),fp=f.split(":"),m=(+fp[0]*60 + +fp[1])-(+sp[0]*60 + +sp[1]);if(m<0)m+=1440;tr.querySelector("[data-field=hours]").value=Math.max(0,m/60-b/60).toFixed(2);}'+
+    'window.addWorkpackHourRow=function(){document.querySelector("#workpackHoursBody").insertAdjacentHTML("beforeend",row({}));};'+
+    'window.removeWorkpackHourRow=function(btn){var tr=btn.closest("tr");if(tr)tr.remove();};'+
+    'document.addEventListener("change",function(e){if(e.target.matches("[data-field=start],[data-field=finish],[data-field=breakMinutes]")){var tr=e.target.closest("tr");if(tr)net(tr);}});'+
+    'function collect(){return Array.prototype.slice.call(document.querySelectorAll("#workpackHoursBody tr")).map(function(tr){var e={};tr.querySelectorAll("[data-field]").forEach(function(x){e[x.getAttribute("data-field")]=x.value||"";});return e;}).filter(function(e){return e.operator||e.date||e.hours||e.start||e.finish||e.notes;});}'+
+    'window.downloadCompletedWorkpack=function(){var node=document.getElementById("jenner-workpack-data"),payload={};try{payload=JSON.parse(node.textContent||"{}");}catch(e){}payload.format="jenner-workpack";payload.version=2;payload.exportedAt=new Date().toISOString();payload.job=payload.job||{};payload.job.timeEntries=collect();node.textContent=JSON.stringify(payload).replace(/</g,"\\\\u003c");document.querySelectorAll("input,textarea,select").forEach(function(el){if(el.tagName==="SELECT"){Array.prototype.forEach.call(el.options,function(o){if(o.selected)o.setAttribute("selected","selected");else o.removeAttribute("selected");});}else if(el.type==="checkbox"){if(el.checked)el.setAttribute("checked","checked");else el.removeAttribute("checked");}else{el.setAttribute("value",el.value);}});var no=(payload.job.jobNumber||"Draft").replace(/[^A-Za-z0-9._-]+/g,"-");var blob=new Blob(["<!doctype html>\\n"+document.documentElement.outerHTML],{type:"text/html;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Jenner-Workpack-"+no+"-Completed.html";a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},1000);};'+
+  '})();<\/script>';
+}
+function downloadWorkpack(){
+  const j=currentJob(); if(!j){ alert('Select or create a job first.'); return; }
+  const data=workpackDataFor(j);
+  const stages=STAGES.map(s=>'<tr><td>'+esc(s)+'</td><td>☐ PASS</td><td>☐ FAIL</td><td></td></tr>').join('');
+  const existing=(data.job.timeEntries||[]).filter(t=>t.operator||t.date||t.hours||t.start||t.finish||t.notes);
+  const rowCount=Math.max(8, existing.length+3);
+  const blankRows=Array.from({length:Math.max(0,rowCount-existing.length)},()=>workpackTimeRowMarkup({})).join('');
+  const rows=existing.map(workpackTimeRowMarkup).join('')+blankRows;
+  const html='<!doctype html><html><head><meta charset="utf-8"><title>Workpack '+esc(j.jobNumber||'Draft')+'</title><style>'+ 
+    'body{font-family:Arial;margin:24px;color:#171717}.head{background:#171717;color:white;padding:18px;border-left:8px solid #d8a318}.gold{color:#d8a318}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}.box{border:1px solid #aaa;padding:10px;min-height:42px}.label{font-size:10px;font-weight:bold;color:#666;text-transform:uppercase}table{border-collapse:collapse;width:100%;margin:18px 0;font-size:12px}th,td{border:1px solid #999;padding:7px;text-align:left;vertical-align:top}th{background:#171717;color:#d8a318}input,select{width:100%;min-width:58px;border:1px solid #bbb;padding:5px;font:inherit;box-sizing:border-box}.controls{display:flex;gap:8px;align-items:center;margin:10px 0 14px}.controls button{border:0;border-radius:6px;padding:9px 12px;font-weight:bold;cursor:pointer;background:#171717;color:#fff}.controls .gold-btn{background:#d8a318;color:#171717}.remove-row{background:#b42318!important;color:#fff!important;padding:3px 7px!important}.small{font-size:11px;color:#555}.screen-only{display:table-cell}@media print{body{margin:10mm}.screen-only,.controls{display:none!important}input,select{border:0;padding:0;background:transparent;appearance:none;-webkit-appearance:none}table{font-size:10px}}</style></head><body>'+ 
+    '<div class="head"><strong>Jenner Engineering Pty Ltd</strong><br><span class="gold">WORKSHOP WORKPACK</span></div>'+ 
+    '<div class="grid"><div class="box"><div class="label">Job number</div>'+safeHtml(j.jobNumber)+'</div><div class="box"><div class="label">Customer / PO</div>'+safeHtml(j.customer)+'<br>'+safeHtml(j.customerReference)+'</div><div class="box"><div class="label">Part / drawing</div>'+safeHtml(j.partDescription)+'<br>'+safeHtml(j.drawingRev)+'</div><div class="box"><div class="label">Material / quantity</div>'+safeHtml(j.material)+'<br>Qty: '+safeHtml(j.qtyOrdered)+'</div><div class="box"><div class="label">Machine / operator</div>'+safeHtml(j.machineOperation)+'<br>'+safeHtml(j.operator)+'</div><div class="box"><div class="label">Required delivery</div>'+safeHtml(j.requiredDelivery)+'</div></div>'+ 
+    '<div class="box"><div class="label">Notes / special requirements</div>'+safeHtml(j.notes)+'</div>'+ 
+    '<h3>Inspection checklist</h3><table><thead><tr><th>Stage</th><th>Pass</th><th>Fail</th><th>Comments / measurements</th></tr></thead><tbody>'+stages+'</tbody></table>'+ 
+    '<h3>Hours on Job / Time Record</h3><p class="small">Complete this table electronically or by hand. For a digital workpack, click <strong>Download completed workpack</strong> before returning it to the office. When it is dragged back into the QMS, the time records are brought into the live job and reporting.</p>'+ 
+    '<div class="controls screen-only"><button type="button" class="gold-btn" onclick="addWorkpackHourRow()">+ Add hours row</button><button type="button" onclick="downloadCompletedWorkpack()">⬇ Download completed workpack</button></div>'+ 
+    '<table id="hoursTable"><thead><tr><th>Date</th><th>Operator</th><th>Activity</th><th>Machine / operation</th><th>Start</th><th>Finish</th><th>Break min</th><th>Net hours</th><th>Notes</th><th class="screen-only"></th></tr></thead><tbody id="workpackHoursBody">'+rows+'</tbody></table>'+ 
+    '<p><strong>Workshop instruction:</strong> Final PASS/FAIL and NCR outcomes must still be confirmed in the Jenner QMS before release. This workpack can now carry job hours back into the live QMS when completed digitally and re-imported.</p>'+ 
+    '<script id="jenner-workpack-data" type="application/json">'+JSON.stringify(data).replace(/<\//g,'<\\/')+'<\/script>'+downloadableWorkpackScript()+'</body></html>';
+  triggerDownload(URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'})),'Jenner-Workpack-'+String(j.jobNumber||'Draft').replace(/[^A-Za-z0-9._-]+/g,'-')+'.html');
+  audit(j,'Workpack downloaded with editable hours table'); saveLocal(); setStatus('Workpack downloaded with editable Hours on Job table.');
+}
+function workpackTimeKey(t){
+  return [t.date||'',t.operator||'',t.activity||t.stage||'',t.machine||'',t.start||'',t.finish||'',t.breakMinutes||'',t.hours||'',t.notes||''].join('\u241f');
+}
+function mergeWorkpackTimeEntries(job, entries, replace){
+  const incoming=(Array.isArray(entries)?entries:[]).map((x,i)=>normaliseTimeEntry(x,job,i)).filter(t=>t.operator||t.date||t.hours||t.start||t.finish||t.notes);
+  if(!incoming.length) return 0;
+  if(replace){ job.timeEntries=incoming; return incoming.length; }
+  job.timeEntries=job.timeEntries||[];
+  const keys=new Set(job.timeEntries.map(workpackTimeKey));
+  const additions=incoming.filter(t=>{const key=workpackTimeKey(t);if(keys.has(key))return false;keys.add(key);return true;});
+  job.timeEntries.push(...additions);
+  return additions.length;
+}
+applyWorkpackData = function(j,data,fillBlanks){
+  const fields=['jobNumber','customer','customerReference','partDescription','drawingRev','material','machineOperation','workType','operator','qtyOrdered','requiredDelivery','notes'];
+  fields.forEach(f=>{ if(data[f]!==undefined && (!fillBlanks || isBlank(j[f]))) j[f]=String(data[f]??''); });
+  j.coc=j.coc||{}; j.coc.reference=j.customerReference||j.coc.reference||'';
+  const added=mergeWorkpackTimeEntries(j,data.timeEntries,!fillBlanks);
+  j.workpackImportedTimeCount=added;
+  return added;
+};
+importWorkpackFile = async function(file){
+  try{
+    const text=await file.text(); const data=parseWorkpackText(file.name,text);
+    if(!data || !(data.jobNumber||data.customer||data.partDescription)){
+      alert('No reliable job details were found. Use a Jenner digital workpack (.html or .json), or enter the job manually. PDFs and scans are not guessed.'); return;
+    }
+    const fillCurrent=!!document.getElementById('workpackFillCurrent')?.checked;
+    let j=currentJob(); let hoursImported=0;
+    if(!fillCurrent || !j){
+      j=defaultJob(uid()); jobs[j.id]=j; currentJobId=j.id;
+      hoursImported=applyWorkpackData(j,data,false); audit(j,'Job created from workpack: '+file.name+(hoursImported?' — '+hoursImported+' hour record(s) imported':''));
+      setStatus('New job created from '+file.name+(hoursImported?' with '+hoursImported+' hour record(s).':'.'));
+    }else{
+      hoursImported=applyWorkpackData(j,data,true); audit(j,'Blank fields filled from workpack: '+file.name+(hoursImported?' — '+hoursImported+' new hour record(s) imported':''));
+      setStatus('Blank fields filled from '+file.name+(hoursImported?' and '+hoursImported+' hour record(s) imported.':'.'));
+    }
+    j.workpackSource={fileName:file.name,importedAt:nowIso()};
+    saveLocal(); renderAll(); showPanel(hoursImported?'time':'job');
+  }catch(e){ console.error(e); alert(e.message||'Could not read this workpack.'); }
+};
+renderWorkpackPanel = function(){
+  const panel=document.getElementById('panel-workpack'); if(!panel) return;
+  panel.innerHTML='<div class="card"><div class="card-head">Workpack Import & Download</div><div class="card-body"><div class="notice notice-gold">Use a Jenner digital workpack (<strong>.html</strong> or <strong>.json</strong>) for accurate auto-fill. The downloadable workpack includes an editable <strong>Hours on Job</strong> table. Once completed, download the completed workpack and drag it back here to bring those hour records into the live job.</div><div id="workpackDropZone" class="drop-zone" onclick="openWorkpackImport()"><strong>Drop a completed Jenner workpack here</strong><br><span>or click to browse for .html, .json, .csv or .txt</span></div><label class="checkline"><input id="workpackFillCurrent" type="checkbox"> Fill blank fields into the selected job instead of creating a new job. Any new time records in the workpack will be added without duplicating existing ones.</label><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="btn-gold" onclick="openWorkpackImport()">Import Completed Workpack</button><button class="btn-green" onclick="downloadWorkpack()" '+(currentJob()?'':'disabled')+'>Download Workpack</button></div><p class="small">Printed workpacks are still useful as a job reference or handwritten record. For automatic reporting, type the hours into the digital workpack, download the completed copy, then drag it back into the QMS.</p></div></div>';
+  const zone=document.getElementById('workpackDropZone'); if(zone){
+    ['dragenter','dragover'].forEach(ev=>zone.addEventListener(ev,e=>{e.preventDefault();zone.classList.add('drag');}));
+    ['dragleave','drop'].forEach(ev=>zone.addEventListener(ev,e=>{e.preventDefault();zone.classList.remove('drag');}));
+    zone.addEventListener('drop',ev=>{const f=ev.dataTransfer?.files?.[0]; if(f)importWorkpackFile(f);});
+  }
+};
+
+init = function(){ V3_INIT_FOR_HOURS(); enhanceHoursUi(); };
+
 init();
 </script>
 </body>
