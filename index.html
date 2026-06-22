@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Jenner Engineering — Simplified QMS</title>
+<title>Jenner Engineering - Workshop QMS</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
@@ -2358,7 +2358,7 @@ function downloadableWorkpackScript(){
     'document.addEventListener("change",function(e){if(e.target.matches("[data-field=start],[data-field=finish],[data-field=breakMinutes]")){var tr=e.target.closest("tr");if(tr)net(tr);}});'+
     'function collect(){return Array.prototype.slice.call(document.querySelectorAll("#workpackHoursBody tr")).map(function(tr){var e={};tr.querySelectorAll("[data-field]").forEach(function(x){e[x.getAttribute("data-field")]=x.value||"";});return e;}).filter(function(e){return e.operator||e.date||e.hours||e.start||e.finish||e.notes;});}'+
     'window.downloadCompletedWorkpack=function(){var node=document.getElementById("jenner-workpack-data"),payload={};try{payload=JSON.parse(node.textContent||"{}");}catch(e){}payload.format="jenner-workpack";payload.version=2;payload.exportedAt=new Date().toISOString();payload.job=payload.job||{};payload.job.timeEntries=collect();node.textContent=JSON.stringify(payload).replace(/</g,"\\\\u003c");document.querySelectorAll("input,textarea,select").forEach(function(el){if(el.tagName==="SELECT"){Array.prototype.forEach.call(el.options,function(o){if(o.selected)o.setAttribute("selected","selected");else o.removeAttribute("selected");});}else if(el.type==="checkbox"){if(el.checked)el.setAttribute("checked","checked");else el.removeAttribute("checked");}else{el.setAttribute("value",el.value);}});var no=(payload.job.jobNumber||"Draft").replace(/[^A-Za-z0-9._-]+/g,"-");var blob=new Blob(["<!doctype html>\\n"+document.documentElement.outerHTML],{type:"text/html;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Jenner-Workpack-"+no+"-Completed.html";a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},1000);};'+
-  '})();<\/script>';
+  '})();<\\/script>';
 }
 function downloadWorkpack(){
   const j=currentJob(); if(!j){ alert('Select or create a job first.'); return; }
@@ -2434,6 +2434,221 @@ renderWorkpackPanel = function(){
 };
 
 init = function(){ V3_INIT_FOR_HOURS(); enhanceHoursUi(); };
+
+
+// ============================================================
+// V6 - BRANDED PDF WORKPACK
+// Default workpack download is a branded, printable PDF.
+// The existing editable HTML workpack remains available for digital return/import.
+// ============================================================
+const V5_DOWNLOAD_DIGITAL_WORKPACK = downloadWorkpack;
+const V5_RENDER_WORKPACK_PANEL = renderWorkpackPanel;
+const V5_INIT_FOR_PDF_WORKPACK = init;
+
+function wpPdfText(value){
+  return String(value === undefined || value === null ? '' : value).replace(/\s+/g,' ').trim();
+}
+function wpPdfFileSafe(value){
+  return wpPdfText(value || 'Draft').replace(/[^A-Za-z0-9._-]+/g,'-').replace(/^-+|-+$/g,'') || 'Draft';
+}
+function wpPdfTextLines(doc, value, width, maxLines){
+  const text = wpPdfText(value) || '-';
+  let lines = doc.splitTextToSize(text, Math.max(8, width));
+  if(maxLines && lines.length > maxLines){
+    lines = lines.slice(0, maxLines);
+    const last = String(lines[lines.length-1] || '');
+    lines[lines.length-1] = last.length > 2 ? last.slice(0, Math.max(1,last.length-2)) + '...' : '...';
+  }
+  return lines;
+}
+function wpPdfHeader(doc, job, pageNo){
+  const PW=210;
+  doc.setFillColor(23,23,23); doc.rect(0,0,PW,24,'F');
+  doc.setFillColor(216,163,24); doc.rect(0,0,5,24,'F');
+  try{ doc.addImage(JENNER_LOGO,'PNG',8,3,29,15); }catch(e){}
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(12);
+  doc.text('Jenner Engineering Pty Ltd',43,9);
+  doc.setTextColor(216,163,24); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+  doc.text('WORKSHOP WORKPACK',43,15);
+  doc.setTextColor(220,220,220); doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+  doc.text('13 David Muir Street, Slade Point QLD 4740',196,8,{align:'right'});
+  doc.text('Job: '+wpPdfText(job.jobNumber || 'DRAFT'),196,13,{align:'right'});
+  doc.text('Page '+pageNo,196,18,{align:'right'});
+  doc.setFillColor(216,163,24); doc.rect(0,24,PW,1.2,'F');
+  doc.setTextColor(23,23,23);
+}
+function wpPdfFooter(doc, job, pageNo){
+  doc.setDrawColor(216,163,24); doc.setLineWidth(0.3); doc.line(14,283,196,283);
+  doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(100,100,100);
+  doc.text('Jenner Engineering Pty Ltd - controlled workshop workpack',14,288);
+  doc.text('Job '+wpPdfText(job.jobNumber||'DRAFT')+' | Page '+pageNo,196,288,{align:'right'});
+  doc.setTextColor(23,23,23);
+}
+function wpPdfHeading(doc, text, x, y){
+  doc.setFillColor(23,23,23); doc.rect(x,y,182,7,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(216,163,24);
+  doc.text(String(text || '').toUpperCase(),x+3,y+4.8);
+  doc.setTextColor(23,23,23);
+}
+function wpPdfBox(doc, label, value, x, y, w, h){
+  doc.setDrawColor(190,190,190); doc.setLineWidth(0.25); doc.setFillColor(252,252,252); doc.rect(x,y,w,h,'FD');
+  doc.setFillColor(216,163,24); doc.rect(x,y,w,1.15,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(5.8); doc.setTextColor(120,90,0);
+  doc.text(String(label || '').toUpperCase(),x+3,y+5.7);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.2); doc.setTextColor(23,23,23);
+  const maxLines=Math.max(1,Math.floor((h-9)/3.8));
+  const lines=wpPdfTextLines(doc,value,w-6,maxLines);
+  doc.text(lines,x+3,y+10.5,{lineHeightFactor:1.1});
+}
+function wpPdfCellText(doc, value, x, y, w, h, maxLines){
+  doc.setFont('helvetica','normal'); doc.setFontSize(6.7); doc.setTextColor(23,23,23);
+  const lines=wpPdfTextLines(doc,value,w-3,maxLines || 3);
+  doc.text(lines,x+1.5,y+4,{lineHeightFactor:1.1});
+}
+function wpPdfInspectionTable(doc, job, y){
+  const x=14, widths=[83,15,15,69], headerH=8, rowH=12;
+  const headers=['Inspection stage','PASS','FAIL','Comments / measurements'];
+  let cx=x;
+  doc.setFillColor(23,23,23); doc.rect(x,y,182,headerH,'F');
+  headers.forEach((h,i)=>{
+    doc.setDrawColor(190,190,190); doc.rect(cx,y,widths[i],headerH);
+    doc.setFont('helvetica','bold'); doc.setFontSize(6.3); doc.setTextColor(216,163,24);
+    doc.text(h,cx+2,y+5.1);
+    cx+=widths[i];
+  });
+  doc.setTextColor(23,23,23);
+  const stages=Array.isArray(job.stages)&&job.stages.length ? job.stages.map(s=>s.name||'') : STAGES;
+  stages.slice(0,6).forEach((stage,row)=>{
+    const ry=y+headerH+row*rowH; cx=x;
+    widths.forEach((w,col)=>{doc.setDrawColor(190,190,190); doc.rect(cx,ry,w,rowH); if(col===0) wpPdfCellText(doc,stage,cx,ry,w,rowH,2); cx+=w;});
+    const passX=x+widths[0]+(widths[1]-4)/2; const failX=x+widths[0]+widths[1]+(widths[2]-4)/2;
+    doc.setDrawColor(80,80,80); doc.rect(passX,ry+4,4,4); doc.rect(failX,ry+4,4,4);
+  });
+  return y+headerH+Math.min(stages.length,6)*rowH;
+}
+function wpPdfHoursTable(doc, job, y){
+  const x=14, widths=[16,25,23,30,14,14,12,16,32], headerH=10, rowH=17;
+  const headers=['Date','Operator','Activity','Machine / operation','Start','Finish','Break min','Net hrs','Notes'];
+  let cx=x;
+  doc.setFillColor(23,23,23); doc.rect(x,y,182,headerH,'F');
+  headers.forEach((h,i)=>{
+    doc.setDrawColor(190,190,190); doc.rect(cx,y,widths[i],headerH);
+    doc.setFont('helvetica','bold'); doc.setFontSize(5.8); doc.setTextColor(216,163,24);
+    const lines=doc.splitTextToSize(h,widths[i]-2);
+    doc.text(lines,cx+1.2,y+3.8,{lineHeightFactor:1.0});
+    cx+=widths[i];
+  });
+  doc.setTextColor(23,23,23);
+  const entries=(Array.isArray(job.timeEntries)?job.timeEntries:[]).slice(0,12);
+  for(let row=0;row<12;row++){
+    const t=entries[row]||{}; const ry=y+headerH+row*rowH; cx=x;
+    const values=[t.date||'',t.operator||'',t.activity||t.stage||'',t.machine||'',t.start||'',t.finish||'',t.breakMinutes||'',t.hours||'',t.notes||''];
+    widths.forEach((w,col)=>{
+      doc.setDrawColor(190,190,190); doc.rect(cx,ry,w,rowH);
+      if(values[col]) wpPdfCellText(doc,values[col],cx,ry,w,rowH,col===8?3:2);
+      cx+=w;
+    });
+  }
+  return y+headerH+12*rowH;
+}
+function wpPdfExistingHours(job){
+  return (Array.isArray(job.timeEntries)?job.timeEntries:[]).reduce((sum,row)=>sum+(Number(row.hours)||0),0);
+}
+function downloadWorkpackPdfFallback(job){
+  const stages=(Array.isArray(job.stages)&&job.stages.length?job.stages.map(s=>s.name||''):STAGES).map(s=>'<tr><td>'+safeHtml(s)+'</td><td>□</td><td>□</td><td></td></tr>').join('');
+  const rows=Array.from({length:12},()=>'<tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join('');
+  const html='<!doctype html><html><head><meta charset="utf-8"><title>Jenner Workpack '+esc(job.jobNumber||'Draft')+'</title><style>body{font-family:Arial;margin:10mm;color:#171717}.head{background:#171717;color:#fff;padding:15px;border-left:8px solid #d8a318}.gold{color:#d8a318}.grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:10px 0}.box{border:1px solid #aaa;padding:8px;min-height:35px}.label{font-size:9px;font-weight:bold;color:#755500;text-transform:uppercase;border-top:3px solid #d8a318;padding-top:4px}h3{background:#171717;color:#d8a318;padding:6px;font-size:12px;margin:12px 0 0}table{border-collapse:collapse;width:100%;font-size:10px}th,td{border:1px solid #999;padding:7px;vertical-align:top}th{background:#171717;color:#d8a318}.hours td{height:28px}.note{font-size:10px;margin-top:8px}@media print{body{margin:10mm}}</style></head><body><div class="head"><strong>Jenner Engineering Pty Ltd</strong><br><span class="gold">WORKSHOP WORKPACK</span></div><div class="grid"><div class="box"><div class="label">Job number</div>'+safeHtml(job.jobNumber)+'</div><div class="box"><div class="label">Work type</div>'+safeHtml(job.workType)+'</div><div class="box"><div class="label">Customer</div>'+safeHtml(job.customer)+'</div><div class="box"><div class="label">Customer PO / reference</div>'+safeHtml(job.customerReference)+'</div><div class="box"><div class="label">Part / drawing</div>'+safeHtml(job.partDescription)+'<br>'+safeHtml(job.drawingRev)+'</div><div class="box"><div class="label">Material / quantity</div>'+safeHtml(job.material)+'<br>Qty: '+safeHtml(job.qtyOrdered)+'</div><div class="box"><div class="label">Machine / operator</div>'+safeHtml(job.machineOperation)+'<br>'+safeHtml(job.operator)+'</div><div class="box"><div class="label">Required delivery</div>'+safeHtml(job.requiredDelivery)+'</div></div><div class="box"><div class="label">Notes / special requirements</div>'+safeHtml(job.notes)+'</div><h3>Inspection checklist</h3><table><thead><tr><th>Inspection stage</th><th>PASS</th><th>FAIL</th><th>Comments / measurements</th></tr></thead><tbody>'+stages+'</tbody></table><h3>Hours on Job / Time Record</h3><table class="hours"><thead><tr><th>Date</th><th>Operator</th><th>Activity</th><th>Machine / operation</th><th>Start</th><th>Finish</th><th>Break min</th><th>Net hrs</th><th>Notes</th></tr></thead><tbody>'+rows+'</tbody></table><p class="note"><strong>PDF generator unavailable.</strong> This is a branded printable workpack. Open it and use Print - Save as PDF. Enter the completed hours in the Jenner QMS before release.</p></body></html>';
+  triggerDownload(URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'})),'Jenner-Workpack-'+wpPdfFileSafe(job.jobNumber)+'-Printable.html');
+  setStatus('PDF library unavailable. Downloaded a branded printable workpack - open it and use Print - Save as PDF.');
+}
+function downloadWorkpackPDF(){
+  const job=currentJob(); if(!job){ alert('Select or create a job first.'); return; }
+  if(!window.jspdf || !window.jspdf.jsPDF){ downloadWorkpackPdfFallback(job); return; }
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  try{doc.setProperties({title:'Jenner Workshop Workpack - '+wpPdfText(job.jobNumber||'Draft'),author:'Jenner Engineering Pty Ltd',subject:'Workshop workpack'});}catch(e){}
+
+  // Page 1 - job information and simple inspection record.
+  wpPdfHeader(doc,job,1);
+  let y=31;
+  wpPdfHeading(doc,'Job information',14,y); y+=10;
+  wpPdfBox(doc,'Job number',job.jobNumber,14,y,89,17);
+  wpPdfBox(doc,'Work type',job.workType,107,y,89,17); y+=20;
+  wpPdfBox(doc,'Customer',job.customer,14,y,89,17);
+  wpPdfBox(doc,'Customer PO / reference',job.customerReference||job.coc?.reference||'',107,y,89,17); y+=20;
+  wpPdfBox(doc,'Part / item description',job.partDescription,14,y,182,19); y+=22;
+  wpPdfBox(doc,'Drawing / revision',job.drawingRev,14,y,89,17);
+  wpPdfBox(doc,'Material',job.material,107,y,89,17); y+=20;
+  wpPdfBox(doc,'Quantity ordered',job.qtyOrdered,14,y,89,17);
+  wpPdfBox(doc,'Required delivery',job.requiredDelivery,107,y,89,17); y+=20;
+  wpPdfBox(doc,'Machine / operation',job.machineOperation,14,y,89,17);
+  wpPdfBox(doc,'Operator(s)',job.operator,107,y,89,17); y+=20;
+  wpPdfBox(doc,'Notes / special requirements',job.notes,14,y,182,20); y+=28;
+  wpPdfHeading(doc,'Inspection checklist',14,y); y+=9;
+  wpPdfInspectionTable(doc,job,y);
+  wpPdfFooter(doc,job,1);
+
+  // Page 2 - full, handwriting-friendly hours record.
+  doc.addPage();
+  wpPdfHeader(doc,job,2);
+  y=31;
+  wpPdfHeading(doc,'Hours on job / time record',14,y); y+=10;
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.2); doc.setTextColor(80,80,80);
+  doc.text('Record all workshop time against this job. Use one line per person, activity or machine. Net hours exclude unpaid breaks.',14,y);
+  doc.setTextColor(23,23,23); y+=5;
+  const endY=wpPdfHoursTable(doc,job,y);
+  doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.text('Total hours recorded on this workpack: ____________________',14,endY+9);
+  doc.setFont('helvetica','normal'); doc.setFontSize(6.8); doc.setTextColor(90,90,90);
+  const existing=wpPdfExistingHours(job);
+  doc.text('Hours already recorded in the QMS at print time: '+existing.toFixed(2),14,endY+15);
+  doc.text('Office: enter these hours in the Jenner QMS before job release. This PDF is the workshop record and is not auto-imported.',14,endY+21);
+  doc.setTextColor(23,23,23);
+  wpPdfFooter(doc,job,2);
+
+  const filename='Jenner-Workpack-'+wpPdfFileSafe(job.jobNumber)+'.pdf';
+  doc.save(filename);
+  audit(job,'Branded PDF workpack downloaded'); saveLocal();
+  setStatus('Branded PDF workpack downloaded.');
+}
+function downloadDigitalWorkpack(){
+  return V5_DOWNLOAD_DIGITAL_WORKPACK();
+}
+function updatePdfWorkpackButtons(){
+  const actionBar=document.getElementById('topActions');
+  if(actionBar){
+    const pdfButton=Array.from(actionBar.querySelectorAll('button')).find(btn=>/Download\s+Workpack|PDF\s+Workpack/i.test(btn.textContent||''));
+    if(pdfButton){
+      pdfButton.id='btnPdfWorkpack';
+      pdfButton.textContent='⬇ PDF Workpack';
+      pdfButton.onclick=downloadWorkpackPDF;
+      if(!document.getElementById('btnDigitalWorkpack')){
+        const digital=document.createElement('button');
+        digital.id='btnDigitalWorkpack'; digital.className='btn-white'; digital.type='button';
+        digital.textContent='⬇ Digital Workpack'; digital.onclick=downloadDigitalWorkpack;
+        pdfButton.insertAdjacentElement('afterend',digital);
+      }
+    }
+  }
+}
+renderWorkpackPanel = function(){
+  V5_RENDER_WORKPACK_PANEL();
+  const panel=document.getElementById('panel-workpack'); if(!panel) return;
+  const pdfButton=Array.from(panel.querySelectorAll('button')).find(btn=>/Download\s+Workpack/i.test(btn.textContent||''));
+  if(pdfButton){
+    pdfButton.textContent='Download PDF Workpack';
+    pdfButton.onclick=downloadWorkpackPDF;
+    const digital=document.createElement('button');
+    digital.className='btn-white'; digital.type='button'; digital.textContent='Download Digital Workpack';
+    digital.onclick=downloadDigitalWorkpack;
+    pdfButton.insertAdjacentElement('afterend',digital);
+  }
+  const note=panel.querySelector('p.small');
+  if(note) note.innerHTML='Use <strong>Download PDF Workpack</strong> for the branded print-ready worksheet, including the inspection and Hours on Job tables. Use <strong>Download Digital Workpack</strong> only when workshop staff need to type hours in the form and drag the completed file back into the QMS for automatic reporting.';
+};
+init = function(){
+  V5_INIT_FOR_PDF_WORKPACK();
+  updatePdfWorkpackButtons();
+};
 
 init();
 </script>
