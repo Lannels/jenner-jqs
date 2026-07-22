@@ -1,1 +1,43 @@
+name: Supabase keep-alive
 
+# Keeps the Jenner QMS Supabase project awake so it never auto-pauses.
+# Runs once a day and gently "pokes" the database, which counts as activity.
+
+on:
+  schedule:
+    - cron: '37 14 * * *'   # 14:37 UTC daily (about 00:37 Brisbane time)
+  workflow_dispatch:          # also lets you run it by hand from the Actions tab
+
+permissions:
+  contents: write             # needed so the heartbeat line below can be saved
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the repo
+        uses: actions/checkout@v4
+
+      - name: Poke the Supabase database
+        run: |
+          echo "Poking Supabase so it stays awake..."
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://nnxepgxqakeoruafbkcg.supabase.co/rest/v1/qms_jobs?select=job_id&limit=1" \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ueGVwZ3hxYWtlb3J1YWZia2NnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4OTI4NDgsImV4cCI6MjA5MTQ2ODg0OH0.B4-h4GBv0d6tUW0abFsMkyGjnO1iZ8ENtYgdZr_eXTE")
+          echo "Supabase replied with HTTP $CODE"
+          if [ "$CODE" != "200" ]; then
+            echo "Warning: expected 200 but got $CODE — check the project is running."
+          fi
+
+      - name: Record the heartbeat
+        run: |
+          mkdir -p keepalive
+          date -u +"Last keep-alive ping: %Y-%m-%d %H:%M UTC" > keepalive/last-ping.txt
+
+      - name: Save the heartbeat back to the repo
+        run: |
+          git config user.name  "jenner-keepalive-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add keepalive/last-ping.txt
+          git commit -m "chore: Supabase keep-alive heartbeat [skip ci]" || echo "Nothing changed"
+          git push
