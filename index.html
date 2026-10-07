@@ -2,321 +2,336 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Jenner Engineering — QMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif}
-:root{--gold:#D8A318;--black:#171717;--white:#fff;--grey:#f4f4f4;--dark:#333;--red:#B42318;--green:#0B6B3A;--blue:#0B4A82;--border:#ddd}
-body{background:#f0f0f0;min-height:100vh}
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --gold:#F9BD2C;--black:#000000;--white:#FFFFFF;
+  --steel:#6B6B6B;--gold-tint:#FEF2D5;--border:#E5E5E5;
+  --green:#1A7A3C;--gl:#D4EDDA;--red:#B42318;--rl:#FDECEA;
+  --blue:#0B4A82;--bl:#EBF2FF;--grey:#F5F5F5
+}
+body{font-family:'Nunito',Arial,sans-serif;background:#f0f0f0;min-height:100vh}
 
-/* SETUP / LOGIN */
-.overlay{position:fixed;inset:0;background:#171717;display:flex;align-items:center;justify-content:center;z-index:1000}
-.login-box{background:#fff;border-radius:8px;padding:40px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
-.login-logo{text-align:center;margin-bottom:24px}
-.login-logo h1{font-size:20px;color:var(--black);font-weight:700;letter-spacing:1px}
-.login-logo p{font-size:12px;color:#888;margin-top:4px}
-.login-box input{width:100%;border:1.5px solid var(--border);border-radius:4px;padding:10px 14px;font-size:15px;margin-bottom:12px;outline:none}
-.login-box input:focus{border-color:var(--gold)}
-.login-box button{width:100%;background:var(--black);color:var(--gold);border:none;border-radius:4px;padding:12px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.5px}
-.login-box button:hover{background:#333}
-.login-error{color:var(--red);font-size:13px;text-align:center;margin-top:8px;display:none}
-.setup-note{font-size:12px;color:#888;text-align:center;margin-top:16px;line-height:1.5}
-.setup-note a{color:var(--blue);cursor:pointer;text-decoration:underline}
+/* ─── OVERLAY SCREENS ─── */
+.overlay{position:fixed;inset:0;background:var(--black);display:flex;align-items:center;justify-content:center;z-index:1000}
+.box{background:var(--white);border-radius:8px;padding:36px;width:380px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
+.box-logo{text-align:center;margin-bottom:24px}
+.box-logo .j{color:var(--gold);font-size:28px;font-weight:900}
+.box-logo .rest{color:var(--black);font-size:18px;font-weight:800;letter-spacing:1px}
+.box-logo p{color:var(--steel);font-size:12px;margin-top:4px}
+.box label{display:block;font-size:11px;font-weight:800;color:var(--steel);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+.box input{width:100%;border:1.5px solid var(--border);border-radius:4px;padding:10px 13px;font-size:15px;font-family:'Nunito',Arial,sans-serif;outline:none;margin-bottom:12px}
+.box input:focus{border-color:var(--gold)}
+.box button{width:100%;background:var(--black);color:var(--gold);border:none;border-radius:4px;padding:12px;font-size:14px;font-weight:800;font-family:'Nunito',Arial,sans-serif;cursor:pointer;letter-spacing:.3px}
+.box button:hover{background:#222}
+.box-err{color:var(--red);font-size:12px;text-align:center;margin-top:8px;display:none}
+.box-note{font-size:11px;color:var(--steel);text-align:center;margin-top:14px;line-height:1.5}
 
-/* APP SHELL */
+/* ─── APP SHELL ─── */
 .app{display:none;flex-direction:column;min-height:100vh}
-header{background:var(--black);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;flex-shrink:0}
-header h1{color:var(--gold);font-size:15px;font-weight:700;letter-spacing:.5px}
-header p{color:#888;font-size:12px;margin-top:2px}
-.header-left{display:flex;flex-direction:column;gap:2px}
-.header-right{display:flex;align-items:center;gap:16px}
-.header-version{color:#555;font-size:11px;cursor:pointer;user-select:none}
-.btn-logout{background:transparent;border:1px solid #444;color:#aaa;padding:5px 12px;border-radius:4px;font-size:12px;cursor:pointer}
-.btn-logout:hover{border-color:#888;color:#fff}
+.hdr{background:var(--black);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.hdr-logo{display:flex;align-items:baseline;gap:3px}
+.hdr-logo .j{color:var(--gold);font-size:20px;font-weight:900}
+.hdr-logo .rest{color:var(--white);font-size:13px;font-weight:700;letter-spacing:1px}
+.hdr-right{display:flex;align-items:center;gap:14px}
+.hdr-ver{color:#444;font-size:11px;cursor:pointer;user-select:none}
+.btn-out{background:transparent;border:1px solid #333;color:#888;padding:5px 12px;border-radius:4px;font-size:11px;font-family:'Nunito',Arial,sans-serif;cursor:pointer}
+.btn-out:hover{border-color:#666;color:var(--white)}
 
-/* TABS */
-.tabs{background:var(--black);padding:0 24px;display:flex;gap:0;border-top:1px solid #333}
-.tab{padding:10px 20px;color:#888;font-size:13px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;transition:.15s;white-space:nowrap;letter-spacing:.3px}
-.tab:hover{color:#ccc}
+.tabs{background:var(--black);padding:0 24px;display:flex;border-top:1px solid #1a1a1a}
+.tab{padding:10px 22px;color:#666;font-size:12px;font-weight:800;cursor:pointer;border-bottom:3px solid transparent;transition:.15s;letter-spacing:.3px;text-transform:uppercase}
+.tab:hover{color:#aaa}
 .tab.active{color:var(--gold);border-bottom-color:var(--gold)}
 
-/* CONTENT */
-.content{flex:1;padding:24px;max-width:960px;margin:0 auto;width:100%}
+.content{flex:1;padding:24px;max-width:900px;margin:0 auto;width:100%}
 
-/* CARDS */
-.card{background:#fff;border-radius:6px;border:1px solid var(--border);margin-bottom:20px;overflow:hidden}
-.card-header{background:var(--black);padding:12px 18px;display:flex;align-items:center;justify-content:space-between}
-.card-header h2{color:var(--gold);font-size:13px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+/* ─── CARDS ─── */
+.card{background:var(--white);border-radius:6px;border:1px solid var(--border);margin-bottom:18px;overflow:hidden}
+.card-hdr{background:var(--black);padding:11px 18px;display:flex;align-items:center;justify-content:space-between}
+.card-hdr h2{color:var(--gold);font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase}
 .card-body{padding:20px}
 
-/* FORMS */
-.form-row{display:grid;gap:16px;margin-bottom:16px}
-.form-row.cols-2{grid-template-columns:1fr 1fr}
-.form-row.cols-3{grid-template-columns:1fr 1fr 1fr}
-label{display:block;font-size:12px;font-weight:600;color:var(--dark);margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px}
-input[type=text],input[type=date],input[type=password],select,textarea{width:100%;border:1.5px solid var(--border);border-radius:4px;padding:9px 12px;font-size:14px;color:var(--black);outline:none;background:#fff}
+/* ─── FORMS ─── */
+.form-row{display:grid;gap:14px;margin-bottom:14px}
+.fr2{grid-template-columns:1fr 1fr}
+.fr3{grid-template-columns:1fr 1fr 1fr}
+label,.lbl{display:block;font-size:10px;font-weight:800;color:var(--steel);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+input[type=text],input[type=date],input[type=number],select,textarea{
+  width:100%;border:1.5px solid var(--border);border-radius:4px;
+  padding:8px 11px;font-size:14px;font-family:'Nunito',Arial,sans-serif;
+  color:var(--black);outline:none;background:var(--white)
+}
 input:focus,select:focus,textarea:focus{border-color:var(--gold)}
-textarea{resize:vertical;min-height:70px;font-family:inherit}
-.required{color:var(--red)}
+textarea{resize:vertical;min-height:64px}
 
-/* BUTTONS */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;border:none;letter-spacing:.3px;transition:.15s}
+/* ─── BUTTONS ─── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:4px;font-size:12px;font-weight:800;font-family:'Nunito',Arial,sans-serif;cursor:pointer;border:none;letter-spacing:.3px;transition:.15s}
 .btn-primary{background:var(--black);color:var(--gold)}
-.btn-primary:hover{background:#333}
-.btn-success{background:var(--green);color:#fff}
-.btn-success:hover{background:#0a5a30}
-.btn-danger{background:var(--red);color:#fff}
-.btn-danger:hover{background:#921e12}
-.btn-outline{background:#fff;color:var(--dark);border:1.5px solid var(--border)}
-.btn-outline:hover{border-color:#999}
+.btn-primary:hover{background:#222}
 .btn-gold{background:var(--gold);color:var(--black)}
-.btn-gold:hover{background:#c49615}
-.btn-sm{padding:6px 12px;font-size:12px}
-.btn-group{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.btn-gold:hover{background:#e0aa20}
+.btn-outline{background:var(--white);color:var(--black);border:1.5px solid var(--border)}
+.btn-outline:hover{border-color:#999}
+.btn-sm{padding:5px 12px;font-size:11px}
+.btn-group{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 
-/* STATUS BADGES */
-.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:.5px}
-.badge-open{background:#FFF3CD;color:#CC6600}
-.badge-closed{background:var(--green);color:#fff}
-.badge-pass{background:#D4EDDA;color:var(--green)}
-.badge-fail{background:var(--red);color:#fff}
+/* ─── UPLOAD ZONE ─── */
+.upload-zone{border:2px dashed var(--border);border-radius:6px;padding:28px;text-align:center;cursor:pointer;transition:.15s;background:var(--grey)}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--gold);background:var(--gold-tint)}
+.upload-zone input{display:none}
+.upload-zone .icon{font-size:32px;margin-bottom:8px}
+.upload-zone h3{font-size:14px;font-weight:700;color:var(--black);margin-bottom:4px}
+.upload-zone p{font-size:12px;color:var(--steel)}
 
-/* JOB SEARCH */
-.search-bar{display:flex;gap:10px;margin-bottom:16px}
-.search-bar input{flex:1}
-.job-card{border:1.5px solid var(--border);border-radius:6px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:.15s}
-.job-card:hover{border-color:var(--gold);background:#fdf9f0}
-.job-card.selected{border-color:var(--gold);background:#fdf9f0}
-.job-card h3{font-size:14px;font-weight:700;color:var(--black)}
-.job-card p{font-size:12px;color:#666;margin-top:3px}
-
-/* JOB DETAILS */
-.job-details{background:#fafafa;border:1.5px solid var(--border);border-radius:6px;padding:16px;margin-bottom:16px}
-.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.detail-item label{font-size:11px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px}
-.detail-item p{font-size:14px;color:var(--black);font-weight:500}
-
-/* NCR TABLE */
-.ncr-table{width:100%;border-collapse:collapse;font-size:13px}
-.ncr-table th{background:var(--black);color:var(--gold);padding:10px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
-.ncr-table td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
-.ncr-table tr:hover td{background:#fafafa;cursor:pointer}
-.ncr-table .empty{color:#aaa;font-style:italic;text-align:center;padding:32px}
-
-/* REPORTS */
-.report-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
-.report-card{border:1.5px solid var(--border);border-radius:6px;padding:20px;text-align:center;cursor:pointer;transition:.15s;background:#fff}
-.report-card:hover{border-color:var(--gold);background:#fdf9f0}
-.report-card .icon{font-size:28px;margin-bottom:10px}
-.report-card h3{font-size:13px;font-weight:700;color:var(--black);margin-bottom:4px}
-.report-card p{font-size:12px;color:#888}
-.date-filter{display:flex;gap:12px;align-items:flex-end;margin-bottom:16px;background:#fafafa;border:1px solid var(--border);border-radius:6px;padding:14px}
-.date-filter .form-group{flex:1}
-.date-filter .form-group label{display:block;font-size:11px;font-weight:600;color:var(--dark);margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px}
-
-/* MODAL */
-.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:center;justify-content:center}
-.modal-backdrop.open{display:flex}
-.modal{background:#fff;border-radius:8px;width:600px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.25)}
-.modal-header{background:var(--black);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:8px 8px 0 0}
-.modal-header h3{color:var(--gold);font-size:14px;font-weight:700;letter-spacing:.5px}
-.modal-close{background:none;border:none;color:#888;font-size:20px;cursor:pointer;line-height:1}
-.modal-close:hover{color:#fff}
-.modal-body{padding:24px}
-.modal-footer{padding:16px 24px;background:#fafafa;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;border-radius:0 0 8px 8px}
-
-/* RESULT TOGGLE */
-.result-toggle{display:flex;gap:0;border:1.5px solid var(--border);border-radius:4px;overflow:hidden;margin-top:4px}
-.result-toggle button{flex:1;padding:10px;border:none;font-size:14px;font-weight:700;cursor:pointer;transition:.15s;background:#fff;color:#aaa}
-.result-toggle button.pass.active{background:var(--green);color:#fff}
-.result-toggle button.fail.active{background:var(--red);color:#fff}
-.result-toggle button:hover:not(.active){background:#f5f5f5}
-
-/* ALERT */
-.alert{padding:12px 16px;border-radius:4px;font-size:13px;margin-bottom:16px;display:none}
-.alert.show{display:block}
-.alert-success{background:#D4EDDA;color:var(--green);border:1px solid #b3d9bc}
-.alert-error{background:#FDECEA;color:var(--red);border:1px solid #f5b7b1}
-
-/* LOADING */
-.spinner{display:inline-block;width:16px;height:16px;border:2px solid #ccc;border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
+/* AI READING STATUS */
+.ai-status{background:var(--gold-tint);border:1px solid var(--gold);border-radius:4px;padding:10px 14px;font-size:12px;font-weight:600;color:var(--black);display:none;align-items:center;gap:8px;margin-bottom:14px}
+.ai-status.show{display:flex}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #ccc;border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* RESULT TOGGLE */
+.result-toggle{display:flex;border:1.5px solid var(--border);border-radius:4px;overflow:hidden}
+.result-toggle button{flex:1;padding:9px;border:none;font-size:13px;font-weight:800;font-family:'Nunito',Arial,sans-serif;cursor:pointer;background:var(--white);color:#aaa;transition:.15s}
+.result-toggle .pass.active{background:var(--green);color:var(--white)}
+.result-toggle .fail.active{background:var(--red);color:var(--white)}
+.result-toggle button:hover:not(.active){background:var(--grey)}
+
+/* JOB DETAILS BOX */
+.job-box{background:var(--grey);border:1px solid var(--border);border-radius:4px;padding:14px;margin-bottom:14px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.detail-item .lbl{margin-bottom:2px}
+.detail-item p{font-size:14px;font-weight:600;color:var(--black)}
+
+/* BADGES */
+.badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase}
+.badge-open{background:#FFF3CD;color:#996600}
+.badge-closed{background:var(--gl);color:var(--green)}
+.badge-pass{background:var(--gl);color:var(--green)}
+.badge-fail{background:var(--rl);color:var(--red)}
+
+/* NCR TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{background:var(--black);color:var(--gold);padding:9px 12px;text-align:left;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase}
+.tbl td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.tbl tr:hover td{background:var(--grey);cursor:pointer}
+.tbl .empty{color:#aaa;font-style:italic;text-align:center;padding:28px}
+
+/* ALERTS */
+.alert{padding:10px 14px;border-radius:4px;font-size:12px;font-weight:600;margin-bottom:14px;display:none}
+.alert.show{display:block}
+.alert-ok{background:var(--gl);color:var(--green);border:1px solid #b3d9bc}
+.alert-err{background:var(--rl);color:var(--red);border:1px solid #f5b7b1}
+.alert-info{background:var(--gold-tint);color:#665000;border:1px solid #f0d080}
+
+/* REPORT CARDS */
+.rpt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+.rpt-card{border:1.5px solid var(--border);border-radius:6px;padding:18px;text-align:center;cursor:pointer;transition:.15s}
+.rpt-card:hover{border-color:var(--gold);background:var(--gold-tint)}
+.rpt-card .icon{font-size:26px;margin-bottom:8px}
+.rpt-card h3{font-size:12px;font-weight:800;color:var(--black);margin-bottom:3px}
+.rpt-card p{font-size:11px;color:var(--steel)}
+
+/* DATE FILTER */
+.date-filter{display:flex;gap:12px;align-items:flex-end;background:var(--grey);border:1px solid var(--border);border-radius:4px;padding:12px;margin-bottom:14px}
+.date-filter .fg{flex:1}
+.date-filter .fg label{margin-bottom:3px}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--white);border-radius:8px;width:580px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.modal-hdr{background:var(--black);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-radius:8px 8px 0 0}
+.modal-hdr h3{color:var(--gold);font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase}
+.modal-x{background:none;border:none;color:#666;font-size:18px;cursor:pointer;line-height:1;font-family:'Nunito',Arial,sans-serif}
+.modal-x:hover{color:var(--white)}
+.modal-body{padding:22px}
+.modal-ftr{padding:14px 22px;background:var(--grey);border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;border-radius:0 0 8px 8px}
+
 @media(max-width:600px){
-  .form-row.cols-2,.form-row.cols-3,.detail-grid,.report-cards{grid-template-columns:1fr}
-  .content{padding:16px}
+  .fr2,.fr3,.detail-grid,.rpt-grid{grid-template-columns:1fr}
+  .content{padding:14px}
 }
 </style>
 </head>
 <body>
 
 <!-- SETUP SCREEN -->
-<div class="overlay" id="setupScreen">
-  <div class="login-box">
-    <div class="login-logo">
-      <h1>JENNER ENGINEERING</h1>
-      <p>Quality Management System — First Time Setup</p>
+<div class="overlay" id="screenSetup">
+  <div class="box">
+    <div class="box-logo">
+      <div><span class="j">J</span><span class="rest">ENNER ENGINEERING</span></div>
+      <p>QMS — First Time Setup</p>
     </div>
     <label>Supabase Anon Key</label>
-    <input type="text" id="setupKey" placeholder="eyJhbGciOiJIUzI1NiIs..." autocomplete="off">
-    <div style="margin-bottom:12px"></div>
-    <button onclick="saveSetup()">Save & Continue</button>
-    <div class="setup-note">
-      Find your anon key in Supabase → Project Settings → API.<br>
-      It is saved locally on this device only.
-    </div>
+    <input type="text" id="setupKey" placeholder="eyJhbGciOiJIUzI1NiIs…">
+    <button onclick="saveSetup()">Save &amp; Continue</button>
+    <p class="box-note">Find this in Supabase → Project Settings → API → anon public key.<br>Saved locally on this device only.</p>
   </div>
 </div>
 
 <!-- LOGIN SCREEN -->
-<div class="overlay" id="loginScreen" style="display:none">
-  <div class="login-box">
-    <div class="login-logo">
-      <h1>JENNER ENGINEERING</h1>
-      <p>Quality Management System v2.0</p>
+<div class="overlay" id="screenLogin" style="display:none">
+  <div class="box">
+    <div class="box-logo">
+      <div><span class="j">J</span><span class="rest">ENNER ENGINEERING</span></div>
+      <p>Quality Management System v3.0</p>
     </div>
     <label>Password</label>
     <input type="password" id="loginPwd" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()">
     <button onclick="doLogin()">Sign In</button>
-    <div class="login-error" id="loginError">Incorrect password</div>
+    <div class="box-err" id="loginErr">Incorrect password</div>
   </div>
 </div>
 
 <!-- MAIN APP -->
 <div class="app" id="app">
-  <header>
-    <div class="header-left">
-      <h1>JENNER ENGINEERING — Quality Management System</h1>
-      <p>Norras Holdings Pty Ltd  |  ABN 27 632 194 373  |  Slade Point QLD 4740</p>
+  <div class="hdr">
+    <div class="hdr-logo"><span class="j">J</span><span class="rest">ENNER ENGINEERING — Quality Management System</span></div>
+    <div class="hdr-right">
+      <span class="hdr-ver" onclick="vclick()" title="Settings">v3.0</span>
+      <button class="btn-out" onclick="doLogout()">Sign Out</button>
     </div>
-    <div class="header-right">
-      <span class="header-version" onclick="versionClick()" title="Settings">v2.0</span>
-      <button class="btn-logout" onclick="doLogout()">Sign Out</button>
-    </div>
-  </header>
+  </div>
   <div class="tabs">
     <div class="tab active" onclick="switchTab('coc')">Certificate of Conformance</div>
     <div class="tab" onclick="switchTab('ncr')">NCR &amp; Reports</div>
   </div>
 
-  <!-- COC TAB -->
+  <!-- ═══ COC TAB ═══ -->
   <div id="tabCoc" class="content">
-    <div class="card">
-      <div class="card-header"><h2>Search Job</h2></div>
+
+    <!-- STEP 1: UPLOAD or SEARCH -->
+    <div class="card" id="cardUpload">
+      <div class="card-hdr"><h2>Step 1 — Upload Job Card or Search by Job Number</h2></div>
       <div class="card-body">
-        <div class="search-bar">
-          <input type="text" id="jobSearch" placeholder="Enter job number or customer name…" onkeydown="if(event.key==='Enter')searchJobs()">
-          <button class="btn btn-primary" onclick="searchJobs()">Search</button>
+        <div class="alert alert-info show" id="uploadHint">
+          Upload a scanned job card PDF and the AI will read the job details automatically. Or type the job number below to search Supabase.
         </div>
-        <div id="jobResults"></div>
+
+        <!-- UPLOAD ZONE -->
+        <div class="upload-zone" id="dropZone" onclick="document.getElementById('pdfFile').click()"
+             ondragover="e=>{e.preventDefault();this.classList.add('drag')}"
+             ondragleave="this.classList.remove('drag')"
+             ondrop="e=>{e.preventDefault();this.classList.remove('drag');handleFiles(e.dataTransfer.files)}">
+          <input type="file" id="pdfFile" accept=".pdf,image/*" onchange="handleFiles(this.files)">
+          <div class="icon">📄</div>
+          <h3>Drop scanned job card here or click to browse</h3>
+          <p>PDF or image file — AI will extract job details automatically</p>
+        </div>
+
+        <div style="text-align:center;color:var(--steel);font-size:12px;margin:14px 0;font-weight:600">— OR SEARCH MANUALLY —</div>
+
+        <div style="display:flex;gap:10px">
+          <input type="text" id="jobSearch" placeholder="Type job number or customer name…" style="flex:1" onkeydown="if(event.key==='Enter')searchJob()">
+          <button class="btn btn-primary" onclick="searchJob()">Search</button>
+        </div>
+        <div id="searchResults" style="margin-top:12px"></div>
       </div>
     </div>
 
-    <div class="card" id="cocForm" style="display:none">
-      <div class="card-header">
-        <h2>Issue Certificate of Conformance</h2>
-        <button class="btn btn-sm btn-outline" onclick="clearJob()">← New Search</button>
+    <!-- STEP 2: COC FORM (hidden until job loaded) -->
+    <div class="card" id="cardCoc" style="display:none">
+      <div class="card-hdr">
+        <h2>Step 2 — Review &amp; Issue Certificate of Conformance</h2>
+        <button class="btn btn-sm btn-outline" onclick="resetCoc()">← Start Again</button>
       </div>
       <div class="card-body">
-        <div class="alert alert-success" id="cocAlert"></div>
-        <div class="job-details" id="jobDetails"></div>
-        <div class="form-row cols-2">
+        <div class="ai-status" id="aiStatus"><span class="spinner"></span><span id="aiMsg">AI is reading the job card…</span></div>
+        <div class="alert alert-ok" id="aiOk"></div>
+        <div class="alert alert-err" id="aiErr"></div>
+
+        <!-- JOB DETAILS (auto-filled or manual) -->
+        <div class="form-row fr2">
           <div>
-            <label>Material / Specification</label>
-            <input type="text" id="cocMaterial" placeholder="e.g. 4140 HT per AS1444">
+            <label>Job Number <span style="color:var(--red)">*</span></label>
+            <input type="text" id="fJobNo" placeholder="e.g. J2026-045">
           </div>
           <div>
-            <label>Heat/Batch Number (if applicable)</label>
-            <input type="text" id="cocHeat" placeholder="e.g. H24-0091">
+            <label>Customer <span style="color:var(--red)">*</span></label>
+            <input type="text" id="fCustomer" placeholder="Customer name">
           </div>
         </div>
-        <div class="form-row cols-2">
+        <div class="form-row">
           <div>
-            <label>Inspection Result <span class="required">*</span></label>
-            <div class="result-toggle">
+            <label>Job Description</label>
+            <input type="text" id="fDesc" placeholder="What was machined or repaired">
+          </div>
+        </div>
+        <div class="form-row fr2">
+          <div>
+            <label>Material / Specification</label>
+            <input type="text" id="fMaterial" placeholder="e.g. 4140 HT per AS1444">
+          </div>
+          <div>
+            <label>Heat / Batch Number</label>
+            <input type="text" id="fHeat" placeholder="e.g. H24-0091 (if applicable)">
+          </div>
+        </div>
+        <div class="form-row fr2">
+          <div>
+            <label>Inspection Result <span style="color:var(--red)">*</span></label>
+            <div class="result-toggle" style="margin-top:4px">
               <button class="pass" id="btnPass" onclick="setResult('PASS')">✓ PASS</button>
               <button class="fail" id="btnFail" onclick="setResult('FAIL')">✗ FAIL</button>
             </div>
           </div>
           <div>
             <label>Date of Inspection</label>
-            <input type="date" id="cocDate">
+            <input type="date" id="fDate">
           </div>
         </div>
         <div class="form-row">
           <div>
             <label>Remarks (optional)</label>
-            <textarea id="cocRemarks" placeholder="Any additional notes for the customer…"></textarea>
+            <textarea id="fRemarks" placeholder="Any notes for the customer…"></textarea>
           </div>
         </div>
         <div class="btn-group">
-          <button class="btn btn-gold" onclick="generateCoC()">Generate &amp; Download CoC PDF</button>
+          <button class="btn btn-gold" onclick="genCoc()">⬇ Generate &amp; Download CoC PDF</button>
         </div>
       </div>
     </div>
+
   </div>
 
-  <!-- NCR + REPORTS TAB -->
+  <!-- ═══ NCR + REPORTS TAB ═══ -->
   <div id="tabNcr" class="content" style="display:none">
 
     <!-- REPORTS -->
     <div class="card">
-      <div class="card-header"><h2>Reports</h2></div>
+      <div class="card-hdr"><h2>Reports</h2></div>
       <div class="card-body">
         <div class="date-filter">
-          <div class="form-group">
-            <label>From Date</label>
-            <input type="date" id="rptFrom">
-          </div>
-          <div class="form-group">
-            <label>To Date</label>
-            <input type="date" id="rptTo">
-          </div>
-          <button class="btn btn-outline" onclick="setDefaultDates()">This Year</button>
+          <div class="fg"><label>From</label><input type="date" id="rFrom"></div>
+          <div class="fg"><label>To</label><input type="date" id="rTo"></div>
+          <button class="btn btn-outline" onclick="setDates()">This Year</button>
         </div>
-        <div class="report-cards">
-          <div class="report-card" onclick="rptNcrLog()">
-            <div class="icon">📋</div>
-            <h3>NCR Log</h3>
-            <p>All non-conformances in date range</p>
-          </div>
-          <div class="report-card" onclick="rptOpenNcrs()">
-            <div class="icon">🔴</div>
-            <h3>Open NCRs</h3>
-            <p>All unresolved non-conformances</p>
-          </div>
-          <div class="report-card" onclick="rptCocRegister()">
-            <div class="icon">📄</div>
-            <h3>CoC Register</h3>
-            <p>All Certificates of Conformance issued</p>
-          </div>
+        <div class="rpt-grid">
+          <div class="rpt-card" onclick="rptNcr()"><div class="icon">📋</div><h3>NCR Log</h3><p>All NCRs in date range</p></div>
+          <div class="rpt-card" onclick="rptOpen()"><div class="icon">🔴</div><h3>Open NCRs</h3><p>Unresolved non-conformances</p></div>
+          <div class="rpt-card" onclick="rptCoc()"><div class="icon">📄</div><h3>CoC Register</h3><p>All certificates issued</p></div>
         </div>
       </div>
     </div>
 
     <!-- NCR LIST -->
     <div class="card">
-      <div class="card-header">
+      <div class="card-hdr">
         <h2>Non-Conformance Records</h2>
-        <button class="btn btn-sm btn-gold" onclick="openNcrModal()">+ Raise NCR</button>
+        <button class="btn btn-sm btn-gold" onclick="openNcr()">+ Raise NCR</button>
       </div>
       <div class="card-body" style="padding:0">
-        <div id="ncrAlert" class="alert" style="margin:16px 16px 0"></div>
-        <table class="ncr-table">
-          <thead>
-            <tr>
-              <th>NCR No.</th>
-              <th>Date</th>
-              <th>Job No.</th>
-              <th>Description</th>
-              <th>Status</th>
-              <th>Action By</th>
-            </tr>
-          </thead>
-          <tbody id="ncrTableBody">
-            <tr><td colspan="6" class="empty">Loading…</td></tr>
-          </tbody>
+        <div class="alert" id="ncrAlert" style="margin:14px 14px 0"></div>
+        <table class="tbl">
+          <thead><tr>
+            <th>NCR No.</th><th>Date</th><th>Job No.</th>
+            <th>Description</th><th>Status</th><th>Action By</th>
+          </tr></thead>
+          <tbody id="ncrBody"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -324,414 +339,456 @@ textarea{resize:vertical;min-height:70px;font-family:inherit}
 </div>
 
 <!-- NCR MODAL -->
-<div class="modal-backdrop" id="ncrModal">
+<div class="modal-bg" id="ncrModal">
   <div class="modal">
-    <div class="modal-header">
-      <h3 id="ncrModalTitle">Raise Non-Conformance Record</h3>
-      <button class="modal-close" onclick="closeNcrModal()">×</button>
+    <div class="modal-hdr">
+      <h3 id="ncrTitle">Raise Non-Conformance Record</h3>
+      <button class="modal-x" onclick="closeNcr()">×</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="ncrId">
-      <div class="form-row cols-2">
-        <div>
-          <label>NCR Number</label>
-          <input type="text" id="ncrNo" readonly style="background:#f5f5f5">
-        </div>
-        <div>
-          <label>Job Number (optional)</label>
-          <input type="text" id="ncrJobNo" placeholder="e.g. J2026-045">
-        </div>
+      <div class="form-row fr2">
+        <div><label>NCR Number</label><input type="text" id="ncrNo" readonly style="background:var(--grey)"></div>
+        <div><label>Job Number (optional)</label><input type="text" id="ncrJob" placeholder="e.g. J2026-045"></div>
       </div>
-      <div class="form-row cols-2">
-        <div>
-          <label>Date Raised <span class="required">*</span></label>
-          <input type="date" id="ncrDateRaised">
-        </div>
-        <div>
-          <label>Action By</label>
-          <input type="text" id="ncrActionBy" placeholder="e.g. Gary Smith">
-        </div>
+      <div class="form-row fr2">
+        <div><label>Date Raised <span style="color:var(--red)">*</span></label><input type="date" id="ncrDate"></div>
+        <div><label>Action By</label><input type="text" id="ncrBy" placeholder="e.g. Colin Norris"></div>
       </div>
       <div class="form-row">
-        <div>
-          <label>Description — What went wrong <span class="required">*</span></label>
-          <textarea id="ncrDesc" placeholder="Describe the non-conformance clearly…"></textarea>
-        </div>
+        <div><label>What went wrong <span style="color:var(--red)">*</span></label>
+          <textarea id="ncrDesc" placeholder="Describe the non-conformance clearly…"></textarea></div>
       </div>
       <div class="form-row">
-        <div>
-          <label>Root Cause</label>
-          <textarea id="ncrRoot" placeholder="Why did it happen?"></textarea>
-        </div>
+        <div><label>Root Cause</label>
+          <textarea id="ncrRoot" placeholder="Why did it happen?"></textarea></div>
       </div>
       <div class="form-row">
-        <div>
-          <label>Corrective Action</label>
-          <textarea id="ncrAction" placeholder="What was done to fix it and prevent recurrence?"></textarea>
-        </div>
+        <div><label>Corrective Action</label>
+          <textarea id="ncrAction" placeholder="What was done to fix it and prevent recurrence?"></textarea></div>
       </div>
-      <div class="form-row cols-2">
-        <div>
-          <label>Status</label>
+      <div class="form-row fr2">
+        <div><label>Status</label>
           <select id="ncrStatus">
             <option value="OPEN">Open</option>
             <option value="CLOSED">Closed</option>
           </select>
         </div>
-        <div>
-          <label>Date Closed</label>
-          <input type="date" id="ncrDateClosed">
-        </div>
+        <div><label>Date Closed</label><input type="date" id="ncrClosed"></div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeNcrModal()">Cancel</button>
+    <div class="modal-ftr">
+      <button class="btn btn-outline" onclick="closeNcr()">Cancel</button>
       <button class="btn btn-primary" onclick="saveNcr()">Save NCR</button>
     </div>
   </div>
 </div>
 
 <script>
-// ─── CONFIG ───────────────────────────────────────────────────────────────────
-const SUPABASE_URL = 'https://nnxepgxqakeoruafbkcg.supabase.co';
-const PASSWORD     = 'jenner2025';
-let SUPABASE_KEY   = '';
-let selectedJob    = null;
-let cocResult      = null;
-let editingNcrId   = null;
-let versionClicks  = 0;
+// ─── CONFIG ───
+const SB_URL = 'https://nnxepgxqakeoruafbkcg.supabase.co';
+const PWD    = 'jenner2025';
+let SB_KEY   = '';
+let cocResult= null;
+let vclicks  = 0;
+let editNcrId= null;
 
-// ─── INIT ─────────────────────────────────────────────────────────────────────
+// ─── INIT ───
 window.onload = () => {
-  SUPABASE_KEY = localStorage.getItem('jqms_key') || '';
-  if (!SUPABASE_KEY) {
-    document.getElementById('setupScreen').style.display = 'flex';
-  } else {
-    document.getElementById('setupScreen').style.display = 'none';
-    if (sessionStorage.getItem('jqms_auth') === '1') {
-      showApp();
-    } else {
-      document.getElementById('loginScreen').style.display = 'flex';
-    }
-  }
-  // set default dates
-  const today = new Date();
-  document.getElementById('cocDate').value = today.toISOString().split('T')[0];
-  setDefaultDates();
-};
-
-function setDefaultDates() {
-  const y = new Date().getFullYear();
-  document.getElementById('rptFrom').value = y + '-07-01';
-  document.getElementById('rptTo').value   = new Date().toISOString().split('T')[0];
-}
-
-// ─── SETUP ────────────────────────────────────────────────────────────────────
-function saveSetup() {
-  const k = document.getElementById('setupKey').value.trim();
-  if (!k || !k.startsWith('eyJ')) {
-    alert('Please enter a valid Supabase anon key (starts with eyJ…)');
-    return;
-  }
-  localStorage.setItem('jqms_key', k);
-  SUPABASE_KEY = k;
-  document.getElementById('setupScreen').style.display = 'none';
-  document.getElementById('loginScreen').style.display = 'flex';
-}
-
-// allow re-entering key by clicking version number 5 times
-function versionClick() {
-  versionClicks++;
-  if (versionClicks >= 5) {
-    versionClicks = 0;
-    const k = prompt('Enter new Supabase anon key:');
-    if (k && k.startsWith('eyJ')) {
-      localStorage.setItem('jqms_key', k);
-      SUPABASE_KEY = k;
-      alert('Key updated.');
-    }
-  }
-}
-
-// ─── AUTH ─────────────────────────────────────────────────────────────────────
-function doLogin() {
-  const pwd = document.getElementById('loginPwd').value;
-  if (pwd === PASSWORD) {
-    sessionStorage.setItem('jqms_auth', '1');
-    document.getElementById('loginScreen').style.display = 'none';
+  SB_KEY = localStorage.getItem('jqms_key') || '';
+  if (!SB_KEY) {
+    show('screenSetup');
+  } else if (sessionStorage.getItem('jqms_auth') === '1') {
     showApp();
   } else {
-    document.getElementById('loginError').style.display = 'block';
+    show('screenLogin');
+  }
+  document.getElementById('fDate').value = today();
+  setDates();
+};
+
+function show(id) {
+  ['screenSetup','screenLogin'].forEach(s => {
+    document.getElementById(s).style.display = s===id ? 'flex' : 'none';
+  });
+}
+function today() { return new Date().toISOString().split('T')[0]; }
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d+'T12:00:00').toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'});
+}
+
+// ─── SETUP ───
+function saveSetup() {
+  const k = document.getElementById('setupKey').value.trim();
+  if (!k.startsWith('eyJ')) { alert('Please enter a valid Supabase anon key.'); return; }
+  localStorage.setItem('jqms_key', k);
+  SB_KEY = k;
+  show('screenLogin');
+}
+
+function vclick() {
+  if (++vclicks >= 5) {
+    vclicks = 0;
+    const k = prompt('Enter new Supabase anon key:');
+    if (k && k.startsWith('eyJ')) { localStorage.setItem('jqms_key', k); SB_KEY = k; alert('Key updated.'); }
+  }
+}
+
+// ─── AUTH ───
+function doLogin() {
+  if (document.getElementById('loginPwd').value === PWD) {
+    sessionStorage.setItem('jqms_auth', '1');
+    show('__none__');
+    showApp();
+  } else {
+    document.getElementById('loginErr').style.display = 'block';
   }
 }
 function doLogout() {
   sessionStorage.removeItem('jqms_auth');
   document.getElementById('app').style.display = 'none';
-  document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('loginPwd').value = '';
+  show('screenLogin');
 }
 function showApp() {
   document.getElementById('app').style.display = 'flex';
   loadNcrs();
 }
 
-// ─── TABS ─────────────────────────────────────────────────────────────────────
-function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach((t,i)=>{
-    t.classList.toggle('active', (i===0&&tab==='coc')||(i===1&&tab==='ncr'));
-  });
-  document.getElementById('tabCoc').style.display = tab==='coc'?'block':'none';
-  document.getElementById('tabNcr').style.display = tab==='ncr'?'block':'none';
-  if (tab==='ncr') loadNcrs();
+// ─── TABS ───
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach((el,i) => el.classList.toggle('active', i===(t==='coc'?0:1)));
+  document.getElementById('tabCoc').style.display = t==='coc' ? 'block' : 'none';
+  document.getElementById('tabNcr').style.display = t==='ncr' ? 'block' : 'none';
+  if (t==='ncr') loadNcrs();
 }
 
-// ─── SUPABASE HELPERS ─────────────────────────────────────────────────────────
+// ─── SUPABASE ───
 async function sb(path, method='GET', body=null) {
   const opts = {
     method,
     headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY,
       'Content-Type': 'application/json',
-      'Prefer': method==='POST' ? 'return=representation' : ''
+      ...(method==='POST' ? {'Prefer':'return=representation'} : {})
     }
   };
   if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, opts);
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err);
-  }
+  const res = await fetch(SB_URL+'/rest/v1/'+path, opts);
+  if (!res.ok) throw new Error(await res.text());
   return method==='DELETE' ? null : res.json();
 }
 
-// ─── COC — JOB SEARCH ─────────────────────────────────────────────────────────
-async function searchJobs() {
-  const q = document.getElementById('jobSearch').value.trim();
-  if (!q) return;
-  const el = document.getElementById('jobResults');
-  el.innerHTML = '<span class="spinner"></span> Searching…';
+// ─── PDF UPLOAD + AI READING ───
+function handleFiles(files) {
+  if (!files.length) return;
+  const file = files[0];
+  const reader = new FileReader();
+  reader.onload = e => {
+    const b64 = e.target.result.split(',')[1];
+    const mime = file.type || 'application/pdf';
+    readWithAI(b64, mime);
+  };
+  reader.readAsDataURL(file);
+}
+
+async function readWithAI(b64, mime) {
+  document.getElementById('cardUpload').style.display = 'none';
+  document.getElementById('cardCoc').style.display = 'block';
+  const aiStatus = document.getElementById('aiStatus');
+  const aiOk     = document.getElementById('aiOk');
+  const aiErr    = document.getElementById('aiErr');
+  aiStatus.classList.add('show');
+  aiOk.classList.remove('show'); aiErr.classList.remove('show');
+  document.getElementById('aiMsg').textContent = 'AI is reading the job card…';
+
   try {
-    // try job_no match first, then customer
-    let jobs = await sb(`qms_jobs?select=*&job_no=ilike.*${encodeURIComponent(q)}*&order=created_at.desc&limit=10`);
-    if (!jobs.length) {
-      jobs = await sb(`qms_jobs?select=*&customer=ilike.*${encodeURIComponent(q)}*&order=created_at.desc&limit=10`);
-    }
-    if (!jobs.length) {
-      el.innerHTML = '<p style="color:#888;padding:8px 0">No jobs found. Try a different search.</p>';
-      return;
-    }
-    el.innerHTML = jobs.map(j => `
-      <div class="job-card" onclick="selectJob(${JSON.stringify(j).replace(/"/g,'&quot;')})">
-        <h3>${j.job_no || '—'}</h3>
-        <p>${j.customer || ''} ${j.description ? '— ' + j.description : ''}</p>
-        <p style="margin-top:4px;color:#aaa;font-size:11px">Status: ${j.status || 'n/a'}</p>
-      </div>`).join('');
+    const res = await fetch(SB_URL+'/functions/v1/digitise-jobpack', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer '+SB_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ data: b64, mimeType: mime, extractFields: true })
+    });
+
+    if (!res.ok) throw new Error('Edge function error: '+res.status);
+    const json = await res.json();
+
+    // Try to parse structured fields from the response
+    const fields = json.fields || json.result || json;
+    fillFields(fields);
+    aiStatus.classList.remove('show');
+    aiOk.textContent = '✓ Job card read successfully — please check the fields below and correct anything that looks wrong.';
+    aiOk.classList.add('show');
   } catch(e) {
-    el.innerHTML = `<p style="color:var(--red)">Error: ${e.message}</p>`;
+    // Fallback: try calling Anthropic directly via edge function with a different payload
+    try {
+      await readWithFallback(b64, mime);
+    } catch(e2) {
+      aiStatus.classList.remove('show');
+      aiErr.textContent = 'AI could not read the file. Please fill in the fields manually. ('+e.message+')';
+      aiErr.classList.add('show');
+    }
   }
 }
 
-function selectJob(job) {
-  selectedJob = job;
-  document.getElementById('jobResults').innerHTML = '';
-  document.getElementById('cocForm').style.display = 'block';
-  // pre-fill material from job if available
-  const mat = job.material || job.materialSpec || job.material_spec || '';
-  document.getElementById('cocMaterial').value = mat;
-  // render job details
-  document.getElementById('jobDetails').innerHTML = `
-    <div class="detail-grid">
-      <div class="detail-item"><label>Job Number</label><p>${job.job_no || '—'}</p></div>
-      <div class="detail-item"><label>Customer</label><p>${job.customer || '—'}</p></div>
-      <div class="detail-item"><label>Description</label><p>${job.description || '—'}</p></div>
-      <div class="detail-item"><label>Status</label><p>${job.status || '—'}</p></div>
-    </div>`;
-  cocResult = null;
-  document.getElementById('btnPass').classList.remove('active');
-  document.getElementById('btnFail').classList.remove('active');
-  document.getElementById('cocAlert').classList.remove('show');
+async function readWithFallback(b64, mime) {
+  // Try direct Anthropic call through Supabase edge function proxy
+  const prompt = `You are reading a scanned engineering job card or work order. Extract these fields and return ONLY valid JSON with these keys:
+{
+  "job_no": "job number or work order number",
+  "customer": "customer or client name",
+  "description": "description of work to be done or part description",
+  "material": "material specification if visible",
+  "date": "date on the document in YYYY-MM-DD format if visible"
+}
+If a field is not visible, use an empty string. Return only the JSON object, nothing else.`;
+
+  const contentBlock = mime.startsWith('image/')
+    ? { type:'image', source:{ type:'base64', media_type:mime, data:b64 } }
+    : { type:'document', source:{ type:'base64', media_type:'application/pdf', data:b64 } };
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 500,
+      system: prompt,
+      messages: [{ role:'user', content:[contentBlock, { type:'text', text:'Extract the job card fields as JSON.' }] }]
+    })
+  });
+
+  if (!res.ok) throw new Error('API error '+res.status);
+  const data = await res.json();
+  const text = data.content?.find(b=>b.type==='text')?.text || '{}';
+  const cleaned = text.replace(/```json|```/g,'').trim();
+  const fields = JSON.parse(cleaned);
+  fillFields(fields);
+
+  const aiStatus = document.getElementById('aiStatus');
+  const aiOk = document.getElementById('aiOk');
+  aiStatus.classList.remove('show');
+  aiOk.textContent = '✓ Job card read — please check the fields and correct anything that needs changing.';
+  aiOk.classList.add('show');
 }
 
-function clearJob() {
-  selectedJob = null; cocResult = null;
-  document.getElementById('cocForm').style.display = 'none';
-  document.getElementById('jobResults').innerHTML = '';
-  document.getElementById('jobSearch').value = '';
-  document.getElementById('cocAlert').classList.remove('show');
+function fillFields(f) {
+  if (!f) return;
+  if (f.job_no)    document.getElementById('fJobNo').value    = f.job_no;
+  if (f.customer)  document.getElementById('fCustomer').value = f.customer;
+  if (f.description) document.getElementById('fDesc').value  = f.description;
+  if (f.material)  document.getElementById('fMaterial').value = f.material;
+  if (f.date)      document.getElementById('fDate').value     = f.date;
+}
+
+// ─── MANUAL JOB SEARCH ───
+async function searchJob() {
+  const q = document.getElementById('jobSearch').value.trim();
+  if (!q) return;
+  const el = document.getElementById('searchResults');
+  el.innerHTML = '<span style="color:var(--steel);font-size:12px"><span class="spinner" style="border-top-color:var(--gold);width:12px;height:12px"></span> Searching…</span>';
+  try {
+    let jobs = await sb(`qms_jobs?select=*&job_no=ilike.*${encodeURIComponent(q)}*&order=created_at.desc&limit=8`);
+    if (!jobs.length) jobs = await sb(`qms_jobs?select=*&customer=ilike.*${encodeURIComponent(q)}*&order=created_at.desc&limit=8`);
+    if (!jobs.length) { el.innerHTML='<p style="color:var(--steel);font-size:12px;padding:8px 0">No jobs found. You can fill in the fields manually below.</p>'; return; }
+    el.innerHTML = jobs.map(j=>`
+      <div onclick='selectJob(${JSON.stringify(j).replace(/'/g,"&#39;")})' style="border:1.5px solid var(--border);border-radius:4px;padding:10px 14px;margin-top:8px;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--gold)';this.style.background='var(--gold-tint)'" onmouseout="this.style.borderColor='var(--border)';this.style.background=''">
+        <strong style="font-size:13px">${j.job_no||'—'}</strong>
+        <span style="color:var(--steel);font-size:12px;margin-left:8px">${j.customer||''} ${j.description?'— '+j.description:''}</span>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML=`<p style="color:var(--red);font-size:12px">Error: ${e.message}</p>`;
+  }
+}
+
+function selectJob(j) {
+  fillFields({ job_no:j.job_no, customer:j.customer, description:j.description, material:j.material||j.materialSpec||'' });
+  document.getElementById('cardUpload').style.display='none';
+  document.getElementById('cardCoc').style.display='block';
+}
+
+function resetCoc() {
+  document.getElementById('cardUpload').style.display='block';
+  document.getElementById('cardCoc').style.display='none';
+  document.getElementById('jobSearch').value='';
+  document.getElementById('searchResults').innerHTML='';
+  ['fJobNo','fCustomer','fDesc','fMaterial','fHeat','fRemarks'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fDate').value=today();
+  cocResult=null;
+  document.getElementById('btnPass').classList.remove('active');
+  document.getElementById('btnFail').classList.remove('active');
+  ['aiStatus','aiOk','aiErr'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.classList.remove('show');
+  });
+  document.getElementById('pdfFile').value='';
 }
 
 function setResult(r) {
-  cocResult = r;
-  document.getElementById('btnPass').classList.toggle('active', r==='PASS');
-  document.getElementById('btnFail').classList.toggle('active', r==='FAIL');
+  cocResult=r;
+  document.getElementById('btnPass').classList.toggle('active',r==='PASS');
+  document.getElementById('btnFail').classList.toggle('active',r==='FAIL');
 }
 
-// ─── GENERATE COC PDF ─────────────────────────────────────────────────────────
-async function generateCoC() {
-  if (!selectedJob) return alert('Please select a job first.');
-  if (!cocResult)   return alert('Please select PASS or FAIL.');
-  const material = document.getElementById('cocMaterial').value.trim() || 'As specified';
-  const heat     = document.getElementById('cocHeat').value.trim();
-  const dateStr  = document.getElementById('cocDate').value;
-  const remarks  = document.getElementById('cocRemarks').value.trim();
-  const cocNo    = 'COC-' + (selectedJob.job_no||'').replace(/[^A-Z0-9]/gi,'') + '-' + Date.now().toString().slice(-4);
-  const dateDisp = dateStr ? new Date(dateStr+'T12:00:00').toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'}) : new Date().toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'});
+// ─── GENERATE COC PDF ───
+async function genCoc() {
+  const jobNo    = document.getElementById('fJobNo').value.trim();
+  const customer = document.getElementById('fCustomer').value.trim();
+  if (!jobNo)    { alert('Please enter a Job Number.'); return; }
+  if (!customer) { alert('Please enter a Customer name.'); return; }
+  if (!cocResult){ alert('Please select PASS or FAIL.'); return; }
 
-  // Save CoC record to Supabase
+  const desc     = document.getElementById('fDesc').value.trim()||'—';
+  const material = document.getElementById('fMaterial').value.trim()||'As specified';
+  const heat     = document.getElementById('fHeat').value.trim()||'N/A';
+  const dateVal  = document.getElementById('fDate').value;
+  const remarks  = document.getElementById('fRemarks').value.trim();
+  const cocNo    = 'COC-'+jobNo.replace(/[^A-Z0-9]/gi,'')+'-'+Date.now().toString().slice(-4);
+  const dateDisp = fmtDate(dateVal);
+
+  // Save to Supabase
   try {
-    await sb('qms_cocs', 'POST', {
-      coc_no: cocNo,
-      job_no: selectedJob.job_no,
-      customer: selectedJob.customer,
-      description: selectedJob.description,
-      material,
-      result: cocResult,
-      date_issued: dateStr || new Date().toISOString().split('T')[0]
+    await sb('qms_cocs','POST',{
+      coc_no:cocNo, job_no:jobNo, customer, description:desc,
+      material, result:cocResult, date_issued:dateVal||today()
     });
-  } catch(e) {
-    // Table may not exist yet — continue with PDF anyway, just warn
-    console.warn('CoC not saved to Supabase:', e.message);
-  }
+  } catch(e) { console.warn('CoC not saved:',e.message); }
 
-  // Build PDF
+  // ─── PDF ───
   const {jsPDF} = window.jspdf;
   const doc = new jsPDF({unit:'mm',format:'a4'});
-  const W=210, H=297, ml=18, mr=18, cw=W-ml-mr;
+  const W=210, H=297, ml=16, mr=16, cw=W-ml-mr;
+  const GOLD=[249,189,44], BLACK=[0,0,0], WHITE=[255,255,255], STEEL=[107,107,107];
 
-  // Black header
-  doc.setFillColor(23,23,23);
-  doc.rect(0,0,W,36,'F');
-  doc.setTextColor(216,163,24);
-  doc.setFontSize(16); doc.setFont('helvetica','bold');
-  doc.text('JENNER ENGINEERING PTY LTD',W/2,14,{align:'center'});
+  // Header bar
+  doc.setFillColor(...BLACK); doc.rect(0,0,W,34,'F');
+  doc.setTextColor(...GOLD); doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text('JENNER ENGINEERING PTY LTD',W/2,13,{align:'center'});
   doc.setFontSize(8); doc.setFont('helvetica','normal');
-  doc.setTextColor(180,180,180);
-  doc.text('13 David Muir Street, Slade Point QLD 4740  |  ABN 27 632 194 373',W/2,21,{align:'center'});
-  doc.setTextColor(216,163,24);
-  doc.setFontSize(11); doc.setFont('helvetica','bold');
-  doc.text('CERTIFICATE OF CONFORMANCE',W/2,30,{align:'center'});
+  doc.setTextColor(...STEEL);
+  doc.text('13 David Muir Street, Slade Point QLD 4740  |  ABN 27 632 194 373',W/2,20,{align:'center'});
+  doc.setTextColor(...GOLD); doc.setFontSize(11); doc.setFont('helvetica','bold');
+  doc.text('CERTIFICATE OF CONFORMANCE',W/2,29,{align:'center'});
 
   // Gold rule
-  doc.setDrawColor(216,163,24); doc.setLineWidth(.8);
-  doc.line(ml,40,W-mr,40);
+  doc.setDrawColor(...GOLD); doc.setLineWidth(.8); doc.line(ml,38,W-mr,38);
 
-  // CoC number + date box
-  doc.setFillColor(244,244,244);
-  doc.roundedRect(ml,44,cw/2-4,18,2,2,'F');
-  doc.setTextColor(100,100,100); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
-  doc.text('CERTIFICATE NUMBER',ml+4,50);
-  doc.setTextColor(23,23,23); doc.setFontSize(11); doc.setFont('helvetica','bold');
-  doc.text(cocNo,ml+4,58);
-
-  doc.setFillColor(244,244,244);
-  doc.roundedRect(W/2+2,44,cw/2-4,18,2,2,'F');
-  doc.setTextColor(100,100,100); doc.setFontSize(7.5);
-  doc.text('DATE OF ISSUE',W/2+6,50);
-  doc.setTextColor(23,23,23); doc.setFontSize(11); doc.setFont('helvetica','bold');
-  doc.text(dateDisp,W/2+6,58);
-
-  // Field boxes helper
-  let y = 68;
-  function field(lbl,val,x,w,ht=16) {
-    doc.setFillColor(250,250,250);
-    doc.setDrawColor(220,220,220); doc.setLineWidth(.3);
+  // CoC number + date
+  let y=43;
+  function box(x,w,label,value,ht=16){
+    doc.setFillColor(245,245,245); doc.setDrawColor(220,220,220); doc.setLineWidth(.3);
     doc.roundedRect(x,y,w,ht,1.5,1.5,'FD');
-    doc.setTextColor(120,120,120); doc.setFontSize(7); doc.setFont('helvetica','bold');
-    doc.text(lbl.toUpperCase(),x+3,y+5);
-    doc.setTextColor(23,23,23); doc.setFontSize(10); doc.setFont('helvetica','normal');
-    doc.text(String(val||'—'),x+3,y+12);
+    doc.setTextColor(...STEEL); doc.setFontSize(7); doc.setFont('helvetica','bold');
+    doc.text(label.toUpperCase(),x+3,y+5);
+    doc.setTextColor(...BLACK); doc.setFontSize(10); doc.setFont('helvetica','normal');
+    doc.text(String(value||'—'),x+3,y+12);
   }
-  function row2(l1,v1,l2,v2) {
-    field(l1,v1,ml,cw/2-3);
-    field(l2,v2,ml+cw/2+3,cw/2-3);
-    y+=20;
-  }
-  function row1(l,v,ht=16) {
-    field(l,v,ml,cw,ht);
-    y+=ht+4;
-  }
-  row2('Job Number', selectedJob.job_no||'—', 'Customer', selectedJob.customer||'—');
-  row1('Job Description', selectedJob.description||'—');
-  row2('Material / Specification', material, 'Heat / Batch Number', heat||'N/A');
-  if (remarks) { row1('Remarks', remarks); }
+  box(ml,cw/2-3,'Certificate Number',cocNo);
+  box(ml+cw/2+3,cw/2-3,'Date of Issue',dateDisp);
+  y+=20;
+  box(ml,cw/2-3,'Job Number',jobNo);
+  box(ml+cw/2+3,cw/2-3,'Customer',customer);
+  y+=20;
+  const descLines = doc.splitTextToSize(desc,cw-6);
+  const descHt = Math.max(16,descLines.length*5+8);
+  doc.setFillColor(245,245,245); doc.setDrawColor(220,220,220); doc.setLineWidth(.3);
+  doc.roundedRect(ml,y,cw,descHt,1.5,1.5,'FD');
+  doc.setTextColor(...STEEL); doc.setFontSize(7); doc.setFont('helvetica','bold');
+  doc.text('JOB DESCRIPTION',ml+3,y+5);
+  doc.setTextColor(...BLACK); doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text(descLines,ml+3,y+12);
+  y+=descHt+4;
+  box(ml,cw/2-3,'Material / Specification',material);
+  box(ml+cw/2+3,cw/2-3,'Heat / Batch Number',heat);
+  y+=20;
 
-  // Result box
-  const rCol = cocResult==='PASS' ? [11,107,58] : [180,35,24];
+  if (remarks) {
+    const rl = doc.splitTextToSize(remarks,cw-6);
+    const rh = Math.max(14,rl.length*5+8);
+    doc.setFillColor(245,245,245); doc.setDrawColor(220,220,220); doc.setLineWidth(.3);
+    doc.roundedRect(ml,y,cw,rh,1.5,1.5,'FD');
+    doc.setTextColor(...STEEL); doc.setFontSize(7); doc.setFont('helvetica','bold');
+    doc.text('REMARKS',ml+3,y+5);
+    doc.setTextColor(...BLACK); doc.setFontSize(10); doc.setFont('helvetica','normal');
+    doc.text(rl,ml+3,y+12); y+=rh+4;
+  }
+
+  // Result
+  const rCol = cocResult==='PASS' ? [26,122,60] : [180,35,24];
   doc.setFillColor(...rCol);
   doc.roundedRect(ml,y,cw,18,2,2,'F');
-  doc.setTextColor(255,255,255); doc.setFontSize(12); doc.setFont('helvetica','bold');
-  doc.text('INSPECTION RESULT: ' + cocResult, W/2, y+12, {align:'center'});
-  y += 24;
+  doc.setTextColor(...WHITE); doc.setFontSize(13); doc.setFont('helvetica','bold');
+  doc.text('INSPECTION RESULT: '+cocResult,W/2,y+12,{align:'center'});
+  y+=24;
 
-  // Gold rule
-  doc.setDrawColor(216,163,24); doc.setLineWidth(.5);
-  doc.line(ml,y,W-mr,y); y+=8;
+  // Rule
+  doc.setDrawColor(...GOLD); doc.setLineWidth(.5); doc.line(ml,y,W-mr,y); y+=7;
 
   // Certification statement
-  doc.setFillColor(255,249,227);
-  doc.setDrawColor(216,163,24); doc.setLineWidth(.3);
+  doc.setFillColor(254,242,213); doc.setDrawColor(...GOLD); doc.setLineWidth(.3);
   doc.roundedRect(ml,y,cw,22,2,2,'FD');
-  doc.setTextColor(23,23,23); doc.setFontSize(7.8); doc.setFont('helvetica','normal');
-  const stmt = 'We hereby certify that the goods described above have been manufactured, inspected and tested in accordance with the applicable specifications and drawing requirements. All inspection records are retained and available upon request.';
-  const lines = doc.splitTextToSize(stmt,cw-10);
-  doc.text(lines,W/2,y+7,{align:'center',lineHeightFactor:1.4});
-  y += 28;
+  doc.setTextColor(...BLACK); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+  const stmt='We hereby certify that the goods described above have been manufactured, inspected and tested in accordance with the applicable specifications and drawing requirements. All inspection records are retained and available upon request.';
+  doc.text(doc.splitTextToSize(stmt,cw-10),W/2,y+7,{align:'center',lineHeightFactor:1.4});
+  y+=28;
 
   // Signature block
-  const sig1x=ml, sig2x=ml+cw/2+4, sigW=cw/2-4;
+  const sx1=ml, sx2=ml+cw/2+4, sw=cw/2-4;
   doc.setDrawColor(180,180,180); doc.setLineWidth(.3);
-  doc.line(sig1x,y+18,sig1x+sigW,y+18);
-  doc.line(sig2x,y+18,sig2x+sigW,y+18);
-  doc.setTextColor(80,80,80); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
-  doc.text('Authorised Signatory',sig1x,y+22);
-  doc.text('Date',sig2x,y+22);
-  doc.setFontSize(7); doc.setTextColor(140,140,140);
-  doc.text('Jenner Engineering Pty Ltd',sig1x,y+27);
-  y += 34;
+  doc.line(sx1,y+18,sx1+sw,y+18);
+  doc.line(sx2,y+18,sx2+sw,y+18);
+  doc.setTextColor(...STEEL); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+  doc.text('Authorised Signatory',sx1,y+22);
+  doc.text('Date',sx2,y+22);
+  doc.setFontSize(7); doc.text('Jenner Engineering Pty Ltd',sx1,y+27);
+  y+=34;
 
   // Company stamp
-  doc.setDrawColor(23,23,23); doc.setLineWidth(.6);
+  doc.setDrawColor(...BLACK); doc.setLineWidth(.6);
   doc.roundedRect(ml,y,cw,28,2,2,'S');
-  doc.setLineWidth(.3);
-  doc.roundedRect(ml+1.5,y+1.5,cw-3,25,1.5,1.5,'S');
-  doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(23,23,23);
-  doc.text('JENNER ENGINEERING',ml+6,y+9);
-  doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(80,80,80);
-  doc.text('13 David Muir St, Slade Point QLD 4740',ml+6,y+15);
-  doc.text('ABN 27 632 194 373',ml+6,y+21);
-  doc.setTextColor(216,163,24); doc.setFontSize(8.5); doc.setFont('helvetica','bold');
-  doc.text('COMPANY STAMP',sig2x+8,y+11,{align:'right'});
-  doc.setFontSize(7); doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
-  doc.text('ISO 9001:2015 Certified',sig2x+8,y+18,{align:'right'});
-  doc.text('Quality Assurance',sig2x+8,y+23,{align:'right'});
+  doc.setLineWidth(.3); doc.roundedRect(ml+1.5,y+1.5,cw-3,25,1.5,1.5,'S');
+  doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(...BLACK);
+  doc.text('J',ml+8,y+10);
+  doc.setTextColor(...STEEL); doc.setFont('helvetica','normal');
+  doc.setFontSize(9); doc.text('ENNER ENGINEERING',ml+14,y+10);
+  doc.setFontSize(7); doc.text('13 David Muir St, Slade Point QLD 4740',ml+8,y+17);
+  doc.text('ABN 27 632 194 373',ml+8,y+23);
+  doc.setTextColor(...GOLD); doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text('COMPANY STAMP',W-mr-4,y+12,{align:'right'});
+  doc.setFontSize(7); doc.setTextColor(...STEEL); doc.setFont('helvetica','normal');
+  doc.text('Quality Assured',W-mr-4,y+19,{align:'right'});
+  doc.text('JEN-QMS-01',W-mr-4,y+25,{align:'right'});
 
   // Footer
-  doc.setTextColor(160,160,160); doc.setFontSize(7); doc.setFont('helvetica','normal');
-  doc.text(`${cocNo}  |  Issued ${dateDisp}  |  Jenner Engineering Pty Ltd  |  JEN-QMS-01`, W/2, H-8, {align:'center'});
-  doc.setDrawColor(216,163,24); doc.setLineWidth(.3);
-  doc.line(ml,H-12,W-mr,H-12);
+  doc.setTextColor(180,180,180); doc.setFontSize(7);
+  doc.text(cocNo+'  |  Issued '+dateDisp+'  |  Jenner Engineering Pty Ltd',W/2,H-8,{align:'center'});
+  doc.setDrawColor(...GOLD); doc.setLineWidth(.3); doc.line(ml,H-12,W-mr,H-12);
 
-  doc.save(`${cocNo}.pdf`);
+  doc.save(cocNo+'.pdf');
 
-  const alert = document.getElementById('cocAlert');
-  alert.textContent = `CoC ${cocNo} generated and downloaded successfully.`;
-  alert.classList.add('show','alert-success');
-  alert.classList.remove('alert-error');
+  document.getElementById('aiOk').textContent='✓ CoC '+cocNo+' generated and downloaded.';
+  document.getElementById('aiOk').classList.add('show');
+  document.getElementById('aiErr').classList.remove('show');
 }
 
-// ─── NCR ──────────────────────────────────────────────────────────────────────
-async function loadNcrs() {
-  const tbody = document.getElementById('ncrTableBody');
-  tbody.innerHTML = '<tr><td colspan="6" class="empty"><span class="spinner"></span> Loading…</td></tr>';
+// ─── NCR ───
+function setDates(){
+  const y=new Date().getFullYear();
+  document.getElementById('rFrom').value=y+'-07-01';
+  document.getElementById('rTo').value=today();
+}
+
+async function loadNcrs(){
+  const tb=document.getElementById('ncrBody');
+  tb.innerHTML='<tr><td colspan="6" class="empty"><span class="spinner"></span></td></tr>';
   try {
-    const ncrs = await sb('qms_ncrs?select=*&order=created_at.desc');
-    if (!ncrs.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="empty">No NCRs recorded yet.</td></tr>';
-      return;
-    }
-    tbody.innerHTML = ncrs.map(n=>`
-      <tr onclick="editNcr(${JSON.stringify(n).replace(/"/g,'&quot;')})">
+    const data=await sb('qms_ncrs?select=*&order=created_at.desc');
+    if (!data.length){ tb.innerHTML='<tr><td colspan="6" class="empty">No NCRs recorded yet.</td></tr>'; return; }
+    tb.innerHTML=data.map(n=>`
+      <tr onclick='editNcr(${JSON.stringify(n).replace(/'/g,"&#39;")})'>
         <td><strong>${n.ncr_no||'—'}</strong></td>
         <td>${fmtDate(n.date_raised)}</td>
         <td>${n.job_no||'—'}</td>
@@ -739,167 +796,142 @@ async function loadNcrs() {
         <td><span class="badge ${n.status==='OPEN'?'badge-open':'badge-closed'}">${n.status||'—'}</span></td>
         <td>${n.action_by||'—'}</td>
       </tr>`).join('');
-  } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty" style="color:var(--red)">Error loading NCRs: ${e.message}<br><small>The qms_ncrs table may not exist yet. Run the SQL from the setup guide.</small></td></tr>`;
+  } catch(e){
+    tb.innerHTML=`<tr><td colspan="6" class="empty" style="color:var(--red)">Error loading NCRs — the qms_ncrs table may not exist yet. Run the setup SQL in Supabase.</td></tr>`;
   }
 }
 
-function openNcrModal(ncr=null) {
-  editingNcrId = ncr ? ncr.id : null;
-  document.getElementById('ncrModalTitle').textContent = ncr ? 'Edit NCR' : 'Raise Non-Conformance Record';
-  document.getElementById('ncrId').value           = ncr?.id || '';
-  document.getElementById('ncrNo').value           = ncr?.ncr_no || genNcrNo();
-  document.getElementById('ncrJobNo').value        = ncr?.job_no || '';
-  document.getElementById('ncrDateRaised').value   = ncr?.date_raised || new Date().toISOString().split('T')[0];
-  document.getElementById('ncrActionBy').value     = ncr?.action_by || '';
-  document.getElementById('ncrDesc').value         = ncr?.description || '';
-  document.getElementById('ncrRoot').value         = ncr?.root_cause || '';
-  document.getElementById('ncrAction').value       = ncr?.corrective_action || '';
-  document.getElementById('ncrStatus').value       = ncr?.status || 'OPEN';
-  document.getElementById('ncrDateClosed').value   = ncr?.date_closed || '';
+function genNcrNo(){
+  const d=new Date();
+  return 'NCR-'+d.getFullYear()+('0'+(d.getMonth()+1)).slice(-2)+'-'+Math.floor(Math.random()*900+100);
+}
+
+function openNcr(n=null){
+  editNcrId=n?.id||null;
+  document.getElementById('ncrTitle').textContent=n?'Edit NCR':'Raise Non-Conformance Record';
+  document.getElementById('ncrId').value=n?.id||'';
+  document.getElementById('ncrNo').value=n?.ncr_no||genNcrNo();
+  document.getElementById('ncrJob').value=n?.job_no||'';
+  document.getElementById('ncrDate').value=n?.date_raised||today();
+  document.getElementById('ncrBy').value=n?.action_by||'';
+  document.getElementById('ncrDesc').value=n?.description||'';
+  document.getElementById('ncrRoot').value=n?.root_cause||'';
+  document.getElementById('ncrAction').value=n?.corrective_action||'';
+  document.getElementById('ncrStatus').value=n?.status||'OPEN';
+  document.getElementById('ncrClosed').value=n?.date_closed||'';
   document.getElementById('ncrModal').classList.add('open');
 }
 
-function editNcr(ncr) { openNcrModal(ncr); }
-function closeNcrModal() { document.getElementById('ncrModal').classList.remove('open'); }
+function editNcr(n){ openNcr(n); }
+function closeNcr(){ document.getElementById('ncrModal').classList.remove('open'); }
 
-function genNcrNo() {
-  const d = new Date();
-  const ym = d.getFullYear() + ('0'+(d.getMonth()+1)).slice(-2);
-  const rand = Math.floor(Math.random()*900)+100;
-  return `NCR-${ym}-${rand}`;
-}
-
-async function saveNcr() {
-  const desc = document.getElementById('ncrDesc').value.trim();
-  if (!desc) { alert('Description is required.'); return; }
-  const data = {
-    ncr_no:            document.getElementById('ncrNo').value,
-    job_no:            document.getElementById('ncrJobNo').value.trim()||null,
-    date_raised:       document.getElementById('ncrDateRaised').value,
-    action_by:         document.getElementById('ncrActionBy').value.trim()||null,
-    description:       desc,
-    root_cause:        document.getElementById('ncrRoot').value.trim()||null,
+async function saveNcr(){
+  const desc=document.getElementById('ncrDesc').value.trim();
+  if(!desc){ alert('Please describe what went wrong.'); return; }
+  const data={
+    ncr_no:    document.getElementById('ncrNo').value,
+    job_no:    document.getElementById('ncrJob').value.trim()||null,
+    date_raised: document.getElementById('ncrDate').value,
+    action_by: document.getElementById('ncrBy').value.trim()||null,
+    description: desc,
+    root_cause: document.getElementById('ncrRoot').value.trim()||null,
     corrective_action: document.getElementById('ncrAction').value.trim()||null,
-    status:            document.getElementById('ncrStatus').value,
-    date_closed:       document.getElementById('ncrDateClosed').value||null,
+    status:    document.getElementById('ncrStatus').value,
+    date_closed: document.getElementById('ncrClosed').value||null,
   };
   try {
-    if (editingNcrId) {
-      await sb(`qms_ncrs?id=eq.${editingNcrId}`, 'PATCH', data);
-    } else {
-      await sb('qms_ncrs', 'POST', data);
-    }
-    closeNcrModal();
-    loadNcrs();
-    showNcrAlert('NCR saved successfully.', 'success');
-  } catch(e) {
-    showNcrAlert('Error saving NCR: ' + e.message, 'error');
-  }
+    if(editNcrId) await sb(`qms_ncrs?id=eq.${editNcrId}`,'PATCH',data);
+    else await sb('qms_ncrs','POST',data);
+    closeNcr(); loadNcrs();
+    showNcrAlert('NCR saved.','ok');
+  } catch(e){ showNcrAlert('Error: '+e.message,'err'); }
 }
 
-function showNcrAlert(msg, type) {
-  const a = document.getElementById('ncrAlert');
-  a.textContent = msg;
-  a.className = `alert alert-${type} show`;
-  setTimeout(()=>a.classList.remove('show'), 5000);
+function showNcrAlert(msg,type){
+  const a=document.getElementById('ncrAlert');
+  a.textContent=msg; a.className=`alert alert-${type} show`;
+  setTimeout(()=>a.classList.remove('show'),5000);
 }
 
-// ─── REPORTS ──────────────────────────────────────────────────────────────────
-function fmtDate(d) {
-  if (!d) return '—';
-  return new Date(d+'T12:00:00').toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'});
-}
-
-async function rptNcrLog() {
-  const from = document.getElementById('rptFrom').value;
-  const to   = document.getElementById('rptTo').value;
-  let url = `qms_ncrs?select=*&order=date_raised.desc`;
-  if (from) url += `&date_raised=gte.${from}`;
-  if (to)   url += `&date_raised=lte.${to}`;
+// ─── REPORTS ───
+async function rptNcr(){
+  const from=document.getElementById('rFrom').value;
+  const to=document.getElementById('rTo').value;
+  let url=`qms_ncrs?select=*&order=date_raised.desc`;
+  if(from) url+=`&date_raised=gte.${from}`;
+  if(to)   url+=`&date_raised=lte.${to}`;
   try {
-    const data = await sb(url);
-    buildReport('NCR Log', from, to,
+    const data=await sb(url);
+    buildRpt('NCR Log',from,to,
       ['NCR No.','Date Raised','Job No.','Description','Status','Action By'],
       data.map(n=>[n.ncr_no,fmtDate(n.date_raised),n.job_no||'—',n.description,n.status,n.action_by||'—'])
     );
-  } catch(e) { alert('Error: '+e.message); }
+  } catch(e){ alert('Error: '+e.message); }
 }
 
-async function rptOpenNcrs() {
+async function rptOpen(){
   try {
-    const data = await sb('qms_ncrs?select=*&status=eq.OPEN&order=date_raised.asc');
-    const today = new Date();
-    buildReport('Open NCRs', null, null,
+    const data=await sb('qms_ncrs?select=*&status=eq.OPEN&order=date_raised.asc');
+    const today2=new Date();
+    buildRpt('Open NCRs',null,null,
       ['NCR No.','Date Raised','Job No.','Description','Days Open','Action By'],
       data.map(n=>{
-        const days = n.date_raised ? Math.floor((today-new Date(n.date_raised+'T12:00:00'))/86400000) : '—';
+        const days=n.date_raised?Math.floor((today2-new Date(n.date_raised+'T12:00:00'))/86400000):'—';
         return [n.ncr_no,fmtDate(n.date_raised),n.job_no||'—',n.description,String(days),n.action_by||'—'];
       })
     );
-  } catch(e) { alert('Error: '+e.message); }
+  } catch(e){ alert('Error: '+e.message); }
 }
 
-async function rptCocRegister() {
-  const from = document.getElementById('rptFrom').value;
-  const to   = document.getElementById('rptTo').value;
-  let url = `qms_cocs?select=*&order=date_issued.desc`;
-  if (from) url += `&date_issued=gte.${from}`;
-  if (to)   url += `&date_issued=lte.${to}`;
+async function rptCoc(){
+  const from=document.getElementById('rFrom').value;
+  const to=document.getElementById('rTo').value;
+  let url=`qms_cocs?select=*&order=date_issued.desc`;
+  if(from) url+=`&date_issued=gte.${from}`;
+  if(to)   url+=`&date_issued=lte.${to}`;
   try {
-    const data = await sb(url);
-    buildReport('CoC Register', from, to,
+    const data=await sb(url);
+    buildRpt('CoC Register',from,to,
       ['CoC No.','Date Issued','Job No.','Customer','Description','Result'],
       data.map(c=>[c.coc_no,fmtDate(c.date_issued),c.job_no||'—',c.customer||'—',c.description||'—',c.result||'—'])
     );
-  } catch(e) { alert('Error: '+e.message); }
+  } catch(e){ alert('Error: '+e.message); }
 }
 
-function buildReport(title, from, to, headers, rows) {
-  const {jsPDF} = window.jspdf;
-  const doc = new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
-  const W=297,H=210;
-  // Header
-  doc.setFillColor(23,23,23);
-  doc.rect(0,0,W,22,'F');
-  doc.setTextColor(216,163,24);
-  doc.setFontSize(13); doc.setFont('helvetica','bold');
-  doc.text('JENNER ENGINEERING PTY LTD  —  ' + title.toUpperCase(), W/2, 10, {align:'center'});
-  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(180,180,180);
-  const range = from&&to ? `${fmtDate(from)} to ${fmtDate(to)}` : 'All dates';
-  doc.text(`${range}  |  Generated ${new Date().toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'})}  |  ABN 27 632 194 373`, W/2, 17, {align:'center'});
-  // Table
-  const colW = (W-24)/headers.length;
+function buildRpt(title,from,to,headers,rows){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const W=297,H=210,ml=12,cw=W-ml*2;
+  const GOLD=[249,189,44],BLACK=[0,0,0],STEEL=[107,107,107],WHITE=[255,255,255];
+  doc.setFillColor(...BLACK); doc.rect(0,0,W,22,'F');
+  doc.setTextColor(...GOLD); doc.setFontSize(13); doc.setFont('helvetica','bold');
+  doc.text('JENNER ENGINEERING — '+title.toUpperCase(),W/2,10,{align:'center'});
+  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(...STEEL);
+  const range=from&&to?fmtDate(from)+' to '+fmtDate(to):'All dates';
+  doc.text(range+'  |  Generated '+fmtDate(today())+'  |  ABN 27 632 194 373',W/2,17,{align:'center'});
+  const colW=cw/headers.length;
   let y=28;
-  // Header row
-  doc.setFillColor(23,23,23);
-  doc.rect(12,y,W-24,9,'F');
-  doc.setTextColor(216,163,24); doc.setFontSize(7); doc.setFont('helvetica','bold');
-  headers.forEach((h,i)=>doc.text(h,14+i*colW,y+6.5));
+  doc.setFillColor(...BLACK); doc.rect(ml,y,cw,9,'F');
+  doc.setTextColor(...GOLD); doc.setFontSize(7); doc.setFont('helvetica','bold');
+  headers.forEach((h,i)=>doc.text(h,ml+2+i*colW,y+6));
   y+=9;
-  // Data rows
-  if (!rows.length) {
+  if(!rows.length){
     doc.setTextColor(150,150,150); doc.setFontSize(9); doc.setFont('helvetica','italic');
-    doc.text('No records found for this date range.',W/2,y+12,{align:'center'});
+    doc.text('No records found.',W/2,y+12,{align:'center'});
   } else {
     rows.forEach((row,ri)=>{
-      if (y>H-20) { doc.addPage(); y=20; }
+      if(y>H-18){doc.addPage();y=20;}
       doc.setFillColor(ri%2===0?255:246,ri%2===0?255:246,ri%2===0?255:246);
-      doc.rect(12,y,W-24,8,'F');
-      doc.setDrawColor(220,220,220); doc.setLineWidth(.2);
-      doc.rect(12,y,W-24,8,'S');
-      doc.setTextColor(30,30,30); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
-      row.forEach((v,i)=>{
-        const txt = doc.splitTextToSize(String(v||'—'),colW-2);
-        doc.text(txt[0],14+i*colW,y+5.5);
-      });
+      doc.rect(ml,y,cw,8,'F');
+      doc.setDrawColor(220,220,220); doc.setLineWidth(.2); doc.rect(ml,y,cw,8,'S');
+      doc.setTextColor(...BLACK); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+      row.forEach((v,i)=>doc.text(doc.splitTextToSize(String(v||'—'),colW-2)[0],ml+2+i*colW,y+5.5));
       y+=8;
     });
   }
-  // Footer
   doc.setTextColor(160,160,160); doc.setFontSize(7);
-  doc.text(`Jenner Engineering Pty Ltd  |  QMS Report — ${title}  |  Confidential`, W/2, H-6, {align:'center'});
-  doc.save(`Jenner_${title.replace(/\s/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`);
+  doc.text('Jenner Engineering Pty Ltd  |  JEN-QMS-REG-001  |  Confidential',W/2,H-6,{align:'center'});
+  doc.save('Jenner_'+title.replace(/\s/g,'_')+'_'+today()+'.pdf');
 }
 </script>
 </body>
