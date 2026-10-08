@@ -163,30 +163,68 @@ textarea{resize:vertical;min-height:64px}
   .fr2,.fr3,.detail-grid,.rpt-grid{grid-template-columns:1fr}
   .content{padding:14px}
 }
+
+/* ─── v4 ADDITIONS ─── */
+.content{max-width:1180px}
+.content.narrow{max-width:900px}
+.tabs{overflow-x:auto;scrollbar-width:none}
+.tab{white-space:nowrap;padding:10px 16px}
+.banner{background:var(--rl);color:var(--red);border:1px solid #f5b7b1;padding:12px 16px;font-size:13px;font-weight:700;display:none;margin:16px auto 0;max-width:1180px;border-radius:4px}
+.banner.show{display:block}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px}
+.toolbar .fg{min-width:150px}
+.toolbar .grow{flex:1;min-width:200px}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.kpi{background:var(--white);border:1px solid var(--border);border-top:4px solid var(--gold);border-radius:6px;padding:14px 16px}
+.kpi .k-lbl{font-size:10px;font-weight:800;color:var(--steel);letter-spacing:.5px;text-transform:uppercase}
+.kpi .k-val{font-size:30px;font-weight:900;color:var(--black);line-height:1.15;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi .k-sub{font-size:11px;color:var(--steel);margin-top:2px}
+.kpi .k-tgt{font-size:11px;font-weight:800;margin-top:4px}
+.k-met{color:var(--green)} .k-miss{color:var(--red)}
+.kpi.warn{border-top-color:var(--red)}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.chart-box h3{font-size:12px;font-weight:800;margin-bottom:2px}
+.chart-box p.sub{font-size:11px;color:var(--steel);margin-bottom:8px}
+.chart-box svg{width:100%;height:auto;display:block}
+.chart-box svg text{font-family:'Nunito',Arial,sans-serif}
+.legend{display:flex;gap:14px;font-size:11px;color:var(--steel);margin-bottom:6px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px}
+.tbl.num td.n,.tbl.num th.n{text-align:right;font-variant-numeric:tabular-nums}
+.tbl.static tr:hover td{background:none;cursor:default}
+.tbl tfoot td{font-weight:800;border-top:2px solid var(--black)}
+.tbl-wrap{overflow-x:auto}
+.tbl td.wrap{max-width:260px;white-space:normal}
+.tbl td{white-space:nowrap}
+.muted{color:#aaa}
+.badge-warn{background:#FFF3CD;color:#996600}
+.badge-grey{background:#eee;color:#666}
+.sect{font-size:12px;font-weight:900;margin:18px 0 8px;letter-spacing:.3px}
+.sect:first-child{margin-top:0}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.calc-strip{background:var(--grey);border:1px solid var(--border);border-radius:4px;padding:10px 12px;font-size:12px;margin-bottom:14px;display:flex;gap:18px;flex-wrap:wrap}
+.calc-strip b{font-weight:800}
+.modal.wide{width:860px}
+.subhead{font-size:11px;font-weight:900;color:var(--black);text-transform:uppercase;letter-spacing:.5px;margin:6px 0 10px;padding-bottom:4px;border-bottom:2px solid var(--gold)}
+.stage-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 14px;margin-bottom:14px}
+.web-preview{background:#fff;border:1px dashed var(--border);border-radius:6px;padding:16px;margin-bottom:12px}
+.code-box{font-family:Consolas,monospace;font-size:11px;min-height:110px}
+.status-line{font-size:12px;font-weight:700;padding:8px 12px;border-radius:4px;margin-bottom:14px}
+.status-ok{background:var(--gl);color:var(--green)}
+.status-warn{background:#FFF3CD;color:#996600}
+.fr4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:900px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.chart-grid,.two-col{grid-template-columns:1fr}.stage-grid{grid-template-columns:1fr 1fr}.fr4{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.stage-grid,.fr4{grid-template-columns:1fr}.kpi .k-val{font-size:24px}}
 </style>
 </head>
 <body>
-
-<!-- SETUP SCREEN -->
-<div class="overlay" id="screenSetup" style="display:none">
-  <div class="box">
-    <div class="box-logo">
-      <div><span class="j">J</span><span class="rest">ENNER ENGINEERING</span></div>
-      <p>QMS — First Time Setup</p>
-    </div>
-    <label>Supabase Anon Key</label>
-    <input type="text" id="setupKey" placeholder="eyJhbGciOiJIUzI1NiIs…">
-    <button onclick="saveSetup()">Save &amp; Continue</button>
-    <p class="box-note">Find this in Supabase → Project Settings → API → anon public key.<br>Saved locally on this device only.</p>
-  </div>
-</div>
 
 <!-- LOGIN SCREEN -->
 <div class="overlay" id="screenLogin" style="display:none">
   <div class="box">
     <div class="box-logo">
       <div><span class="j">J</span><span class="rest">ENNER ENGINEERING</span></div>
-      <p>Quality Management System v3.0</p>
+      <p>Quality Management System v4.0</p>
     </div>
     <label>Password</label>
     <input type="password" id="loginPwd" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()">
@@ -200,27 +238,61 @@ textarea{resize:vertical;min-height:64px}
   <div class="hdr">
     <div class="hdr-logo"><span class="j">J</span><span class="rest">ENNER ENGINEERING — Quality Management System</span></div>
     <div class="hdr-right">
-      <span class="hdr-ver" onclick="vclick()" title="Settings">v3.0</span>
+      <span class="hdr-ver">v4.0 · JEN-QMS-REG-001</span>
+      <button class="btn-out" onclick="loadAll(true)">Refresh</button>
       <button class="btn-out" onclick="doLogout()">Sign Out</button>
     </div>
   </div>
-  <div class="tabs">
-    <div class="tab active" onclick="switchTab('coc')">Certificate of Conformance</div>
-    <div class="tab" onclick="switchTab('ncr')">NCR &amp; Reports</div>
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-tab="dash" onclick="switchTab('dash')">Dashboard</div>
+    <div class="tab" data-tab="coc" onclick="switchTab('coc')">Release &amp; CoC</div>
+    <div class="tab" data-tab="reg" onclick="switchTab('reg')">Job Register</div>
+    <div class="tab" data-tab="ncr" onclick="switchTab('ncr')">NCR Register</div>
+    <div class="tab" data-tab="audit" onclick="switchTab('audit')">Audit Report</div>
+    <div class="tab" data-tab="web" onclick="switchTab('web')">Website</div>
+  </div>
+  <div class="banner" id="dbBanner"></div>
+
+  <!-- ═══ DASHBOARD ═══ -->
+  <div id="tabDash" class="content">
+    <div class="card">
+      <div class="card-hdr"><h2>Quality Performance Dashboard · ISO 9001 clause 9.1.3</h2></div>
+      <div class="card-body">
+        <div class="toolbar" style="margin-bottom:0">
+          <div class="fg"><label>Period from</label><input type="date" id="pFrom" onchange="periodChanged()"></div>
+          <div class="fg"><label>Period to</label><input type="date" id="pTo" onchange="periodChanged()"></div>
+          <button class="btn btn-outline btn-sm" onclick="setPeriod('fy')">This FY</button>
+          <button class="btn btn-outline btn-sm" onclick="setPeriod('lastfy')">Last FY</button>
+          <button class="btn btn-outline btn-sm" onclick="setPeriod('12m')">Last 12 months</button>
+          <button class="btn btn-outline btn-sm" onclick="setPeriod('month')">This month</button>
+          <div class="fg" style="min-width:110px;max-width:130px"><label>On-time target %</label><input type="number" id="tOtd" min="0" max="100" onchange="saveTargets()"></div>
+          <div class="fg" style="min-width:110px;max-width:130px"><label>First-pass target %</label><input type="number" id="tFpy" min="0" max="100" onchange="saveTargets()"></div>
+        </div>
+      </div>
+    </div>
+    <div class="kpi-grid" id="kpiGrid"></div>
+    <div class="card">
+      <div class="card-hdr"><h2>Monthly trend — 12 months ending in the “Period to” month</h2></div>
+      <div class="card-body">
+        <div class="chart-grid" style="margin-bottom:18px">
+          <div class="chart-box" id="chartJobs"></div>
+          <div class="chart-box" id="chartOtd"></div>
+        </div>
+        <div class="tbl-wrap"><table class="tbl num static" id="trendTbl"></table></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><h2>By customer — within the reporting period</h2></div>
+      <div class="card-body" style="padding:0"><div class="tbl-wrap"><table class="tbl num static" id="custTbl"></table></div></div>
+    </div>
   </div>
 
-  <!-- ═══ COC TAB ═══ -->
-  <div id="tabCoc" class="content">
-
-    <!-- STEP 1: UPLOAD or SEARCH -->
+  <!-- ═══ RELEASE & COC ═══ -->
+  <div id="tabCoc" class="content narrow" style="display:none">
     <div class="card" id="cardUpload">
-      <div class="card-hdr"><h2>Step 1 — Upload Job Card or Search by Job Number</h2></div>
+      <div class="card-hdr"><h2>Step 1 — Load the job</h2></div>
       <div class="card-body">
-        <div class="alert alert-info show" id="uploadHint">
-          Upload a scanned job card PDF and the AI will read the job details automatically. Or type the job number below to search Supabase.
-        </div>
-
-        <!-- UPLOAD ZONE -->
+        <div class="alert alert-info show">Upload the scanned SprintSuite Job Card and the AI fills in the job and the six checks. Or find a job already in the register, or start a blank entry.</div>
         <div class="upload-zone" id="dropZone" onclick="document.getElementById('pdfFile').click()"
              ondragover="event.preventDefault();this.classList.add('drag')"
              ondragleave="this.classList.remove('drag')"
@@ -228,58 +300,53 @@ textarea{resize:vertical;min-height:64px}
           <input type="file" id="pdfFile" accept=".pdf,image/*" onchange="handleFiles(this.files)">
           <div class="icon">📄</div>
           <h3>Drop scanned job card here or click to browse</h3>
-          <p>PDF or image file — AI will extract job details automatically</p>
+          <p>PDF or image file — AI will extract job details and checks automatically</p>
         </div>
-
-        <div style="text-align:center;color:var(--steel);font-size:12px;margin:14px 0;font-weight:600">— OR SEARCH MANUALLY —</div>
-
+        <div style="text-align:center;color:var(--steel);font-size:12px;margin:14px 0;font-weight:600">— OR FIND A JOB IN THE REGISTER —</div>
         <div style="display:flex;gap:10px">
           <input type="text" id="jobSearch" placeholder="Type job number or customer name…" style="flex:1" onkeydown="if(event.key==='Enter')searchJob()">
           <button class="btn btn-primary" onclick="searchJob()">Search</button>
+          <button class="btn btn-outline" onclick="newBlank()">Blank entry</button>
         </div>
-        <div id="searchResults" style="margin-top:12px"></div>
+        <div id="searchResults"></div>
       </div>
     </div>
 
-    <!-- STEP 2: COC FORM (hidden until job loaded) -->
     <div class="card" id="cardCoc" style="display:none">
       <div class="card-hdr">
-        <h2>Step 2 — Review &amp; Issue Certificate of Conformance</h2>
+        <h2 id="cocHdr">Step 2 — Check, release &amp; issue Certificate of Conformance</h2>
         <button class="btn btn-sm btn-outline" onclick="resetCoc()">← Start Again</button>
       </div>
       <div class="card-body">
         <div class="ai-status" id="aiStatus"><span class="spinner"></span><span id="aiMsg">AI is reading the job card…</span></div>
         <div class="alert alert-ok" id="aiOk"></div>
         <div class="alert alert-err" id="aiErr"></div>
+        <div class="alert alert-info" id="editNote"></div>
 
-        <!-- JOB DETAILS (auto-filled or manual) -->
-        <div class="form-row fr2">
-          <div>
-            <label>Job Number <span style="color:var(--red)">*</span></label>
-            <input type="text" id="fJobNo" placeholder="e.g. J2026-045">
-          </div>
-          <div>
-            <label>Customer <span style="color:var(--red)">*</span></label>
-            <input type="text" id="fCustomer" placeholder="Customer name">
-          </div>
+        <div class="subhead">Job</div>
+        <div class="form-row fr3">
+          <div><label>Job Number <span style="color:var(--red)">*</span></label><input type="text" id="fJobNo" placeholder="e.g. P.26.0702"></div>
+          <div><label>Customer <span style="color:var(--red)">*</span></label><input type="text" id="fCustomer" list="dlCustomers" placeholder="Customer name"></div>
+          <div><label>Customer Ref / PO</label><input type="text" id="fRef"></div>
         </div>
-        <div class="form-row">
-          <div>
-            <label>Job Description</label>
-            <input type="text" id="fDesc" placeholder="What was machined or repaired">
-          </div>
+        <div class="form-row"><div><label>Part / Job Description</label><input type="text" id="fDesc" placeholder="What was machined or repaired"></div></div>
+        <div class="form-row fr3">
+          <div><label>Material / Specification</label><input type="text" id="fMaterial"></div>
+          <div><label>Drawing / Rev</label><input type="text" id="fDrawing"></div>
+          <div><label>Heat / Batch Number</label><input type="text" id="fHeat" placeholder="If applicable"></div>
         </div>
-        <div class="form-row fr2">
-          <div>
-            <label>Material / Specification</label>
-            <input type="text" id="fMaterial" placeholder="e.g. 4140 HT per AS1444">
-          </div>
-          <div>
-            <label>Heat / Batch Number</label>
-            <input type="text" id="fHeat" placeholder="e.g. H24-0091 (if applicable)">
-          </div>
+        <div class="form-row fr3">
+          <div><label>Operator</label><input type="text" id="fOperator" list="dlStaff"></div>
+          <div><label>Qty Ordered</label><input type="number" id="fQtyO" min="0"></div>
+          <div><label>Qty Supplied</label><input type="number" id="fQtyS" min="0"></div>
         </div>
-        <label>Job Card Checks</label>
+        <div class="form-row fr3">
+          <div><label>Job Opened</label><input type="date" id="fOpened"></div>
+          <div><label>Required Delivery</label><input type="date" id="fRequired"></div>
+          <div><label>Actual Delivery</label><input type="date" id="fActual"></div>
+        </div>
+
+        <div class="subhead">Job Card Checks</div>
         <div class="checks" id="checksBox"></div>
         <div class="form-row fr2">
           <div>
@@ -289,222 +356,492 @@ textarea{resize:vertical;min-height:64px}
               <button class="fail" id="btnFail" onclick="setResult('FAIL')">✗ FAIL</button>
             </div>
           </div>
-          <div>
-            <label>Date of Inspection</label>
-            <input type="date" id="fDate">
-          </div>
+          <div><label>Remarks on CoC (optional)</label><input type="text" id="fRemarks" placeholder="Any notes for the customer…"></div>
         </div>
-        <div class="form-row">
-          <div>
-            <label>Remarks (optional)</label>
-            <textarea id="fRemarks" placeholder="Any notes for the customer…"></textarea>
-          </div>
+
+        <div class="subhead">Release &amp; Certificate</div>
+        <div class="form-row fr3">
+          <div><label>Released By</label><input type="text" id="fRelBy" list="dlStaff"></div>
+          <div><label>Release Date</label><input type="date" id="fRelDate"></div>
+          <div><label>CoC Certified By</label><input type="text" id="fCocBy" list="dlStaff"></div>
         </div>
+        <div class="status-line" id="cocStatus"></div>
         <div class="btn-group">
-          <button class="btn btn-gold" onclick="genCoc()">⬇ Generate &amp; Download CoC PDF</button>
+          <button class="btn btn-gold" onclick="saveLine(true)">⬇ Release job &amp; issue CoC</button>
+          <button class="btn btn-outline" onclick="saveLine(false)">Save to register only</button>
         </div>
       </div>
     </div>
-
   </div>
 
-  <!-- ═══ NCR + REPORTS TAB ═══ -->
-  <div id="tabNcr" class="content" style="display:none">
-
-    <!-- REPORTS -->
+  <!-- ═══ JOB REGISTER ═══ -->
+  <div id="tabReg" class="content" style="display:none">
     <div class="card">
-      <div class="card-hdr"><h2>Reports</h2></div>
+      <div class="card-hdr"><h2>Job Register — inspection, release &amp; delivery record</h2>
+        <button class="btn btn-sm btn-gold" onclick="openReg()">+ Add job line</button></div>
+      <div class="card-body" style="padding-bottom:0">
+        <div class="toolbar">
+          <div class="grow"><label>Search</label><input type="text" id="regQ" placeholder="Job no, customer, part, PO, CoC…" oninput="renderReg()"></div>
+          <div class="fg"><label>Show</label>
+            <select id="regF" onchange="renderReg()">
+              <option value="all">All job lines</option>
+              <option value="rel">Released</option>
+              <option value="unrel">Not released</option>
+              <option value="due">Not released, past due</option>
+              <option value="gaps">Released with check gaps</option>
+              <option value="nococ">Released, no CoC</option>
+              <option value="nodel">Released, no delivery date</option>
+              <option value="late">Delivered late</option>
+            </select></div>
+          <button class="btn btn-outline" onclick="exportReg()">Export to Excel (CSV)</button>
+        </div>
+        <p style="font-size:11px;color:var(--steel);margin-bottom:10px" id="regCount"></p>
+      </div>
+      <div class="tbl-wrap"><table class="tbl" id="regTbl"></table></div>
+    </div>
+  </div>
+
+  <!-- ═══ NCR REGISTER ═══ -->
+  <div id="tabNcr" class="content" style="display:none">
+    <div class="card">
+      <div class="card-hdr"><h2>Nonconformance &amp; corrective action register · clauses 8.7, 10.2</h2>
+        <button class="btn btn-sm btn-gold" onclick="openNcr()">+ Raise NCR</button></div>
+      <div class="card-body" style="padding-bottom:0">
+        <div class="alert" id="ncrAlert"></div>
+        <div class="toolbar">
+          <div class="grow"><label>Search</label><input type="text" id="ncrQ" placeholder="NCR no, job, customer, description…" oninput="renderNcrs()"></div>
+          <div class="fg"><label>Show</label>
+            <select id="ncrF" onchange="renderNcrs()">
+              <option value="all">All NCRs</option>
+              <option value="open">Open</option>
+              <option value="over">Open, past target close</option>
+              <option value="closed">Closed</option>
+              <option value="cc">Customer complaints</option>
+            </select></div>
+          <button class="btn btn-outline" onclick="exportNcr()">Export to Excel (CSV)</button>
+          <button class="btn btn-outline" onclick="rptNcr()">NCR log PDF (period)</button>
+        </div>
+      </div>
+      <div class="tbl-wrap"><table class="tbl" id="ncrTbl"></table></div>
+    </div>
+  </div>
+
+  <!-- ═══ AUDIT REPORT ═══ -->
+  <div id="tabAudit" class="content narrow" style="display:none">
+    <div class="card">
+      <div class="card-hdr"><h2>Quality Performance Report · JEN-QMS-REP-001</h2>
+        <button class="btn btn-sm btn-gold" onclick="auditPdf()">⬇ Download PDF</button></div>
       <div class="card-body">
-        <div class="date-filter">
-          <div class="fg"><label>From</label><input type="date" id="rFrom"></div>
-          <div class="fg"><label>To</label><input type="date" id="rTo"></div>
-          <button class="btn btn-outline" onclick="setDates()">This Year</button>
+        <div class="calc-strip"><span>Reporting period: <b id="aPeriod"></b></span><span><a href="#" onclick="switchTab('dash');return false">Change on the Dashboard</a></span></div>
+        <div id="auditBody"></div>
+        <div class="sect">5. Management comment, analysis and actions (9.1.3, 9.3.3)</div>
+        <div class="form-row"><textarea id="aComments" style="min-height:120px" placeholder="What the results show, causes of any late deliveries or nonconformities, actions agreed, and who is responsible." onchange="saveSetting('audit_comments',this.value)"></textarea></div>
+        <div class="form-row fr2">
+          <div><label>Reviewed by (name / position)</label><input type="text" id="aReviewer" onchange="saveSetting('audit_reviewer',this.value)"></div>
+          <div><label>Review date</label><input type="date" id="aDate"></div>
         </div>
-        <div class="rpt-grid">
-          <div class="rpt-card" onclick="rptNcr()"><div class="icon">📋</div><h3>NCR Log</h3><p>All NCRs in date range</p></div>
-          <div class="rpt-card" onclick="rptOpen()"><div class="icon">🔴</div><h3>Open NCRs</h3><p>Unresolved non-conformances</p></div>
-          <div class="rpt-card" onclick="rptCoc()"><div class="icon">📄</div><h3>CoC Register</h3><p>All certificates issued</p></div>
-        </div>
+        <p style="font-size:11px;color:var(--steel)">Comments and reviewer are saved automatically. The PDF has a signature line for signing after printing.</p>
       </div>
     </div>
+  </div>
 
-    <!-- NCR LIST -->
+  <!-- ═══ WEBSITE ═══ -->
+  <div id="tabWeb" class="content narrow" style="display:none">
     <div class="card">
-      <div class="card-hdr">
-        <h2>Non-Conformance Records</h2>
-        <button class="btn btn-sm btn-gold" onclick="openNcr()">+ Raise NCR</button>
-      </div>
-      <div class="card-body" style="padding:0">
-        <div class="alert" id="ncrAlert" style="margin:14px 14px 0"></div>
-        <table class="tbl">
-          <thead><tr>
-            <th>NCR No.</th><th>Date</th><th>Job No.</th>
-            <th>Description</th><th>Status</th><th>Action By</th>
-          </tr></thead>
-          <tbody id="ncrBody"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
-        </table>
+      <div class="card-hdr"><h2>Website figures &amp; embed code</h2></div>
+      <div class="card-body">
+        <div class="form-row fr3">
+          <div><label>Figures from</label><input type="date" id="wFrom" onchange="saveSetting('web_from',this.value)"></div>
+          <div><label>Label under figures</label><input type="text" id="wLabel" onchange="saveSetting('web_label',this.value)"></div>
+          <div><label>Quality statement (badge)</label><input type="text" id="wStmt" onchange="saveSetting('web_statement',this.value)"></div>
+        </div>
+        <div class="status-line" id="wCheck"></div>
+        <label>Preview</label>
+        <div class="web-preview" id="wPreview"></div>
+        <label>Embed code — paste into a Custom HTML / Embed block on the website</label>
+        <textarea id="wCode" class="code-box" readonly></textarea>
+        <div class="btn-group"><button class="btn btn-primary" onclick="copyCode()">Copy embed code</button><span id="wCopied" style="font-size:12px;color:var(--green);font-weight:700;align-self:center"></span></div>
       </div>
     </div>
   </div>
 </div>
 
+<datalist id="dlCustomers"></datalist>
+<datalist id="dlStaff"></datalist>
+
+<!-- REGISTER MODAL -->
+<div class="modal-bg" id="regModal">
+  <div class="modal wide">
+    <div class="modal-hdr"><h3 id="regTitle">Job line</h3><button class="modal-x" onclick="closeModal('regModal')">×</button></div>
+    <div class="modal-body">
+      <div class="calc-strip" id="rCalc"></div>
+      <div class="subhead">Job</div>
+      <div class="form-row fr4">
+        <div><label>Job No *</label><input type="text" id="rJob"></div>
+        <div><label>Customer</label><input type="text" id="rCust" list="dlCustomers"></div>
+        <div><label>Customer Ref / PO</label><input type="text" id="rRef"></div>
+        <div><label>Operator</label><input type="text" id="rOp" list="dlStaff"></div>
+      </div>
+      <div class="form-row"><div><label>Part Description</label><input type="text" id="rPart"></div></div>
+      <div class="form-row fr4">
+        <div><label>Material</label><input type="text" id="rMat"></div>
+        <div><label>Drawing / Rev</label><input type="text" id="rDrw"></div>
+        <div><label>Qty Ordered</label><input type="number" id="rQo"></div>
+        <div><label>Qty Supplied</label><input type="number" id="rQs"></div>
+      </div>
+      <div class="form-row fr4">
+        <div><label>Job Opened</label><input type="date" id="rOpened"></div>
+        <div><label>Required Delivery</label><input type="date" id="rReq"></div>
+        <div><label>Actual Delivery</label><input type="date" id="rAct"></div>
+        <div><label>Hours Logged</label><input type="number" id="rHrs" step="0.25"></div>
+      </div>
+      <div class="subhead">Job Card Checks</div>
+      <div class="stage-grid" id="rStages"></div>
+      <div class="subhead">Release &amp; CoC</div>
+      <div class="form-row fr4">
+        <div><label>Released</label><select id="rRel"><option value="N">N — not released</option><option value="Y">Y — released</option></select></div>
+        <div><label>Released By</label><input type="text" id="rRelBy" list="dlStaff"></div>
+        <div><label>Release Date</label><input type="date" id="rRelDate"></div>
+        <div><label>Heat / Batch</label><input type="text" id="rHeat"></div>
+      </div>
+      <div class="form-row fr4">
+        <div><label>CoC Number</label><input type="text" id="rCoc"></div>
+        <div><label>CoC Date</label><input type="date" id="rCocDate"></div>
+        <div><label>CoC Issued By</label><input type="text" id="rCocBy" list="dlStaff"></div>
+        <div><label>Record Source</label><input type="text" id="rSrc" list="dlSource"></div>
+      </div>
+      <div class="form-row"><div><label>Notes</label><textarea id="rNotes" style="min-height:48px"></textarea></div></div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-outline" id="rDel" style="margin-right:auto;color:var(--red)" onclick="deleteReg()">Delete line</button>
+      <button class="btn btn-outline" id="rCocBtn" onclick="cocFromModal()">⬇ CoC PDF</button>
+      <button class="btn btn-outline" onclick="closeModal('regModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveReg()">Save</button>
+    </div>
+  </div>
+</div>
+<datalist id="dlSource"><option value="SprintSuite"><option value="Old QMS app (archived)"></datalist>
+
 <!-- NCR MODAL -->
 <div class="modal-bg" id="ncrModal">
-  <div class="modal">
-    <div class="modal-hdr">
-      <h3 id="ncrTitle">Raise Non-Conformance Record</h3>
-      <button class="modal-x" onclick="closeNcr()">×</button>
-    </div>
+  <div class="modal wide">
+    <div class="modal-hdr"><h3 id="ncrTitle">Raise Non-Conformance Record</h3><button class="modal-x" onclick="closeModal('ncrModal')">×</button></div>
     <div class="modal-body">
-      <input type="hidden" id="ncrId">
+      <div class="calc-strip" id="nCalc"></div>
+      <div class="form-row fr4">
+        <div><label>NCR No</label><input type="text" id="nNo"></div>
+        <div><label>Date Raised *</label><input type="date" id="nDate"></div>
+        <div><label>Job No</label><input type="text" id="nJob" onchange="ncrJobChanged()"></div>
+        <div><label>Customer</label><input type="text" id="nCust" list="dlCustomers"></div>
+      </div>
+      <div class="form-row fr3">
+        <div><label>NCR Type</label><select id="nType"><option>Internal</option><option>Customer complaint</option><option>Supplier</option><option>Audit finding</option></select></div>
+        <div><label>Stage / Area</label><select id="nStage"><option value="">—</option><option>Pre-Start Check</option><option>Correct Material</option><option>Correct Drawing</option><option>In-Process Inspection</option><option>Final Dimension Check</option><option>Final Visual &amp; Quality Check</option><option>Packaging &amp; Delivery</option><option>Other</option></select></div>
+        <div><label>Raised By</label><input type="text" id="nRaised" list="dlStaff"></div>
+      </div>
+      <div class="form-row"><div><label>Description of nonconformity *</label><textarea id="nDesc"></textarea></div></div>
+      <div class="form-row"><div><label>Immediate action / disposition</label><textarea id="nImm" style="min-height:48px"></textarea></div></div>
       <div class="form-row fr2">
-        <div><label>NCR Number</label><input type="text" id="ncrNo" readonly style="background:var(--grey)"></div>
-        <div><label>Job Number (optional)</label><input type="text" id="ncrJob" placeholder="e.g. J2026-045"></div>
+        <div><label>Root cause</label><textarea id="nRoot" style="min-height:48px"></textarea></div>
+        <div><label>Corrective action</label><textarea id="nAct" style="min-height:48px"></textarea></div>
       </div>
-      <div class="form-row fr2">
-        <div><label>Date Raised <span style="color:var(--red)">*</span></label><input type="date" id="ncrDate"></div>
-        <div><label>Action By</label><input type="text" id="ncrBy" placeholder="e.g. Colin Norris"></div>
+      <div class="form-row fr4">
+        <div><label>Action By</label><input type="text" id="nBy" list="dlStaff"></div>
+        <div><label>Target Close</label><input type="date" id="nTarget"></div>
+        <div><label>Actual Close</label><input type="date" id="nClosed"></div>
+        <div><label>Effective? (Y/N)</label><select id="nEff"><option value="">—</option><option>Y</option><option>N</option></select></div>
       </div>
-      <div class="form-row">
-        <div><label>What went wrong <span style="color:var(--red)">*</span></label>
-          <textarea id="ncrDesc" placeholder="Describe the non-conformance clearly…"></textarea></div>
-      </div>
-      <div class="form-row">
-        <div><label>Root Cause</label>
-          <textarea id="ncrRoot" placeholder="Why did it happen?"></textarea></div>
-      </div>
-      <div class="form-row">
-        <div><label>Corrective Action</label>
-          <textarea id="ncrAction" placeholder="What was done to fix it and prevent recurrence?"></textarea></div>
-      </div>
-      <div class="form-row fr2">
-        <div><label>Status</label>
-          <select id="ncrStatus">
-            <option value="OPEN">Open</option>
-            <option value="CLOSED">Closed</option>
-          </select>
-        </div>
-        <div><label>Date Closed</label><input type="date" id="ncrClosed"></div>
+      <div class="form-row fr4">
+        <div><label>Status</label><select id="nStatus"><option value="OPEN">Open</option><option value="CLOSED">Closed</option></select></div>
       </div>
     </div>
     <div class="modal-ftr">
-      <button class="btn btn-outline" onclick="closeNcr()">Cancel</button>
+      <button class="btn btn-outline" onclick="closeModal('ncrModal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveNcr()">Save NCR</button>
     </div>
   </div>
 </div>
-
 <script>
 // ─── CONFIG ───
-const SB_URL = 'https://nnxepgxqakeoruafbkcg.supabase.co';
-const PWD    = 'jenner2025';
+const SB_URL   = 'https://nnxepgxqakeoruafbkcg.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ueGVwZ3hxYWtlb3J1YWZia2NnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4OTI4NDgsImV4cCI6MjA5MTQ2ODg0OH0.B4-h4GBv0d6tUW0abFsMkyGjnO1iZ8ENtYgdZr_eXTE';
-let SB_KEY   = ANON_KEY;
-let cocResult= null;
-let vclicks  = 0;
-let editNcrId= null;
+const SB_KEY   = ANON_KEY;
+const PWD      = 'jenner2025';
 
-// ─── INIT ───
-window.onload = () => {
-  SB_KEY = ANON_KEY;
-  if (false) {
-    show('screenSetup');
-  } else if (sessionStorage.getItem('jqms_auth') === '1') {
-    showApp();
-  } else {
-    show('screenLogin');
-  }
-  document.getElementById('fDate').value = today();
-  renderChecks();
-  setDates();
-};
+const STAGES = [
+  {key:'s_pre_start',    ai:'pre_start',        label:'01 · Pre start check',              short:'Pre-start',      yes:'PASS', no:'FAIL'},
+  {key:'s_material',     ai:'correct_material', label:'02 · Correct material',             short:'Material',       yes:'YES',  no:'NO'},
+  {key:'s_drawing',      ai:'correct_drawing',  label:'03 · Correct drawing',              short:'Drawing',        yes:'YES',  no:'NO'},
+  {key:'s_in_process',   ai:'in_process',       label:'04 · In-process inspection',        short:'In-process',     yes:'PASS', no:'FAIL'},
+  {key:'s_final_dim',    ai:'final_dimension',  label:'05 · Final dimension check',        short:'Final dimension',yes:'PASS', no:'FAIL'},
+  {key:'s_final_visual', ai:'final_visual',     label:'06 · Final visual & quality check', short:'Final visual',   yes:'PASS', no:'FAIL'}
+];
+const BASE_CUSTOMERS = ['Aarc Mobile Welding','Ace Enterprises','ACS','Colemine Industries','Commercial Fleet Maintenance','Consolidated Plastics and Epoxy','Cut Coal','DBL Welding','Dowdens','Drillpro','Key Engineering','Mackay Sugar','Nepean','One Industries','Rema Tip Top','Vex'];
+const BASE_STAFF = ['Colin Norris','Carol Norris','Gary Smith','Chris Bryan','Peter Rasmussen','Todd O\'Sullivan','Hadyn Chedgey'];
 
-function show(id) {
-  ['screenSetup','screenLogin'].forEach(s => {
-    document.getElementById(s).style.display = s===id ? 'flex' : 'none';
-  });
-}
-function today() { return new Date().toISOString().split('T')[0]; }
-function fmtDate(d) {
-  if (!d) return '—';
-  return new Date(d+'T12:00:00').toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'});
-}
+let DATA = {reg:[], ncrs:[], settings:{}, loaded:false};
+let CALC = new Map();      // reg id -> calculated fields
+let checkVals = {}, cocResult = null, editRegId = null, editNcrId = null, modalRegId = null;
 
-// ─── SETUP ───
-function saveSetup() {
-  const k = document.getElementById('setupKey').value.trim();
-  if (!k.startsWith('eyJ')) { alert('Please enter a valid Supabase anon key.'); return; }
-  localStorage.setItem('jqms_key', k);
-  SB_KEY = k;
-  show('screenLogin');
-}
-
-function vclick() {
-  if (++vclicks >= 5) {
-    vclicks = 0;
-    const k = prompt('Enter new Supabase anon key:');
-    if (k && k.startsWith('eyJ')) { localStorage.setItem('jqms_key', k); SB_KEY = k; alert('Key updated.'); }
-  }
-}
-
-// ─── AUTH ───
-function doLogin() {
-  if (document.getElementById('loginPwd').value === PWD) {
-    sessionStorage.setItem('jqms_auth', '1');
-    show('__none__');
-    showApp();
-  } else {
-    document.getElementById('loginErr').style.display = 'block';
-  }
-}
-function doLogout() {
-  sessionStorage.removeItem('jqms_auth');
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('loginPwd').value = '';
-  show('screenLogin');
-}
-function showApp() {
-  document.getElementById('app').style.display = 'flex';
-  loadNcrs();
-}
-
-// ─── TABS ───
-function switchTab(t) {
-  document.querySelectorAll('.tab').forEach((el,i) => el.classList.toggle('active', i===(t==='coc'?0:1)));
-  document.getElementById('tabCoc').style.display = t==='coc' ? 'block' : 'none';
-  document.getElementById('tabNcr').style.display = t==='ncr' ? 'block' : 'none';
-  if (t==='ncr') loadNcrs();
-}
+// ─── UTIL ───
+const $ = id => document.getElementById(id);
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function today(){ return iso(new Date()); }
+function fmtDate(d){ if(!d) return '—'; const [y,m,dd]=String(d).slice(0,10).split('-'); return dd+'/'+m+'/'+y; }
+function fmtLong(d){ if(!d) return '—'; return new Date(d+'T12:00:00').toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'}); }
+function daysBetween(a,b){ return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000); }
+function addMonths(isoStr,n){ const d=new Date(isoStr+'T12:00:00'); d.setDate(1); d.setMonth(d.getMonth()+n); return iso(d); }
+function monthEnd(isoStr){ const d=new Date(isoStr+'T12:00:00'); return iso(new Date(d.getFullYear(), d.getMonth()+1, 0)); }
+function inR(d,from,to){ return !!d && d>=from && d<=to; }
+function pct(x){ return (x===null||x===undefined||isNaN(x)) ? '—' : (Math.round(x*1000)/10).toFixed(Math.round(x*1000)%10===0?0:1)+'%'; }
+function num(v){ return (v===''||v===null||v===undefined) ? null : Number(v); }
+function val(id){ const v=$(id).value.trim(); return v===''?null:v; }
+function fyStart(isoStr){ const d=new Date((isoStr||today())+'T12:00:00'); const y=d.getMonth()>=6?d.getFullYear():d.getFullYear()-1; return y+'-07-01'; }
+function titleFor(name){ name=name||''; if(/colin/i.test(name)) return 'Managing Director'; if(/carol/i.test(name)) return 'Administration & Finance Director'; return ''; }
 
 // ─── SUPABASE ───
 async function sb(path, method='GET', body=null) {
-  const opts = {
-    method,
-    headers: {
-      'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY,
-      'Content-Type': 'application/json',
-      ...(method==='POST' ? {'Prefer':'return=representation'} : {})
-    }
-  };
+  const opts = { method, headers: { 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Content-Type':'application/json',
+    ...((method==='POST'||method==='PATCH') ? {'Prefer':'return=representation'} : {}) } };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(SB_URL+'/rest/v1/'+path, opts);
   if (!res.ok) throw new Error(await res.text());
-  return method==='DELETE' ? null : res.json();
+  return (method==='DELETE') ? null : res.json();
+}
+async function sbAll(table, q){
+  let out=[], off=0;
+  while(true){ const page=await sb(`${table}?${q}&limit=1000&offset=${off}`); out=out.concat(page); if(page.length<1000) break; off+=1000; }
+  return out;
 }
 
-// ─── PDF UPLOAD + AI READING ───
-function handleFiles(files) {
-  if (!files.length) return;
-  const file = files[0];
-  const reader = new FileReader();
-  reader.onload = e => {
-    const b64 = e.target.result.split(',')[1];
-    const mime = file.type || 'application/pdf';
-    readWithAI(b64, mime);
+// ─── LOGIN ───
+window.onload = () => {
+  if (sessionStorage.getItem('jqms_auth') === '1') showApp(); else $('screenLogin').style.display='flex';
+};
+function doLogin(){
+  if ($('loginPwd').value === PWD){ sessionStorage.setItem('jqms_auth','1'); $('screenLogin').style.display='none'; showApp(); }
+  else $('loginErr').style.display='block';
+}
+function doLogout(){ sessionStorage.removeItem('jqms_auth'); $('app').style.display='none'; $('loginPwd').value=''; $('screenLogin').style.display='flex'; }
+function showApp(){
+  $('app').style.display='flex';
+  renderChecks();
+  let saved=null; try{ saved=JSON.parse(localStorage.getItem('jqms_period')||'null'); }catch(_){}
+  $('pFrom').value = saved?.from || fyStart();
+  $('pTo').value   = saved?.to   || today();
+  loadAll();
+}
+function switchTab(t){
+  const map={dash:'tabDash',coc:'tabCoc',reg:'tabReg',ncr:'tabNcr',audit:'tabAudit',web:'tabWeb'};
+  Object.entries(map).forEach(([k,id])=>$(id).style.display = k===t?'block':'none');
+  document.querySelectorAll('#tabs .tab').forEach(el=>el.classList.toggle('active', el.dataset.tab===t));
+  renderTab(t);
+}
+function currentTab(){ return document.querySelector('#tabs .tab.active')?.dataset.tab || 'dash'; }
+function renderTab(t){
+  if(!DATA.loaded) return;
+  if(t==='dash') renderDash();
+  if(t==='reg') renderReg();
+  if(t==='ncr') renderNcrs();
+  if(t==='audit') renderAudit();
+  if(t==='web') renderWeb();
+}
+
+// ─── DATA ───
+async function loadAll(){
+  const b=$('dbBanner'); b.classList.remove('show');
+  try {
+    const [reg, ncrs, sets] = await Promise.all([
+      sbAll('qms_register','select=*&order=id.asc'),
+      sbAll('qms_ncrs','select=*&order=id.asc'),
+      sbAll('qms_settings','select=*')
+    ]);
+    DATA.reg=reg; DATA.ncrs=ncrs; DATA.settings={}; sets.forEach(s=>DATA.settings[s.key]=s.value); DATA.loaded=true;
+    recalc(); fillLists(); fillSettingsInputs(); renderTab(currentTab());
+  } catch(e) {
+    b.innerHTML = /qms_register|qms_settings|PGRST2|does not exist|relation/i.test(e.message)
+      ? 'The database has not been set up for v4 yet. In Supabase, open SQL Editor → New query, paste in JEN-QMS-setup.sql and click Run. Then click Refresh.'
+      : 'Could not load data from Supabase: '+esc(e.message.slice(0,200));
+    b.classList.add('show');
+  }
+}
+function setting(k,def){ const v=DATA.settings[k]; return (v===undefined||v===null||v==='')?def:v; }
+async function saveSetting(k,v){
+  DATA.settings[k]=v;
+  try{ const upd=await sb(`qms_settings?key=eq.${encodeURIComponent(k)}`,'PATCH',{value:v}); if(!upd.length) await sb('qms_settings','POST',{key:k,value:v}); }
+  catch(e){ alert('Could not save setting: '+e.message); }
+  if(k.startsWith('web_')) renderWeb();
+}
+function fillSettingsInputs(){
+  $('tOtd').value = Math.round(Number(setting('target_otd',0.9))*100);
+  $('tFpy').value = Math.round(Number(setting('target_fpy',0.98))*100);
+  $('wFrom').value = setting('web_from','2026-04-01');
+  $('wLabel').value = setting('web_label','Since April 2026');
+  $('wStmt').value = setting('web_statement','Quality management system aligned to ISO 9001:2015');
+  $('aComments').value = setting('audit_comments','');
+  $('aReviewer').value = setting('audit_reviewer','');
+  if(!$('aDate').value) $('aDate').value = today();
+}
+function saveTargets(){
+  const o=Number($('tOtd').value)/100, f=Number($('tFpy').value)/100;
+  if(o>0) saveSetting('target_otd', String(o));
+  if(f>0) saveSetting('target_fpy', String(f));
+  renderDash();
+}
+function fillLists(){
+  const cust=new Set(BASE_CUSTOMERS); DATA.reg.forEach(r=>r.customer&&cust.add(r.customer));
+  $('dlCustomers').innerHTML=[...cust].sort((a,b)=>a.localeCompare(b)).map(c=>`<option value="${esc(c)}">`).join('');
+  const staff=new Set(BASE_STAFF); DATA.reg.forEach(r=>{['operator','released_by','coc_by'].forEach(k=>r[k]&&staff.add(r[k]));});
+  $('dlStaff').innerHTML=[...staff].sort().map(c=>`<option value="${esc(c)}">`).join('');
+}
+
+// ─── CALCULATIONS (same definitions as JEN-QMS-REG-001) ───
+function stageVals(r){ return STAGES.map(s=>(r[s.key]||'').toUpperCase()); }
+function lineResult(r){
+  const v=stageVals(r), pass=v.filter(x=>x==='PASS').length, na=v.filter(x=>x==='N/A').length;
+  if(v.includes('FAIL')) return 'FAIL recorded';
+  if(pass+na===6) return 'All stages PASS';
+  if(pass===0) return 'Not inspected';
+  return 'Partial - no fails';
+}
+function recalc(){
+  CALC=new Map();
+  const ncrCount={}; DATA.ncrs.forEach(n=>{ if(n.job_no){ const k=n.job_no.trim().toUpperCase(); ncrCount[k]=(ncrCount[k]||0)+1; }});
+  const t=today();
+  DATA.reg.forEach(r=>{
+    const rel=r.released==='Y';
+    const result=lineResult(r);
+    const completed = rel ? (r.actual_delivery||r.coc_date||r.release_date||null) : null;
+    const daysLate = (r.required_date&&r.actual_delivery) ? daysBetween(r.required_date,r.actual_delivery) : null;
+    const onTime = daysLate===null ? null : (daysLate<=0);
+    const ncrs = ncrCount[(r.job_no||'').trim().toUpperCase()]||0;
+    const firstPass = rel ? (!stageVals(r).includes('FAIL') && ncrs===0) : null;
+    const gaps = stageVals(r).some(v=>v==='');
+    const pastDue = !rel && !!r.required_date && r.required_date < t;
+    CALC.set(r.id,{rel,result,completed,daysLate,onTime,ncrs,firstPass,gaps,pastDue});
+  });
+}
+function C(r){ return CALC.get(r.id)||{}; }
+function distinct(arr){ return new Set(arr.map(r=>(r.job_no||'').trim().toUpperCase())).size; }
+
+function kpis(from,to){
+  const reg=DATA.reg, ncrs=DATA.ncrs;
+  const relIn = reg.filter(r=>C(r).rel && inR(C(r).completed,from,to));
+  const delIn = reg.filter(r=>C(r).onTime!==null && inR(r.actual_delivery,from,to));
+  const onT = delIn.filter(r=>C(r).onTime).length;
+  const fp = relIn.filter(r=>C(r).firstPass).length;
+  const cocs = new Set(reg.filter(r=>r.coc_no && inR(r.coc_date,from,to)).map(r=>r.coc_no));
+  const ncrIn = ncrs.filter(n=>inR(n.date_raised,from,to));
+  const isClosed = n => (n.status||'').toUpperCase()==='CLOSED';
+  const closedIn = ncrs.filter(n=>isClosed(n) && inR(n.date_closed,from,to));
+  const avgClose = closedIn.filter(n=>n.date_raised&&n.date_closed).map(n=>daysBetween(n.date_raised,n.date_closed));
+  const t=today();
+  return {
+    jobsCompleted: distinct(relIn),
+    relLines: relIn.length,
+    deliveries: delIn.length, onTime: onT, late: delIn.length-onT,
+    otd: delIn.length ? onT/delIn.length : null,
+    fpy: relIn.length ? fp/relIn.length : null,
+    cocs: cocs.size,
+    ncrRaised: ncrIn.length,
+    ncrOpen: ncrs.filter(n=>!isClosed(n)).length,
+    ncrOverdue: ncrs.filter(n=>!isClosed(n) && n.target_close && n.target_close<t).length,
+    ncrClosed: closedIn.length,
+    avgDaysClose: avgClose.length ? (avgClose.reduce((a,b)=>a+b,0)/avgClose.length) : null,
+    complaints: ncrIn.filter(n=>n.ncr_type==='Customer complaint').length,
+    pastDue: reg.filter(r=>C(r).pastDue).length,
+    gaps: relIn.filter(r=>C(r).gaps).length,
+    allStages: relIn.filter(r=>C(r).result==='All stages PASS').length,
+    withCoc: relIn.filter(r=>r.coc_no).length,
+    withDel: relIn.filter(r=>r.actual_delivery).length
   };
-  reader.readAsDataURL(file);
+}
+function trend(toDate){
+  const end=toDate.slice(0,7)+'-01', rows=[];
+  for(let i=-11;i<=0;i++){
+    const m=addMonths(end,i), me=monthEnd(m);
+    const k=kpis(m,me);
+    const opened = distinct(DATA.reg.filter(r=>inR(r.job_opened,m,me)));
+    rows.push({month:m, opened, completed:k.jobsCompleted, onTime:k.onTime, late:k.late, otd:k.otd, fpy:k.fpy, ncrs:k.ncrRaised});
+  }
+  return rows;
+}
+function byCustomer(from,to){
+  const names=new Set(); DATA.reg.forEach(r=>r.customer&&names.add(r.customer)); DATA.ncrs.forEach(n=>n.customer&&names.add(n.customer));
+  const custOf = n => n.customer || (DATA.reg.find(r=>(r.job_no||'').toUpperCase()===(n.job_no||'').toUpperCase())||{}).customer;
+  const rows=[];
+  names.forEach(c=>{
+    const lines=DATA.reg.filter(r=>r.customer===c);
+    const opened=distinct(lines.filter(r=>inR(r.job_opened,from,to)));
+    const relIn=lines.filter(r=>C(r).rel && inR(C(r).completed,from,to));
+    const del=lines.filter(r=>C(r).onTime!==null && inR(r.actual_delivery,from,to));
+    const ot=del.filter(r=>C(r).onTime).length;
+    const ncr=DATA.ncrs.filter(n=>custOf(n)===c && inR(n.date_raised,from,to)).length;
+    if(opened||relIn.length||del.length||ncr) rows.push({c, opened, completed:distinct(relIn), del:del.length, ot, otd:del.length?ot/del.length:null, fpy:relIn.length?relIn.filter(r=>C(r).firstPass).length/relIn.length:null, ncr});
+  });
+  return rows.sort((a,b)=>b.completed-a.completed||b.opened-a.opened||a.c.localeCompare(b.c));
 }
 
+// ─── DASHBOARD ───
+function period(){ return {from:$('pFrom').value||fyStart(), to:$('pTo').value||today()}; }
+function periodChanged(){ try{ localStorage.setItem('jqms_period', JSON.stringify(period())); }catch(_){} renderDash(); }
+function setPeriod(w){
+  const t=today();
+  if(w==='fy'){ $('pFrom').value=fyStart(t); $('pTo').value=t; }
+  if(w==='lastfy'){ const s=fyStart(t); const y=Number(s.slice(0,4))-1; $('pFrom').value=y+'-07-01'; $('pTo').value=(y+1)+'-06-30'; }
+  if(w==='12m'){ $('pFrom').value=addMonths(t.slice(0,7)+'-01',-11); $('pTo').value=t; }
+  if(w==='month'){ $('pFrom').value=t.slice(0,7)+'-01'; $('pTo').value=t; }
+  periodChanged();
+}
+function renderDash(){
+  if(!DATA.loaded) return;
+  const {from,to}=period(), k=kpis(from,to);
+  const tO=Number(setting('target_otd',0.9)), tF=Number(setting('target_fpy',0.98));
+  const tgt=(v,t)=> v===null ? '<div class="k-tgt muted">No data in period</div>' : `<div class="k-tgt ${v>=t?'k-met':'k-miss'}">${v>=t?'✓':'✗'} Target ${pct(t)} — ${v>=t?'met':'not met'}</div>`;
+  const tile=(lbl,v,sub,extra='',warn=false)=>`<div class="kpi${warn?' warn':''}"><div class="k-lbl">${lbl}</div><div class="k-val">${v}</div><div class="k-sub">${sub}</div>${extra}</div>`;
+  $('kpiGrid').innerHTML =
+    tile('Jobs completed', k.jobsCompleted, 'Released in period') +
+    tile('On-time delivery', pct(k.otd), `${k.onTime} of ${k.deliveries} deliveries with dates`, tgt(k.otd,tO)) +
+    tile('First-pass yield', pct(k.fpy), 'Released with no FAIL or NCR', tgt(k.fpy,tF)) +
+    tile('CoCs issued', k.cocs, 'Certificates of Conformance') +
+    tile('NCRs raised', k.ncrRaised, 'Clause 8.7 / 10.2') +
+    tile('NCRs open now', k.ncrOpen, k.ncrOverdue ? `<b style="color:var(--red)">${k.ncrOverdue} past target close</b>` : 'Not yet closed out','',k.ncrOverdue>0) +
+    tile('Unreleased, past due', k.pastDue, 'Check status in SprintSuite','',k.pastDue>0) +
+    tile('Released, check gaps', k.gaps, 'Checks left blank','',k.gaps>0);
+  const tr=trend(to);
+  const mLbl=m=>new Date(m+'T12:00:00').toLocaleDateString('en-AU',{month:'short',year:'2-digit'});
+  $('trendTbl').innerHTML = `<thead><tr><th>Month</th><th class="n">Jobs opened</th><th class="n">Jobs completed</th><th class="n">Delivered on time</th><th class="n">Delivered late</th><th class="n">On-time %</th><th class="n">First-pass yield</th><th class="n">NCRs raised</th></tr></thead><tbody>`+
+    tr.map(r=>`<tr><td>${mLbl(r.month)}</td><td class="n">${r.opened}</td><td class="n">${r.completed}</td><td class="n">${r.onTime}</td><td class="n">${r.late}</td><td class="n">${pct(r.otd)}</td><td class="n">${pct(r.fpy)}</td><td class="n">${r.ncrs}</td></tr>`).join('')+
+    `</tbody><tfoot><tr><td>Total</td>${['opened','completed','onTime','late'].map(k=>`<td class="n">${tr.reduce((a,r)=>a+r[k],0)}</td>`).join('')}<td class="n"></td><td class="n"></td><td class="n">${tr.reduce((a,r)=>a+r.ncrs,0)}</td></tr></tfoot>`;
+  $('chartJobs').innerHTML = `<h3>Jobs completed per month</h3><p class="sub">Released jobs, by completed date</p>` + barChart(tr.map(r=>mLbl(r.month)), [{name:'Jobs completed', color:'#1F1F1F', vals:tr.map(r=>r.completed)}]);
+  $('chartOtd').innerHTML = `<h3>Deliveries: on time vs late</h3><p class="sub">Job lines with required and actual delivery dates</p>
+    <div class="legend"><span><i style="background:#1A7A3C"></i>On time</span><span><i style="background:#B42318"></i>Late</span></div>` +
+    barChart(tr.map(r=>mLbl(r.month)), [{name:'On time', color:'#1A7A3C', vals:tr.map(r=>r.onTime)},{name:'Late', color:'#B42318', vals:tr.map(r=>r.late)}]);
+  const cr=byCustomer(from,to);
+  $('custTbl').innerHTML = `<thead><tr><th>Customer</th><th class="n">Jobs opened</th><th class="n">Jobs completed</th><th class="n">Deliveries measured</th><th class="n">On time</th><th class="n">On-time %</th><th class="n">First-pass yield</th><th class="n">NCRs raised</th></tr></thead><tbody>`+
+    (cr.length ? cr.map(r=>`<tr><td>${esc(r.c)}</td><td class="n">${r.opened}</td><td class="n">${r.completed}</td><td class="n">${r.del}</td><td class="n">${r.ot}</td><td class="n">${pct(r.otd)}</td><td class="n">${pct(r.fpy)}</td><td class="n">${r.ncr}</td></tr>`).join('') : `<tr><td colspan="8" class="empty">No customer activity in this period.</td></tr>`)+`</tbody>`;
+}
+function barChart(labels, series){
+  const W=520,H=200,pl=28,pr=8,pt=14,pb=24, iw=W-pl-pr, ih=H-pt-pb;
+  const max=Math.max(1,...series.flatMap(s=>s.vals));
+  const step=Math.max(1,Math.ceil(max/4)), top=step*Math.ceil(max/step);
+  const gw=iw/labels.length, n=series.length, gap=2, bw=Math.min(26,(gw*0.7-(n-1)*gap)/n);
+  let g='';
+  for(let v=0;v<=top;v+=step){ const y=pt+ih-ih*v/top; g+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="#E5E5E5" stroke-width="1"/><text x="${pl-5}" y="${y+3}" font-size="9" fill="#6B6B6B" text-anchor="end">${v}</text>`; }
+  labels.forEach((l,i)=>{
+    const x0=pl+gw*i+(gw-(n*bw+(n-1)*gap))/2;
+    series.forEach((s,j)=>{ const v=s.vals[i], h=ih*v/top, x=x0+j*(bw+gap), y=pt+ih-h;
+      if(v>0){ const r=Math.min(3,bw/2,h); g+=`<path d="M${x},${pt+ih} V${y+r} Q${x},${y} ${x+r},${y} H${x+bw-r} Q${x+bw},${y} ${x+bw},${y+r} V${pt+ih} Z" fill="${s.color}"><title>${esc(l)} — ${esc(s.name)}: ${v}</title></path>`; }
+      g+=`<rect x="${x-1}" y="${pt}" width="${bw+2}" height="${ih}" fill="transparent"><title>${esc(l)} — ${esc(s.name)}: ${v}</title></rect>`;
+    });
+    g+=`<text x="${pl+gw*i+gw/2}" y="${H-8}" font-size="9" fill="#6B6B6B" text-anchor="middle">${esc(l)}</text>`;
+  });
+  g+=`<line x1="${pl}" x2="${W-pr}" y1="${pt+ih}" y2="${pt+ih}" stroke="#999" stroke-width="1"/>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(series.map(s=>s.name).join(' and '))} by month">${g}</svg>`;
+}
+
+// ═══ RELEASE & COC ═══
 const AI_PROMPT = `You are reading a scanned Jenner Engineering job card (printed from SprintSuite, with handwritten marks).
 Return ONLY a valid JSON object with these keys:
 {
@@ -513,8 +850,9 @@ Return ONLY a valid JSON object with these keys:
   "description": "the job title or Description",
   "material": "the Material row",
   "po_number": "Purchase Order Numbers row",
-  "quantity": "Quantity Ordered row",
-  "date": "the End Date in YYYY-MM-DD format",
+  "quantity": "Quantity Ordered row, number only",
+  "start_date": "Start Date in YYYY-MM-DD format",
+  "end_date": "End Date in YYYY-MM-DD format",
   "checks": {
     "pre_start": "01 - PRE START CHECK",
     "correct_material": "02 - CORRECT MATERIAL",
@@ -528,467 +866,470 @@ Return ONLY a valid JSON object with these keys:
 For each check, answer exactly "PASS", "FAIL", "N/A" or "" (blank).
 The printed options are circled by hand. A circled PASS or a circled Yes = "PASS". A circled FAIL or a circled No = "FAIL".
 Handwritten N/A = "N/A". If nothing is circled or written for that row, use "".
-If a field is not visible, use an empty string. Return only the JSON object.`;
+Dates on the card are Australian (day/month/year). If a field is not visible, use an empty string. Return only the JSON object.`;
 
-async function readWithAI(b64, mime) {
-  document.getElementById('cardUpload').style.display = 'none';
-  document.getElementById('cardCoc').style.display = 'block';
-  const aiStatus = document.getElementById('aiStatus');
-  const aiOk     = document.getElementById('aiOk');
-  const aiErr    = document.getElementById('aiErr');
-  aiStatus.classList.add('show');
-  aiOk.classList.remove('show'); aiErr.classList.remove('show');
-  document.getElementById('aiMsg').textContent = 'AI is reading the job card…';
-
-  try {
-    const res = await fetch(SB_URL+'/functions/v1/digitise-jobpack', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY },
-      body: JSON.stringify({ prompt: AI_PROMPT, mime, b64 })
-    });
-    let out = {};
-    try { out = await res.json(); } catch(_) {}
-    if (!res.ok) throw new Error((out && out.error) || ('Edge function error: '+res.status));
-    const raw = out.text || out.result || '{}';
-    const fields = typeof raw === 'string' ? JSON.parse(raw.replace(/```json|```/g,'').trim()) : raw;
-    fillFields(fields);
+function handleFiles(files){
+  if(!files||!files.length) return;
+  const file=files[0], reader=new FileReader();
+  reader.onload = e => readWithAI(e.target.result.split(',')[1], file.type||'application/pdf');
+  reader.readAsDataURL(file);
+}
+async function readWithAI(b64, mime){
+  newBlank();
+  const aiStatus=$('aiStatus'), aiOk=$('aiOk'), aiErr=$('aiErr');
+  aiStatus.classList.add('show'); $('aiMsg').textContent='AI is reading the job card…';
+  try{
+    const res=await fetch(SB_URL+'/functions/v1/digitise-jobpack',{method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},
+      body:JSON.stringify({prompt:AI_PROMPT, mime, b64})});
+    let out={}; try{ out=await res.json(); }catch(_){}
+    if(!res.ok) throw new Error((out&&out.error)||('Edge function error: '+res.status));
+    const raw=out.text||out.result||'{}';
+    const f= typeof raw==='string' ? JSON.parse(raw.replace(/```json|```/g,'').trim()) : raw;
+    fillFromAI(f);
     aiStatus.classList.remove('show');
-    const n = CHECKS.filter(c => checkVals[c.key]).length;
-    aiOk.textContent = '✓ Job card read — '+n+' of 6 checks picked up. Check every field and tick below, and correct anything that looks wrong.';
+    const n=STAGES.filter(s=>checkVals[s.key]).length;
+    aiOk.textContent='✓ Job card read — '+n+' of 6 checks picked up. Check every field and tick below, and correct anything that looks wrong.';
     aiOk.classList.add('show');
-  } catch(e) {
+  }catch(e){
     aiStatus.classList.remove('show');
-    aiErr.textContent = 'AI could not read the file. Please fill in the fields manually. ('+e.message+')';
+    aiErr.textContent='AI could not read the file. Please fill in the fields manually. ('+e.message+')';
     aiErr.classList.add('show');
   }
 }
-
-// ─── JOB CARD CHECKS ───
-const CHECKS = [
-  {key:'pre_start',        label:'01 · Pre start check',               yes:'PASS', no:'FAIL'},
-  {key:'correct_material', label:'02 · Correct material',              yes:'YES',  no:'NO'},
-  {key:'correct_drawing',  label:'03 · Correct drawing',               yes:'YES',  no:'NO'},
-  {key:'in_process',       label:'04 · In-process inspection',         yes:'PASS', no:'FAIL'},
-  {key:'final_dimension',  label:'05 · Final dimension check',         yes:'PASS', no:'FAIL'},
-  {key:'final_visual',     label:'06 · Final visual & quality check',  yes:'PASS', no:'FAIL'}
-];
-let checkVals = {};
-function renderChecks() {
-  document.getElementById('checksBox').innerHTML = CHECKS.map(c => `
-    <div class="check-row">
-      <span class="lbl">${c.label}</span>
-      <div class="result-toggle">
-        <button class="pass${checkVals[c.key]==='PASS'?' active':''}" onclick="setCheck('${c.key}','PASS')">✓ ${c.yes}</button>
-        <button class="fail${checkVals[c.key]==='FAIL'?' active':''}" onclick="setCheck('${c.key}','FAIL')">✗ ${c.no}</button>
-        <button class="na${checkVals[c.key]==='N/A'?' active':''}" onclick="setCheck('${c.key}','N/A')">N/A</button>
-      </div>
-    </div>`).join('');
-}
-function setCheck(k, v) {
-  checkVals[k] = (checkVals[k] === v) ? '' : v;
-  renderChecks(); autoResult();
-}
-function autoResult() {
-  const vals = CHECKS.map(c => checkVals[c.key] || '');
-  if (vals.includes('FAIL')) setResult('FAIL');
-  else if (vals.every(v => v === 'PASS' || v === 'N/A') && vals.includes('PASS')) setResult('PASS');
-}
-function checkText(c) {
-  const v = checkVals[c.key] || '';
-  if (v === 'PASS') return c.yes;
-  if (v === 'FAIL') return c.no;
-  return v || 'Not recorded';
-}
-
-function fillFields(f) {
-  if (!f) return;
-  if (f.job_no)    document.getElementById('fJobNo').value    = f.job_no;
-  if (f.customer)  document.getElementById('fCustomer').value = f.customer;
-  if (f.description) document.getElementById('fDesc').value  = f.description;
-  if (f.material)  document.getElementById('fMaterial').value = f.material;
-  if (f.date && /^\d{4}-\d{2}-\d{2}$/.test(f.date)) document.getElementById('fDate').value = f.date;
-  const extra = [];
-  if (f.po_number) extra.push('Customer PO: '+f.po_number);
-  if (f.quantity)  extra.push('Qty: '+f.quantity);
-  if (extra.length && !document.getElementById('fRemarks').value) document.getElementById('fRemarks').value = extra.join('  ·  ');
-  if (f.checks && typeof f.checks === 'object') {
-    CHECKS.forEach(c => {
-      let v = String(f.checks[c.key] || '').toUpperCase().trim();
-      if (v === 'YES') v = 'PASS'; if (v === 'NO') v = 'FAIL'; if (v === 'NA') v = 'N/A';
-      checkVals[c.key] = ['PASS','FAIL','N/A'].includes(v) ? v : '';
-    });
-    renderChecks(); autoResult();
+function fillFromAI(f){
+  if(!f) return;
+  const set=(id,v)=>{ if(v!==undefined&&v!==null&&String(v).trim()!=='') $(id).value=String(v).trim(); };
+  set('fJobNo',f.job_no); set('fCustomer',f.customer); set('fDesc',f.description); set('fMaterial',f.material); set('fRef',f.po_number);
+  const q=parseFloat(f.quantity); if(!isNaN(q)){ $('fQtyO').value=q; $('fQtyS').value=q; }
+  if(/^\d{4}-\d{2}-\d{2}$/.test(f.start_date||'')) $('fOpened').value=f.start_date;
+  if(/^\d{4}-\d{2}-\d{2}$/.test(f.end_date||'')) $('fRequired').value=f.end_date;
+  if(f.checks && typeof f.checks==='object'){
+    STAGES.forEach(s=>{ let v=String(f.checks[s.ai]||'').toUpperCase().trim();
+      if(v==='YES')v='PASS'; if(v==='NO')v='FAIL'; if(v==='NA')v='N/A';
+      checkVals[s.key]=['PASS','FAIL','N/A'].includes(v)?v:''; });
   }
+  // already in the register?
+  const jn=($('fJobNo').value||'').trim().toUpperCase();
+  const ex=DATA.reg.filter(r=>(r.job_no||'').trim().toUpperCase()===jn);
+  if(ex.length){ const r=ex.find(x=>x.released!=='Y')||ex[0]; editRegId=r.id;
+    ['fOperator:operator','fDrawing:drawing','fActual:actual_delivery'].forEach(p=>{const [id,k]=p.split(':'); if(!$(id).value&&r[k]) $(id).value=r[k];});
+    showEditNote(r, true); }
+  renderChecks(); autoResult(); updateCocStatus();
 }
-
-// ─── MANUAL JOB SEARCH ───
-async function searchJob() {
-  const q = document.getElementById('jobSearch').value.trim();
-  if (!q) return;
-  const el = document.getElementById('searchResults');
-  el.innerHTML = '<span style="color:var(--steel);font-size:12px"><span class="spinner" style="border-top-color:var(--gold);width:12px;height:12px"></span> Searching…</span>';
-  try {
-    let jobs = await sb(`qms_jobs?select=*&job_no=ilike.*${encodeURIComponent(q)}*&order=created_at.desc&limit=8`);
-    if (!jobs.length) jobs = await sb(`qms_jobs?select=*&customer=ilike.*${encodeURIComponent(q)}*&order=created_at.desc&limit=8`);
-    if (!jobs.length) { el.innerHTML='<p style="color:var(--steel);font-size:12px;padding:8px 0">No jobs found. You can fill in the fields manually below.</p>'; return; }
-    el.innerHTML = jobs.map(j=>`
-      <div onclick='selectJob(${JSON.stringify(j).replace(/'/g,"&#39;")})' style="border:1.5px solid var(--border);border-radius:4px;padding:10px 14px;margin-top:8px;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--gold)';this.style.background='var(--gold-tint)'" onmouseout="this.style.borderColor='var(--border)';this.style.background=''">
-        <strong style="font-size:13px">${j.job_no||'—'}</strong>
-        <span style="color:var(--steel);font-size:12px;margin-left:8px">${j.customer||''} ${j.description?'— '+j.description:''}</span>
-      </div>`).join('');
-  } catch(e) {
-    el.innerHTML=`<p style="color:var(--red);font-size:12px">Error: ${e.message}</p>`;
+function showEditNote(r, fromAi){
+  const n=$('editNote');
+  n.innerHTML = `This job is already in the register${r.coc_no?` (CoC <b>${esc(r.coc_no)}</b> issued ${fmtDate(r.coc_date)})`:''}. Saving will <b>update that entry</b>${fromAi?' with what the AI read':''}. <a href="#" onclick="editRegId=null;this.parentNode.classList.remove('show');updateCocStatus();return false">Add as a new job line instead</a>`;
+  n.classList.add('show');
+}
+async function searchJob(){
+  const q=$('jobSearch').value.trim().toLowerCase(); const el=$('searchResults');
+  if(!q){ el.innerHTML=''; return; }
+  const hits=DATA.reg.filter(r=>[r.job_no,r.customer,r.part_desc,r.customer_ref].some(v=>(v||'').toLowerCase().includes(q))).slice(-12).reverse();
+  if(!hits.length){ el.innerHTML='<p style="color:var(--steel);font-size:12px;padding:8px 0">No jobs found. Use Blank entry to type it in.</p>'; return; }
+  el.innerHTML=hits.map(r=>`<div onclick="loadLine(${r.id})" style="border:1.5px solid var(--border);border-radius:4px;padding:10px 14px;margin-top:8px;cursor:pointer" onmouseover="this.style.borderColor='var(--gold)';this.style.background='var(--gold-tint)'" onmouseout="this.style.borderColor='var(--border)';this.style.background=''">
+    <strong style="font-size:13px">${esc(r.job_no)}</strong> <span style="color:var(--steel);font-size:12px;margin-left:8px">${esc(r.customer||'')} — ${esc((r.part_desc||'').slice(0,70))}</span>
+    <span class="badge ${r.released==='Y'?'badge-pass':'badge-warn'}" style="float:right">${r.released==='Y'?(r.coc_no?'CoC '+esc(r.coc_no):'Released'):'Not released'}</span></div>`).join('');
+}
+function newBlank(){
+  resetCoc(true);
+  $('cardUpload').style.display='none'; $('cardCoc').style.display='block';
+}
+function loadLine(id){
+  const r=DATA.reg.find(x=>x.id===id); if(!r) return;
+  newBlank(); editRegId=id;
+  const m={fJobNo:'job_no',fCustomer:'customer',fRef:'customer_ref',fDesc:'part_desc',fMaterial:'material',fDrawing:'drawing',fHeat:'heat_no',fOperator:'operator',fQtyO:'qty_ordered',fQtyS:'qty_supplied',fOpened:'job_opened',fRequired:'required_date',fActual:'actual_delivery'};
+  Object.entries(m).forEach(([id,k])=>$(id).value=r[k]??'');
+  if(r.released_by) $('fRelBy').value=r.released_by; if(r.release_date) $('fRelDate').value=r.release_date; if(r.coc_by) $('fCocBy').value=r.coc_by;
+  STAGES.forEach(s=>checkVals[s.key]=(r[s.key]||'').toUpperCase());
+  renderChecks(); autoResult(); showEditNote(r,false); updateCocStatus();
+  switchTab('coc');
+}
+function resetCoc(keepCards){
+  editRegId=null; checkVals={}; cocResult=null;
+  ['fJobNo','fCustomer','fRef','fDesc','fMaterial','fDrawing','fHeat','fOperator','fQtyO','fQtyS','fOpened','fRequired','fActual','fRemarks'].forEach(id=>$(id).value='');
+  $('fRelBy').value='Colin Norris'; $('fRelDate').value=today(); $('fCocBy').value='Carol Norris';
+  ['aiStatus','aiOk','aiErr','editNote'].forEach(id=>$(id).classList.remove('show'));
+  $('btnPass').classList.remove('active'); $('btnFail').classList.remove('active');
+  $('pdfFile').value=''; $('jobSearch').value=''; $('searchResults').innerHTML='';
+  renderChecks(); updateCocStatus();
+  if(!keepCards){ $('cardUpload').style.display='block'; $('cardCoc').style.display='none'; }
+}
+function renderChecks(){
+  $('checksBox').innerHTML=STAGES.map(c=>`<div class="check-row"><span class="lbl">${c.label}</span><div class="result-toggle">
+    <button class="pass${checkVals[c.key]==='PASS'?' active':''}" onclick="setCheck('${c.key}','PASS')">✓ ${c.yes}</button>
+    <button class="fail${checkVals[c.key]==='FAIL'?' active':''}" onclick="setCheck('${c.key}','FAIL')">✗ ${c.no}</button>
+    <button class="na${checkVals[c.key]==='N/A'?' active':''}" onclick="setCheck('${c.key}','N/A')">N/A</button></div></div>`).join('');
+}
+function setCheck(k,v){ checkVals[k]=(checkVals[k]===v)?'':v; renderChecks(); autoResult(); updateCocStatus(); }
+function autoResult(){
+  const v=STAGES.map(s=>checkVals[s.key]||'');
+  if(v.includes('FAIL')) setResult('FAIL'); else if(v.every(x=>x==='PASS'||x==='N/A')&&v.includes('PASS')) setResult('PASS');
+}
+function setResult(r){ cocResult=r; $('btnPass').classList.toggle('active',r==='PASS'); $('btnFail').classList.toggle('active',r==='FAIL'); updateCocStatus(); }
+function stageText(s,v){ v=(v||'').toUpperCase(); return v==='PASS'?s.yes:v==='FAIL'?s.no:(v||'Not recorded'); }
+function updateCocStatus(){
+  const v=STAGES.map(s=>checkVals[s.key]||''); const el=$('cocStatus');
+  const blanks=v.filter(x=>x==='').length;
+  let msg, ok=false;
+  if(v.includes('FAIL')) msg='CHECK: a FAIL is recorded on the job card. Raise an NCR before releasing.';
+  else if(blanks) msg=`CHECK: ${blanks} of the 6 checks ${blanks===1?'is':'are'} not recorded. Every check needs PASS or N/A before the CoC.`;
+  else { msg='OK to issue — all checks recorded with no fails.'; ok=true; }
+  const r=editRegId?DATA.reg.find(x=>x.id===editRegId):null;
+  el.textContent = msg + ((r&&r.coc_no)?`  CoC ${r.coc_no} already issued for this line; issuing again reprints it.`:`  Next CoC number: ${nextCocNo()}.`);
+  el.className='status-line '+(ok?'status-ok':'status-warn');
+}
+function nextCocNo(){
+  const t=new Date(); const y1=t.getMonth()>=6?t.getFullYear():t.getFullYear()-1;
+  const pre=`JEN-CoC-${y1}${String(y1+1).slice(2)}-`;
+  let max=0; DATA.reg.forEach(r=>{ if(r.coc_no&&r.coc_no.startsWith(pre)){ const n=parseInt(r.coc_no.slice(pre.length),10); if(n>max) max=n; }});
+  return pre+String(max+1).padStart(4,'0');
+}
+function formLine(){
+  const d={ job_no:val('fJobNo'), customer:val('fCustomer'), customer_ref:val('fRef'), part_desc:val('fDesc'), material:val('fMaterial'), drawing:val('fDrawing'),
+    heat_no:val('fHeat'), operator:val('fOperator'), qty_ordered:num($('fQtyO').value), qty_supplied:num($('fQtyS').value),
+    job_opened:val('fOpened'), required_date:val('fRequired'), actual_delivery:val('fActual') };
+  STAGES.forEach(s=>d[s.key]=checkVals[s.key]||null);
+  return d;
+}
+async function saveLine(release){
+  const d=formLine();
+  if(!d.job_no){ alert('Please enter the Job Number.'); return; }
+  if(!d.customer){ alert('Please enter the Customer.'); return; }
+  if(release && !cocResult){ alert('Please select an overall PASS or FAIL.'); return; }
+  const v=STAGES.map(s=>checkVals[s.key]||'');
+  if(release && (v.includes('FAIL')||v.includes('')) && !confirm('Not every check is recorded as PASS or N/A.\n\nRelease the job and issue the CoC anyway?')) return;
+  let existing = editRegId ? DATA.reg.find(r=>r.id===editRegId) : null;
+  if(!existing){
+    const same=DATA.reg.filter(r=>(r.job_no||'').trim().toUpperCase()===d.job_no.toUpperCase());
+    if(same.length && confirm(`${d.job_no} is already in the register (${same.length} line${same.length>1?'s':''}).\n\nOK = update the existing entry\nCancel = add this as a new job line`)) existing=same.find(r=>r.released!=='Y')||same[0];
   }
+  if(release){
+    d.released='Y'; d.released_by=val('fRelBy'); d.release_date=val('fRelDate')||today();
+    d.coc_no=(existing&&existing.coc_no)||nextCocNo(); d.coc_date=(existing&&existing.coc_date)||today(); d.coc_by=val('fCocBy');
+  } else if(!existing){ d.released='N'; }
+  if(!existing){ d.record_id='SS-'+Date.now(); d.source='SprintSuite'; }
+  try{
+    let row;
+    if(existing){ row=(await sb(`qms_register?id=eq.${existing.id}`,'PATCH',d))[0]; }
+    else { row=(await sb('qms_register','POST',d))[0]; }
+    await loadAll();
+    editRegId=row.id;
+    if(release){
+      try{ await sb('qms_cocs','POST',{coc_no:d.coc_no, job_no:d.job_no, customer:d.customer, description:d.part_desc, material:d.material, result:cocResult, date_issued:d.coc_date}); }catch(_){}
+      cocPdf(d.job_no, {heat:d.heat_no, remarks:val('fRemarks'), overall:cocResult});
+      $('aiOk').textContent=`✓ ${d.job_no} released and saved to the register. CoC ${d.coc_no} downloaded.`;
+    } else {
+      $('aiOk').textContent=`✓ ${d.job_no} saved to the register (not released).`;
+    }
+    $('aiOk').classList.add('show'); $('aiErr').classList.remove('show'); showEditNote(row,false); updateCocStatus();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }catch(e){ alert('Could not save: '+e.message); }
 }
 
-function selectJob(j) {
-  fillFields({ job_no:j.job_no, customer:j.customer, description:j.description, material:j.material||j.materialSpec||'' });
-  document.getElementById('cardUpload').style.display='none';
-  document.getElementById('cardCoc').style.display='block';
-}
-
-function resetCoc() {
-  document.getElementById('cardUpload').style.display='block';
-  document.getElementById('cardCoc').style.display='none';
-  document.getElementById('jobSearch').value='';
-  document.getElementById('searchResults').innerHTML='';
-  ['fJobNo','fCustomer','fDesc','fMaterial','fHeat','fRemarks'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('fDate').value=today();
-  cocResult=null; checkVals={}; renderChecks();
-  document.getElementById('btnPass').classList.remove('active');
-  document.getElementById('btnFail').classList.remove('active');
-  ['aiStatus','aiOk','aiErr'].forEach(id=>{
-    const el=document.getElementById(id);
-    el.classList.remove('show');
+// ─── COC PDF (all lines of the job, like the CoC tab in the spreadsheet) ───
+function cocPdf(jobNo, opts={}){
+  const lines=DATA.reg.filter(r=>(r.job_no||'').trim().toUpperCase()===jobNo.trim().toUpperCase());
+  if(!lines.length){ alert('Job not found in the register.'); return; }
+  const L=lines.find(r=>r.coc_no)||lines[0];
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4'});
+  const W=210,H=297,ml=14,mr=14,cw=W-ml-mr;
+  const GOLD=[249,189,44],BLACK=[0,0,0],WHITE=[255,255,255],STEEL=[107,107,107],GREEN=[26,122,60],RED=[180,35,24];
+  doc.setFillColor(...BLACK); doc.rect(0,0,W,30,'F');
+  doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.text('JENNER ENGINEERING',ml,13);
+  doc.setFontSize(12); doc.text('CERTIFICATE OF CONFORMANCE',W-mr,13,{align:'right'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(190,190,190);
+  doc.text('Norras Holdings Pty Ltd t/a Jenner Engineering Pty Ltd  |  ABN 27 632 194 373  |  13 David Muir Street, Slade Point QLD 4740',ml,23);
+  let y=36;
+  const box=(x,w,label,value)=>{ doc.setFillColor(245,245,245); doc.setDrawColor(220,220,220); doc.setLineWidth(.3); doc.roundedRect(x,y,w,14,1.5,1.5,'FD');
+    doc.setTextColor(...STEEL); doc.setFontSize(6.5); doc.setFont('helvetica','bold'); doc.text(label,x+3,y+4.5);
+    doc.setTextColor(...BLACK); doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.text(doc.splitTextToSize(String(value||'—'),w-6)[0],x+3,y+10.5); };
+  const half=cw/2-2;
+  box(ml,half,'CERTIFICATE NO',L.coc_no||nextCocNo()); box(ml+half+4,half,'DATE OF ISSUE',fmtLong(L.coc_date||today())); y+=17;
+  box(ml,half,'CUSTOMER',L.customer); box(ml+half+4,half,'CUSTOMER ORDER / REF',L.customer_ref); y+=17;
+  box(ml,half,'JENNER JOB NO',L.job_no); box(ml+half+4,half,'RELEASE DATE',fmtLong(L.release_date)); y+=20;
+  // items table
+  const cols=[{h:'Item',w:10},{h:'Part description',w:58},{h:'Drawing / rev',w:34},{h:'Material',w:36},{h:'Qty ord',w:13},{h:'Qty sup',w:13},{h:'Final insp.',w:18}];
+  doc.setFillColor(...BLACK); doc.rect(ml,y,cw,7,'F'); doc.setTextColor(...GOLD); doc.setFontSize(7); doc.setFont('helvetica','bold');
+  let x=ml; cols.forEach(c=>{ doc.text(c.h,x+1.5,y+4.7); x+=c.w; }); y+=7;
+  lines.forEach((r,i)=>{
+    const res=C(r).result, fin=res==='All stages PASS'?'PASS':res==='FAIL recorded'?'FAIL':res==='Not inspected'?'Not insp.':'Incomplete';
+    const cells=[String(i+1), r.part_desc||'—', r.drawing||'—', r.material||'—', r.qty_ordered??'—', r.qty_supplied??'—', fin];
+    doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+    const wrapped=cells.map((v,j)=>doc.splitTextToSize(String(v),cols[j].w-3).slice(0,4));
+    const h=Math.max(7,Math.max(...wrapped.map(w=>w.length))*3.4+3);
+    if(y+h>H-95){ doc.addPage(); y=20; }
+    doc.setFillColor(i%2?248:255,i%2?248:255,i%2?248:255); doc.setDrawColor(220,220,220); doc.rect(ml,y,cw,h,'FD');
+    x=ml; wrapped.forEach((w,j)=>{ if(j===6){ doc.setFont('helvetica','bold'); doc.setTextColor(...(fin==='PASS'?GREEN:fin==='FAIL'?RED:STEEL)); } else { doc.setFont('helvetica','normal'); doc.setTextColor(...BLACK); }
+      doc.text(w,x+1.5,y+4.3); x+=cols[j].w; });
+    y+=h;
   });
-  document.getElementById('pdfFile').value='';
-}
-
-function setResult(r) {
-  cocResult=r;
-  document.getElementById('btnPass').classList.toggle('active',r==='PASS');
-  document.getElementById('btnFail').classList.toggle('active',r==='FAIL');
-}
-
-// ─── GENERATE COC PDF ───
-async function genCoc() {
-  const jobNo    = document.getElementById('fJobNo').value.trim();
-  const customer = document.getElementById('fCustomer').value.trim();
-  if (!jobNo)    { alert('Please enter a Job Number.'); return; }
-  if (!customer) { alert('Please enter a Customer name.'); return; }
-  if (!cocResult){ alert('Please select PASS or FAIL.'); return; }
-
-  const desc     = document.getElementById('fDesc').value.trim()||'—';
-  const material = document.getElementById('fMaterial').value.trim()||'As specified';
-  const heat     = document.getElementById('fHeat').value.trim()||'N/A';
-  const dateVal  = document.getElementById('fDate').value;
-  const remarks  = document.getElementById('fRemarks').value.trim();
-  const cocNo    = 'COC-'+jobNo.replace(/[^A-Z0-9]/gi,'')+'-'+Date.now().toString().slice(-4);
-  const dateDisp = fmtDate(dateVal);
-
-  // Save to Supabase
-  try {
-    await sb('qms_cocs','POST',{
-      coc_no:cocNo, job_no:jobNo, customer, description:desc,
-      material, result:cocResult, date_issued:dateVal||today()
-    });
-  } catch(e) { console.warn('CoC not saved:',e.message); }
-
-  // ─── PDF ───
-  const {jsPDF} = window.jspdf;
-  const doc = new jsPDF({unit:'mm',format:'a4'});
-  const W=210, H=297, ml=16, mr=16, cw=W-ml-mr;
-  const GOLD=[249,189,44], BLACK=[0,0,0], WHITE=[255,255,255], STEEL=[107,107,107];
-
-  // Header bar
-  doc.setFillColor(...BLACK); doc.rect(0,0,W,34,'F');
-  doc.setTextColor(...GOLD); doc.setFontSize(16); doc.setFont('helvetica','bold');
-  doc.text('JENNER ENGINEERING PTY LTD',W/2,13,{align:'center'});
-  doc.setFontSize(8); doc.setFont('helvetica','normal');
-  doc.setTextColor(...STEEL);
-  doc.text('13 David Muir Street, Slade Point QLD 4740  |  ABN 27 632 194 373',W/2,20,{align:'center'});
-  doc.setTextColor(...GOLD); doc.setFontSize(11); doc.setFont('helvetica','bold');
-  doc.text('CERTIFICATE OF CONFORMANCE',W/2,29,{align:'center'});
-
-  // Gold rule
-  doc.setDrawColor(...GOLD); doc.setLineWidth(.8); doc.line(ml,38,W-mr,38);
-
-  // CoC number + date
-  let y=43;
-  function box(x,w,label,value,ht=16){
-    doc.setFillColor(245,245,245); doc.setDrawColor(220,220,220); doc.setLineWidth(.3);
-    doc.roundedRect(x,y,w,ht,1.5,1.5,'FD');
-    doc.setTextColor(...STEEL); doc.setFontSize(7); doc.setFont('helvetica','bold');
-    doc.text(label.toUpperCase(),x+3,y+5);
-    doc.setTextColor(...BLACK); doc.setFontSize(10); doc.setFont('helvetica','normal');
-    doc.text(String(value||'—'),x+3,y+12);
-  }
-  box(ml,cw/2-3,'Certificate Number',cocNo);
-  box(ml+cw/2+3,cw/2-3,'Date of Issue',dateDisp);
-  y+=20;
-  box(ml,cw/2-3,'Job Number',jobNo);
-  box(ml+cw/2+3,cw/2-3,'Customer',customer);
-  y+=20;
-  const descLines = doc.splitTextToSize(desc,cw-6);
-  const descHt = Math.max(16,descLines.length*5+8);
-  doc.setFillColor(245,245,245); doc.setDrawColor(220,220,220); doc.setLineWidth(.3);
-  doc.roundedRect(ml,y,cw,descHt,1.5,1.5,'FD');
-  doc.setTextColor(...STEEL); doc.setFontSize(7); doc.setFont('helvetica','bold');
-  doc.text('JOB DESCRIPTION',ml+3,y+5);
-  doc.setTextColor(...BLACK); doc.setFontSize(10); doc.setFont('helvetica','normal');
-  doc.text(descLines,ml+3,y+12);
-  y+=descHt+4;
-  box(ml,cw/2-3,'Material / Specification',material);
-  box(ml+cw/2+3,cw/2-3,'Heat / Batch Number',heat);
-  y+=20;
-
-  if (remarks) {
-    const rl = doc.splitTextToSize(remarks,cw-6);
-    const rh = Math.max(14,rl.length*5+8);
-    doc.setFillColor(245,245,245); doc.setDrawColor(220,220,220); doc.setLineWidth(.3);
-    doc.roundedRect(ml,y,cw,rh,1.5,1.5,'FD');
-    doc.setTextColor(...STEEL); doc.setFontSize(7); doc.setFont('helvetica','bold');
-    doc.text('REMARKS',ml+3,y+5);
-    doc.setTextColor(...BLACK); doc.setFontSize(10); doc.setFont('helvetica','normal');
-    doc.text(rl,ml+3,y+12); y+=rh+4;
-  }
-
-  // Job card checks
-  doc.setTextColor(...STEEL); doc.setFontSize(7); doc.setFont('helvetica','bold');
-  doc.text('IN-PROCESS INSPECTION CHECKS (JOB CARD)',ml,y+3); y+=5;
-  const colW=cw/2, rowH=7;
-  CHECKS.forEach((c,i)=>{
-    const cx = ml + (i%2)*colW, cy = y + Math.floor(i/2)*rowH;
-    doc.setFillColor(i%4<2?245:255, i%4<2?245:255, i%4<2?245:255); doc.setDrawColor(220,220,220); doc.setLineWidth(.2);
-    doc.rect(cx,cy,colW,rowH,'FD');
-    doc.setTextColor(...BLACK); doc.setFontSize(8); doc.setFont('helvetica','normal');
-    doc.text(c.label.replace('·','-'),cx+2.5,cy+4.7);
-    const v=checkVals[c.key]||'';
-    doc.setFont('helvetica','bold');
-    doc.setTextColor(...(v==='PASS'?[26,122,60]:v==='FAIL'?[180,35,24]:STEEL));
-    doc.text(checkText(c),cx+colW-2.5,cy+4.7,{align:'right'});
+  y+=4;
+  const heat=opts.heat||lines.map(r=>r.heat_no).filter(Boolean).join(', ');
+  if(heat||opts.remarks){ doc.setFontSize(8); doc.setTextColor(...BLACK); doc.setFont('helvetica','bold');
+    if(heat){ doc.text('Heat / batch:',ml,y+3); doc.setFont('helvetica','normal'); doc.text(doc.splitTextToSize(heat,cw-25)[0],ml+20,y+3); y+=5; }
+    if(opts.remarks){ doc.setFont('helvetica','bold'); doc.text('Remarks:',ml,y+3); doc.setFont('helvetica','normal'); const rl=doc.splitTextToSize(opts.remarks,cw-25).slice(0,3); doc.text(rl,ml+20,y+3); y+=rl.length*4+1; }
+    y+=2; }
+  // inspection record (aggregate across lines)
+  doc.setTextColor(...STEEL); doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.text('INSPECTION RECORD (JOB CARD CHECKS)',ml,y+3); y+=5;
+  STAGES.forEach((s,i)=>{
+    const vs=lines.map(r=>(r[s.key]||'').toUpperCase());
+    const agg=vs.includes('FAIL')?'FAIL':vs.includes('')?'':vs.every(v=>v==='N/A')?'N/A':'PASS';
+    const cx=ml+(i%2)*(cw/2), cy=y+Math.floor(i/2)*7;
+    doc.setFillColor(...(Math.floor(i/2)%2?[255,255,255]:[245,245,245])); doc.setDrawColor(220,220,220); doc.setLineWidth(.2); doc.rect(cx,cy,cw/2,7,'FD');
+    doc.setTextColor(...BLACK); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.text(s.label.replace('·','-'),cx+2.5,cy+4.7);
+    doc.setFont('helvetica','bold'); doc.setTextColor(...(agg==='PASS'?GREEN:agg==='FAIL'?RED:STEEL)); doc.text(stageText(s,agg),cx+cw/2-2.5,cy+4.7,{align:'right'});
   });
-  y += Math.ceil(CHECKS.length/2)*rowH + 5;
-
-  // Result
-  const rCol = cocResult==='PASS' ? [26,122,60] : [180,35,24];
-  doc.setFillColor(...rCol);
-  doc.roundedRect(ml,y,cw,14,2,2,'F');
-  doc.setTextColor(...WHITE); doc.setFontSize(13); doc.setFont('helvetica','bold');
-  doc.text('INSPECTION RESULT: '+cocResult,W/2,y+9.5,{align:'center'});
-  y+=19;
-
-  // Rule
-  doc.setDrawColor(...GOLD); doc.setLineWidth(.5); doc.line(ml,y,W-mr,y); y+=5;
-
-  // Certification statement
-  doc.setFillColor(254,242,213); doc.setDrawColor(...GOLD); doc.setLineWidth(.3);
-  doc.roundedRect(ml,y,cw,14,2,2,'FD');
-  doc.setTextColor(...BLACK); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
-  const stmt='We hereby certify that the goods described above have been manufactured, inspected and tested in accordance with the applicable specifications and drawing requirements. All inspection records are retained and available upon request.';
-  doc.text(doc.splitTextToSize(stmt,cw-10),W/2,y+5.5,{align:'center',lineHeightFactor:1.4});
-  y+=19;
-
-  // Keep signature + stamp together on one page
-  if (y + 62 > H - 14) { doc.addPage(); y = 20; }
-
-  // Signature block
-  const sx1=ml, sx2=ml+cw/2+4, sw=cw/2-4;
-  doc.setDrawColor(180,180,180); doc.setLineWidth(.3);
-  doc.line(sx1,y+18,sx1+sw,y+18);
-  doc.line(sx2,y+18,sx2+sw,y+18);
-  doc.setTextColor(...STEEL); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
-  doc.text('Authorised Signatory',sx1,y+22);
-  doc.text('Date',sx2,y+22);
-  doc.setFontSize(7); doc.text('Jenner Engineering Pty Ltd',sx1,y+27);
-  y+=34;
-
-  // Company stamp
-  doc.setDrawColor(...BLACK); doc.setLineWidth(.6);
-  doc.roundedRect(ml,y,cw,28,2,2,'S');
-  doc.setLineWidth(.3); doc.roundedRect(ml+1.5,y+1.5,cw-3,25,1.5,1.5,'S');
-  doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(...BLACK);
-  doc.text('J',ml+8,y+10);
-  doc.setTextColor(...STEEL); doc.setFont('helvetica','normal');
-  doc.setFontSize(9); doc.text('ENNER ENGINEERING',ml+14,y+10);
-  doc.setFontSize(7); doc.text('13 David Muir St, Slade Point QLD 4740',ml+8,y+17);
-  doc.text('ABN 27 632 194 373',ml+8,y+23);
-  doc.setTextColor(...GOLD); doc.setFontSize(9); doc.setFont('helvetica','bold');
-  doc.text('COMPANY STAMP',W-mr-4,y+12,{align:'right'});
-  doc.setFontSize(7); doc.setTextColor(...STEEL); doc.setFont('helvetica','normal');
-  doc.text('Quality Assured',W-mr-4,y+19,{align:'right'});
-  doc.text('JEN-QMS-01',W-mr-4,y+25,{align:'right'});
-
-  // Footer
-  doc.setTextColor(180,180,180); doc.setFontSize(7);
-  doc.text(cocNo+'  |  Issued '+dateDisp+'  |  Jenner Engineering Pty Ltd',W/2,H-8,{align:'center'});
-  doc.setDrawColor(...GOLD); doc.setLineWidth(.3); doc.line(ml,H-12,W-mr,H-12);
-
-  doc.save(cocNo+'.pdf');
-
-  document.getElementById('aiOk').textContent='✓ CoC '+cocNo+' generated and downloaded.';
-  document.getElementById('aiOk').classList.add('show');
-  document.getElementById('aiErr').classList.remove('show');
+  y+=21+5;
+  const overall=opts.overall||(lines.every(r=>C(r).result==='All stages PASS')?'PASS':lines.some(r=>C(r).result==='FAIL recorded')?'FAIL':'INCOMPLETE');
+  doc.setFillColor(...(overall==='PASS'?GREEN:overall==='FAIL'?RED:STEEL)); doc.roundedRect(ml,y,cw,12,2,2,'F');
+  doc.setTextColor(...WHITE); doc.setFontSize(12); doc.setFont('helvetica','bold'); doc.text('FINAL INSPECTION RESULT: '+overall,W/2,y+8,{align:'center'}); y+=17;
+  doc.setFillColor(254,242,213); doc.setDrawColor(...GOLD); doc.setLineWidth(.3); doc.roundedRect(ml,y,cw,15,2,2,'FD');
+  doc.setTextColor(...BLACK); doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text(doc.splitTextToSize('We certify that the parts listed on this certificate have been manufactured and inspected in accordance with the Jenner Engineering quality management system (JEN-QMS-01), and conform to the applicable drawing, customer requirements and final inspection status recorded for this job.',cw-8),ml+4,y+5,{lineHeightFactor:1.35});
+  y+=22;
+  if(y>H-40){ doc.addPage(); y=24; }
+  const by=L.coc_by||val('fCocBy')||'Carol Norris';
+  doc.setTextColor(...STEEL); doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.text('CERTIFIED BY',ml,y); doc.text('SIGNATURE',ml+cw/2+4,y);
+  doc.setTextColor(...BLACK); doc.setFontSize(11); doc.text(by,ml,y+7); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...STEEL); doc.text(titleFor(by)||'Jenner Engineering Pty Ltd',ml,y+12);
+  doc.setDrawColor(150,150,150); doc.setLineWidth(.3); doc.line(ml+cw/2+4,y+12,W-mr,y+12);
+  doc.setDrawColor(...GOLD); doc.setLineWidth(.4); doc.line(ml,H-13,W-mr,H-13);
+  doc.setTextColor(150,150,150); doc.setFontSize(7);
+  doc.text('Jenner Engineering  |  Precision machining for mining, sugar, ports, rail and industry  |  Mackay QLD',W/2,H-8,{align:'center'});
+  doc.text((L.coc_no||'')+'  |  JEN-QMS-01',W/2,H-4.5,{align:'center'});
+  doc.save((L.coc_no||('CoC-'+L.job_no))+'.pdf');
 }
 
-// ─── NCR ───
-function setDates(){
-  const y=new Date().getFullYear();
-  document.getElementById('rFrom').value=y+'-07-01';
-  document.getElementById('rTo').value=today();
+// ═══ JOB REGISTER ═══
+function regFilterFn(f){
+  return r=>{ const c=C(r);
+    if(f==='rel') return c.rel; if(f==='unrel') return !c.rel; if(f==='due') return c.pastDue;
+    if(f==='gaps') return c.rel&&c.gaps; if(f==='nococ') return c.rel&&!r.coc_no; if(f==='nodel') return c.rel&&!r.actual_delivery;
+    if(f==='late') return c.onTime===false; return true; };
+}
+function resBadge(res){ return res==='All stages PASS'?'<span class="badge badge-pass">All pass</span>':res==='FAIL recorded'?'<span class="badge badge-fail">Fail</span>':res==='Not inspected'?'<span class="badge badge-grey">None</span>':'<span class="badge badge-warn">Gaps</span>'; }
+function renderReg(){
+  if(!DATA.loaded) return;
+  const q=($('regQ').value||'').toLowerCase(), f=$('regF').value;
+  let rows=DATA.reg.filter(regFilterFn(f)).filter(r=>!q||[r.job_no,r.customer,r.part_desc,r.customer_ref,r.coc_no,r.operator,r.notes].some(v=>(v||'').toLowerCase().includes(q)));
+  rows=rows.sort((a,b)=>(b.job_opened||'').localeCompare(a.job_opened||'')||b.id-a.id);
+  $('regCount').textContent=`${rows.length} of ${DATA.reg.length} job lines · ${distinct(rows)} job numbers. Click a line to view or edit every field.`;
+  $('regTbl').innerHTML=`<thead><tr><th>Job No</th><th>Customer</th><th>Part</th><th>Opened</th><th>Required</th><th>Delivered</th><th>Checks</th><th>Released</th><th>CoC</th><th>On time</th><th>NCRs</th></tr></thead><tbody>`+
+    (rows.length?rows.map(r=>{const c=C(r); return `<tr onclick="openReg(${r.id})">
+      <td><strong>${esc(r.job_no)}</strong></td><td>${esc(r.customer||'—')}</td><td class="wrap">${esc((r.part_desc||'—').slice(0,60))}</td>
+      <td>${fmtDate(r.job_opened)}</td><td>${fmtDate(r.required_date)}</td><td>${fmtDate(r.actual_delivery)}</td>
+      <td>${resBadge(c.result)}</td>
+      <td>${c.rel?`<span class="badge badge-pass">Y</span> ${fmtDate(r.release_date)}`:(c.pastDue?'<span class="badge badge-fail">Past due</span>':'<span class="badge badge-grey">N</span>')}</td>
+      <td>${esc(r.coc_no||'—')}</td>
+      <td>${c.onTime===null?'<span class="muted">—</span>':c.onTime?'<span class="badge badge-pass">Y</span>':`<span class="badge badge-fail">${c.daysLate}d late</span>`}</td>
+      <td>${c.ncrs?`<span class="badge badge-fail">${c.ncrs}</span>`:'<span class="muted">0</span>'}</td></tr>`;}).join(''):'<tr><td colspan="11" class="empty">No job lines match.</td></tr>')+'</tbody>';
+}
+const REG_FIELDS={rJob:'job_no',rCust:'customer',rRef:'customer_ref',rOp:'operator',rPart:'part_desc',rMat:'material',rDrw:'drawing',rQo:'qty_ordered',rQs:'qty_supplied',rOpened:'job_opened',rReq:'required_date',rAct:'actual_delivery',rHrs:'hours',rRel:'released',rRelBy:'released_by',rRelDate:'release_date',rHeat:'heat_no',rCoc:'coc_no',rCocDate:'coc_date',rCocBy:'coc_by',rSrc:'source',rNotes:'notes'};
+function openReg(id){
+  const r=id?DATA.reg.find(x=>x.id===id):null; modalRegId=r?r.id:null;
+  $('regTitle').textContent=r?`Job line — ${r.job_no}`:'Add job line';
+  Object.entries(REG_FIELDS).forEach(([el,k])=>$(el).value = r ? (r[k]??'') : (k==='released'?'N':k==='source'?'SprintSuite':''));
+  $('rStages').innerHTML=STAGES.map(s=>`<div><label>${s.label}</label><select id="rs_${s.key}"><option value="">— not recorded</option><option value="PASS">${s.yes}</option><option value="FAIL">${s.no}</option><option value="N/A">N/A</option></select></div>`).join('');
+  STAGES.forEach(s=>$('rs_'+s.key).value=r?((r[s.key]||'').toUpperCase()):'');
+  if(r){ const c=C(r); $('rCalc').innerHTML=`<span>Result: <b>${c.result}</b></span><span>Completed: <b>${fmtDate(c.completed)}</b></span><span>Days late: <b>${c.daysLate??'—'}</b></span><span>On time: <b>${c.onTime===null?'—':c.onTime?'Y':'N'}</b></span><span>NCRs: <b>${c.ncrs}</b></span><span>First pass: <b>${c.firstPass===null?'—':c.firstPass?'Y':'N'}</b></span>`; $('rCalc').style.display='flex'; }
+  else $('rCalc').style.display='none';
+  $('rDel').style.display=r?'':'none'; $('rCocBtn').style.display=(r&&r.released==='Y')?'':'none';
+  $('regModal').classList.add('open');
+}
+function closeModal(id){ $(id).classList.remove('open'); }
+async function saveReg(){
+  const d={}; Object.entries(REG_FIELDS).forEach(([el,k])=>{ const v=$(el).value.trim(); d[k]= v===''?null:(['qty_ordered','qty_supplied','hours'].includes(k)?Number(v):v); });
+  STAGES.forEach(s=>d[s.key]=$('rs_'+s.key).value||null);
+  if(!d.job_no){ alert('Job No is required.'); return; }
+  d.released=d.released||'N';
+  try{
+    if(modalRegId) await sb(`qms_register?id=eq.${modalRegId}`,'PATCH',d);
+    else { d.record_id='SS-'+Date.now(); await sb('qms_register','POST',d); }
+    closeModal('regModal'); await loadAll();
+  }catch(e){ alert('Could not save: '+e.message); }
+}
+async function deleteReg(){
+  const r=DATA.reg.find(x=>x.id===modalRegId); if(!r) return;
+  if(!confirm(`Delete this job line for ${r.job_no}? This cannot be undone.`)) return;
+  try{ await sb(`qms_register?id=eq.${r.id}`,'DELETE'); closeModal('regModal'); await loadAll(); }catch(e){ alert('Could not delete: '+e.message); }
+}
+function cocFromModal(){ const r=DATA.reg.find(x=>x.id===modalRegId); if(r){ if(!r.coc_no){ alert('This line has no CoC number yet. Open it from Release & CoC to issue one.'); return; } cocPdf(r.job_no,{heat:r.heat_no}); } }
+function csv(rows){ return '﻿'+rows.map(r=>r.map(v=>{ v=v===null||v===undefined?'':String(v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }).join(',')).join('\r\n'); }
+function download(name,text){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); }
+function exportReg(){
+  const h=['Record ID','Job No','Customer','Customer Ref / PO','Part Description','Material','Drawing / Rev','Operator','Qty Ordered','Qty Supplied','Job Opened','Required Delivery','Actual Delivery',...STAGES.map(s=>s.label.replace('·','-')),'Heat / Batch','Released (Y/N)','Released By','Release Date','CoC Number','CoC Date','CoC Issued By','Hours Logged','Record Source','Notes','Inspection Result','Completed Date','Days Late','On Time','NCRs','First Pass','Open & Past Due'];
+  const rows=DATA.reg.map(r=>{const c=C(r); return [r.record_id,r.job_no,r.customer,r.customer_ref,r.part_desc,r.material,r.drawing,r.operator,r.qty_ordered,r.qty_supplied,fmtDate(r.job_opened),fmtDate(r.required_date),fmtDate(r.actual_delivery),...STAGES.map(s=>r[s.key]),r.heat_no,r.released,r.released_by,fmtDate(r.release_date),r.coc_no,fmtDate(r.coc_date),r.coc_by,r.hours,r.source,r.notes,c.result,fmtDate(c.completed),c.daysLate,c.onTime===null?'':c.onTime?'Y':'N',c.ncrs,c.firstPass===null?'':c.firstPass?'Y':'N',c.pastDue?'Y':''].map(v=>v==='—'?'':v);});
+  download(`JEN-QMS-REG-001 Job Register ${today()}.csv`, csv([h,...rows]));
 }
 
-async function loadNcrs(){
-  const tb=document.getElementById('ncrBody');
-  tb.innerHTML='<tr><td colspan="6" class="empty"><span class="spinner"></span></td></tr>';
-  try {
-    const data=await sb('qms_ncrs?select=*&order=created_at.desc');
-    if (!data.length){ tb.innerHTML='<tr><td colspan="6" class="empty">No NCRs recorded yet.</td></tr>'; return; }
-    tb.innerHTML=data.map(n=>`
-      <tr onclick='editNcr(${JSON.stringify(n).replace(/'/g,"&#39;")})'>
-        <td><strong>${n.ncr_no||'—'}</strong></td>
-        <td>${fmtDate(n.date_raised)}</td>
-        <td>${n.job_no||'—'}</td>
-        <td>${n.description||'—'}</td>
-        <td><span class="badge ${n.status==='OPEN'?'badge-open':'badge-closed'}">${n.status||'—'}</span></td>
-        <td>${n.action_by||'—'}</td>
-      </tr>`).join('');
-  } catch(e){
-    tb.innerHTML=`<tr><td colspan="6" class="empty" style="color:var(--red)">Error loading NCRs — the qms_ncrs table may not exist yet. Run the setup SQL in Supabase.</td></tr>`;
-  }
+// ═══ NCR REGISTER ═══
+const isClosedN = n => (n.status||'').toUpperCase()==='CLOSED';
+function ncrCust(n){ return n.customer || (DATA.reg.find(r=>(r.job_no||'').toUpperCase()===(n.job_no||'').trim().toUpperCase())||{}).customer || ''; }
+function ncrDays(n){ if(!n.date_raised) return null; return daysBetween(n.date_raised, isClosedN(n)&&n.date_closed?n.date_closed:today()); }
+function ncrOver(n){ return !isClosedN(n) && n.target_close && n.target_close<today(); }
+function renderNcrs(){
+  if(!DATA.loaded) return;
+  const q=($('ncrQ').value||'').toLowerCase(), f=$('ncrF').value;
+  let rows=DATA.ncrs.filter(n=> f==='open'?!isClosedN(n): f==='closed'?isClosedN(n): f==='over'?ncrOver(n): f==='cc'?n.ncr_type==='Customer complaint':true)
+    .filter(n=>!q||[n.ncr_no,n.job_no,ncrCust(n),n.description,n.action_by,n.root_cause].some(v=>(v||'').toLowerCase().includes(q)))
+    .sort((a,b)=>(b.date_raised||'').localeCompare(a.date_raised||'')||b.id-a.id);
+  $('ncrTbl').innerHTML=`<thead><tr><th>NCR No</th><th>Raised</th><th>Job No</th><th>Customer</th><th>Type</th><th>Description</th><th>Action by</th><th>Target</th><th>Status</th><th>Days open</th></tr></thead><tbody>`+
+    (rows.length?rows.map(n=>`<tr onclick="openNcr(${n.id})"><td><strong>${esc(n.ncr_no||'—')}</strong></td><td>${fmtDate(n.date_raised)}</td><td>${esc(n.job_no||'—')}</td><td>${esc(ncrCust(n)||'—')}</td><td>${esc(n.ncr_type||'—')}</td><td class="wrap">${esc((n.description||'').slice(0,80))}</td><td>${esc(n.action_by||'—')}</td><td>${fmtDate(n.target_close)}</td>
+      <td>${isClosedN(n)?'<span class="badge badge-closed">Closed</span>':ncrOver(n)?'<span class="badge badge-fail">Overdue</span>':'<span class="badge badge-open">Open</span>'}</td><td>${ncrDays(n)??'—'}</td></tr>`).join(''):'<tr><td colspan="10" class="empty">No NCRs recorded'+(f!=='all'||q?' that match':'')+'.</td></tr>')+'</tbody>';
 }
-
-function genNcrNo(){
-  const d=new Date();
-  return 'NCR-'+d.getFullYear()+('0'+(d.getMonth()+1)).slice(-2)+'-'+Math.floor(Math.random()*900+100);
+function nextNcrNo(){
+  const y=new Date().getFullYear(), pre=`JEN-NCR-${y}-`; let max=0;
+  DATA.ncrs.forEach(n=>{ if(n.ncr_no&&n.ncr_no.startsWith(pre)){ const k=parseInt(n.ncr_no.slice(pre.length),10); if(k>max) max=k; }});
+  return pre+String(max+1).padStart(3,'0');
 }
-
-function openNcr(n=null){
-  editNcrId=n?.id||null;
-  document.getElementById('ncrTitle').textContent=n?'Edit NCR':'Raise Non-Conformance Record';
-  document.getElementById('ncrId').value=n?.id||'';
-  document.getElementById('ncrNo').value=n?.ncr_no||genNcrNo();
-  document.getElementById('ncrJob').value=n?.job_no||'';
-  document.getElementById('ncrDate').value=n?.date_raised||today();
-  document.getElementById('ncrBy').value=n?.action_by||'';
-  document.getElementById('ncrDesc').value=n?.description||'';
-  document.getElementById('ncrRoot').value=n?.root_cause||'';
-  document.getElementById('ncrAction').value=n?.corrective_action||'';
-  document.getElementById('ncrStatus').value=n?.status||'OPEN';
-  document.getElementById('ncrClosed').value=n?.date_closed||'';
-  document.getElementById('ncrModal').classList.add('open');
+const NCR_FIELDS={nNo:'ncr_no',nDate:'date_raised',nJob:'job_no',nCust:'customer',nType:'ncr_type',nStage:'stage',nRaised:'raised_by',nDesc:'description',nImm:'immediate_action',nRoot:'root_cause',nAct:'corrective_action',nBy:'action_by',nTarget:'target_close',nClosed:'date_closed',nEff:'effective',nStatus:'status'};
+function openNcr(id,preset){
+  const n=id?DATA.ncrs.find(x=>x.id===id):null; editNcrId=n?n.id:null;
+  $('ncrTitle').textContent=n?`Edit NCR — ${n.ncr_no||''}`:'Raise Non-Conformance Record';
+  Object.entries(NCR_FIELDS).forEach(([el,k])=>$(el).value = n ? (n[k]??'') : '');
+  if(n){ $('nStatus').value=isClosedN(n)?'CLOSED':'OPEN'; if(!n.customer) $('nCust').value=ncrCust(n); if(!n.ncr_type) $('nType').value='Internal';
+    $('nCalc').innerHTML=`<span>Days open: <b>${ncrDays(n)??'—'}</b></span><span>Overdue: <b>${ncrOver(n)?'Y':'N'}</b></span>`; $('nCalc').style.display='flex'; }
+  else { $('nNo').value=nextNcrNo(); $('nDate').value=today(); $('nType').value='Internal'; $('nStatus').value='OPEN'; $('nCalc').style.display='none';
+    if(preset){ Object.entries(preset).forEach(([k,v])=>$(k).value=v); } }
+  $('ncrModal').classList.add('open');
 }
-
-function editNcr(n){ openNcr(n); }
-function closeNcr(){ document.getElementById('ncrModal').classList.remove('open'); }
-
+function ncrJobChanged(){ const j=$('nJob').value.trim().toUpperCase(); const r=DATA.reg.find(x=>(x.job_no||'').toUpperCase()===j); if(r&&!$('nCust').value) $('nCust').value=r.customer||''; }
 async function saveNcr(){
-  const desc=document.getElementById('ncrDesc').value.trim();
-  if(!desc){ alert('Please describe what went wrong.'); return; }
-  const data={
-    ncr_no:    document.getElementById('ncrNo').value,
-    job_no:    document.getElementById('ncrJob').value.trim()||null,
-    date_raised: document.getElementById('ncrDate').value,
-    action_by: document.getElementById('ncrBy').value.trim()||null,
-    description: desc,
-    root_cause: document.getElementById('ncrRoot').value.trim()||null,
-    corrective_action: document.getElementById('ncrAction').value.trim()||null,
-    status:    document.getElementById('ncrStatus').value,
-    date_closed: document.getElementById('ncrClosed').value||null,
-  };
-  try {
-    if(editNcrId) await sb(`qms_ncrs?id=eq.${editNcrId}`,'PATCH',data);
-    else await sb('qms_ncrs','POST',data);
-    closeNcr(); loadNcrs();
-    showNcrAlert('NCR saved.','ok');
-  } catch(e){ showNcrAlert('Error: '+e.message,'err'); }
+  const d={}; Object.entries(NCR_FIELDS).forEach(([el,k])=>{ const v=$(el).value.trim(); d[k]=v===''?null:v; });
+  if(!d.description){ alert('Please describe the nonconformity.'); return; }
+  if(!d.date_raised){ alert('Please enter the date raised.'); return; }
+  if(d.status==='CLOSED' && !d.date_closed) d.date_closed=today();
+  try{
+    if(editNcrId) await sb(`qms_ncrs?id=eq.${editNcrId}`,'PATCH',d); else await sb('qms_ncrs','POST',d);
+    closeModal('ncrModal'); await loadAll(); showNcrAlert('NCR '+(d.ncr_no||'')+' saved.','ok');
+  }catch(e){ alert('Could not save NCR: '+e.message); }
 }
-
-function showNcrAlert(msg,type){
-  const a=document.getElementById('ncrAlert');
-  a.textContent=msg; a.className=`alert alert-${type} show`;
-  setTimeout(()=>a.classList.remove('show'),5000);
+function showNcrAlert(msg,type){ const a=$('ncrAlert'); a.textContent=msg; a.className=`alert alert-${type} show`; setTimeout(()=>a.classList.remove('show'),5000); }
+function exportNcr(){
+  const h=['NCR No','Date Raised','Job No','Customer','NCR Type','Stage / Area','Description of Nonconformity','Raised By','Immediate Action / Disposition','Root Cause','Corrective Action','Action By','Target Close','Actual Close','Effective? (Y/N)','Status','Days Open','Overdue'];
+  const rows=DATA.ncrs.map(n=>[n.ncr_no,fmtDate(n.date_raised),n.job_no,ncrCust(n),n.ncr_type,n.stage,n.description,n.raised_by,n.immediate_action,n.root_cause,n.corrective_action,n.action_by,fmtDate(n.target_close),fmtDate(n.date_closed),n.effective,isClosedN(n)?'Closed':'Open',ncrDays(n),ncrOver(n)?'Y':''].map(v=>v==='—'?'':v));
+  download(`JEN-QMS-REG-001 NCR Register ${today()}.csv`, csv([h,...rows]));
 }
-
-// ─── REPORTS ───
-async function rptNcr(){
-  const from=document.getElementById('rFrom').value;
-  const to=document.getElementById('rTo').value;
-  let url=`qms_ncrs?select=*&order=date_raised.desc`;
-  if(from) url+=`&date_raised=gte.${from}`;
-  if(to)   url+=`&date_raised=lte.${to}`;
-  try {
-    const data=await sb(url);
-    buildRpt('NCR Log',from,to,
-      ['NCR No.','Date Raised','Job No.','Description','Status','Action By'],
-      data.map(n=>[n.ncr_no,fmtDate(n.date_raised),n.job_no||'—',n.description,n.status,n.action_by||'—'])
-    );
-  } catch(e){ alert('Error: '+e.message); }
+function rptNcr(){
+  const {from,to}=period();
+  const rows=DATA.ncrs.filter(n=>inR(n.date_raised,from,to)).sort((a,b)=>(a.date_raised||'').localeCompare(b.date_raised||''));
+  buildRpt('NCR Log',from,to,['NCR No.','Raised','Job No.','Customer','Type','Description','Action By','Status'],
+    rows.map(n=>[n.ncr_no,fmtDate(n.date_raised),n.job_no||'—',ncrCust(n)||'—',n.ncr_type||'—',n.description,n.action_by||'—',isClosedN(n)?'Closed '+fmtDate(n.date_closed):'Open']),[24,20,22,34,26,90,30,27]);
 }
-
-async function rptOpen(){
-  try {
-    const data=await sb('qms_ncrs?select=*&status=eq.OPEN&order=date_raised.asc');
-    const today2=new Date();
-    buildRpt('Open NCRs',null,null,
-      ['NCR No.','Date Raised','Job No.','Description','Days Open','Action By'],
-      data.map(n=>{
-        const days=n.date_raised?Math.floor((today2-new Date(n.date_raised+'T12:00:00'))/86400000):'—';
-        return [n.ncr_no,fmtDate(n.date_raised),n.job_no||'—',n.description,String(days),n.action_by||'—'];
-      })
-    );
-  } catch(e){ alert('Error: '+e.message); }
-}
-
-async function rptCoc(){
-  const from=document.getElementById('rFrom').value;
-  const to=document.getElementById('rTo').value;
-  let url=`qms_cocs?select=*&order=date_issued.desc`;
-  if(from) url+=`&date_issued=gte.${from}`;
-  if(to)   url+=`&date_issued=lte.${to}`;
-  try {
-    const data=await sb(url);
-    buildRpt('CoC Register',from,to,
-      ['CoC No.','Date Issued','Job No.','Customer','Description','Result'],
-      data.map(c=>[c.coc_no,fmtDate(c.date_issued),c.job_no||'—',c.customer||'—',c.description||'—',c.result||'—'])
-    );
-  } catch(e){ alert('Error: '+e.message); }
-}
-
-function buildRpt(title,from,to,headers,rows){
-  const {jsPDF}=window.jspdf;
-  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
-  const W=297,H=210,ml=12,cw=W-ml*2;
-  const GOLD=[249,189,44],BLACK=[0,0,0],STEEL=[107,107,107],WHITE=[255,255,255];
+function buildRpt(title,from,to,headers,rows,widths){
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const W=297,H=210,ml=12,cw=W-ml*2; const GOLD=[249,189,44],BLACK=[0,0,0],STEEL=[107,107,107];
+  const ws=widths||headers.map(()=>cw/headers.length);
   doc.setFillColor(...BLACK); doc.rect(0,0,W,22,'F');
-  doc.setTextColor(...GOLD); doc.setFontSize(13); doc.setFont('helvetica','bold');
-  doc.text('JENNER ENGINEERING — '+title.toUpperCase(),W/2,10,{align:'center'});
-  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(...STEEL);
-  const range=from&&to?fmtDate(from)+' to '+fmtDate(to):'All dates';
-  doc.text(range+'  |  Generated '+fmtDate(today())+'  |  ABN 27 632 194 373',W/2,17,{align:'center'});
-  const colW=cw/headers.length;
-  let y=28;
-  doc.setFillColor(...BLACK); doc.rect(ml,y,cw,9,'F');
-  doc.setTextColor(...GOLD); doc.setFontSize(7); doc.setFont('helvetica','bold');
-  headers.forEach((h,i)=>doc.text(h,ml+2+i*colW,y+6));
-  y+=9;
-  if(!rows.length){
-    doc.setTextColor(150,150,150); doc.setFontSize(9); doc.setFont('helvetica','italic');
-    doc.text('No records found.',W/2,y+12,{align:'center'});
-  } else {
-    rows.forEach((row,ri)=>{
-      if(y>H-18){doc.addPage();y=20;}
-      doc.setFillColor(ri%2===0?255:246,ri%2===0?255:246,ri%2===0?255:246);
-      doc.rect(ml,y,cw,8,'F');
-      doc.setDrawColor(220,220,220); doc.setLineWidth(.2); doc.rect(ml,y,cw,8,'S');
-      doc.setTextColor(...BLACK); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
-      row.forEach((v,i)=>doc.text(doc.splitTextToSize(String(v||'—'),colW-2)[0],ml+2+i*colW,y+5.5));
-      y+=8;
-    });
-  }
-  doc.setTextColor(160,160,160); doc.setFontSize(7);
-  doc.text('Jenner Engineering Pty Ltd  |  JEN-QMS-REG-001  |  Confidential',W/2,H-6,{align:'center'});
+  doc.setTextColor(...GOLD); doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.text('JENNER ENGINEERING — '+title.toUpperCase(),W/2,10,{align:'center'});
+  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(180,180,180);
+  doc.text((from&&to?fmtDate(from)+' to '+fmtDate(to):'All dates')+'  |  Generated '+fmtDate(today())+'  |  JEN-QMS-REG-001',W/2,17,{align:'center'});
+  let y=28; const hdr=()=>{ doc.setFillColor(...BLACK); doc.rect(ml,y,cw,8,'F'); doc.setTextColor(...GOLD); doc.setFontSize(7); doc.setFont('helvetica','bold'); let x=ml; headers.forEach((h,i)=>{doc.text(h,x+2,y+5.5); x+=ws[i];}); y+=8; };
+  hdr();
+  if(!rows.length){ doc.setTextColor(150,150,150); doc.setFontSize(9); doc.text('No records in this period.',W/2,y+12,{align:'center'}); }
+  rows.forEach((row,ri)=>{
+    doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+    const wr=row.map((v,i)=>doc.splitTextToSize(String(v??'—'),ws[i]-3).slice(0,4)); const h=Math.max(7,Math.max(...wr.map(w=>w.length))*3.3+3);
+    if(y+h>H-14){ doc.addPage(); y=14; hdr(); doc.setFontSize(7.5); doc.setFont('helvetica','normal'); }
+    doc.setFillColor(ri%2?246:255,ri%2?246:255,ri%2?246:255); doc.setDrawColor(220,220,220); doc.setLineWidth(.2); doc.rect(ml,y,cw,h,'FD');
+    doc.setTextColor(...BLACK); let x=ml; wr.forEach((w,i)=>{ doc.text(w,x+2,y+4.5); x+=ws[i]; }); y+=h;
+  });
+  doc.setTextColor(160,160,160); doc.setFontSize(7); doc.text('Jenner Engineering Pty Ltd  |  ABN 27 632 194 373  |  ISO 9001:2015 clauses 8.7, 10.2',W/2,H-6,{align:'center'});
   doc.save('Jenner_'+title.replace(/\s/g,'_')+'_'+today()+'.pdf');
+}
+
+// ═══ AUDIT REPORT ═══
+function auditData(){
+  const {from,to}=period(), k=kpis(from,to), tO=Number(setting('target_otd',0.9)), tF=Number(setting('target_fpy',0.98));
+  const met=(v,t)=>v===null?'-':(v>=t?'Yes':'No');
+  return {from,to,k,
+    s1:[['Jobs completed (released)',String(k.jobsCompleted),'-','-','8.6 Release of products'],
+        ['On-time delivery',pct(k.otd),pct(tO),met(k.otd,tO),'9.1.2 Customer satisfaction'],
+        ['First-pass yield',pct(k.fpy),pct(tF),met(k.fpy,tF),'8.6 / 8.7'],
+        ['Certificates of Conformance issued',String(k.cocs),'-','-','8.6 Release of products'],
+        ['Deliveries with a delivery date recorded',String(k.deliveries),'-','-','7.5 Documented information']],
+    s2:[['NCRs raised in period',k.ncrRaised],['NCRs closed in period',k.ncrClosed],['NCRs open now',k.ncrOpen],['NCRs open and past target close date',k.ncrOverdue],
+        ['Average days to close (NCRs closed in period)',k.avgDaysClose===null?'-':k.avgDaysClose.toFixed(1)],['Customer complaints raised in period',k.complaints]],
+    s3:[['Released job lines in period',k.relLines],['…with all six checks recorded',k.relLines-k.gaps],['…with checks left blank',k.gaps],
+        ['…with a CoC number recorded',k.withCoc],['…with an actual delivery date recorded',k.withDel],['Jobs not released and past required delivery (all dates)',k.pastDue]],
+    s4:trend(to)};
+}
+function renderAudit(){
+  if(!DATA.loaded) return;
+  const a=auditData(); $('aPeriod').textContent=fmtDate(a.from)+'  to  '+fmtDate(a.to);
+  const mLbl=m=>new Date(m+'T12:00:00').toLocaleDateString('en-AU',{month:'short',year:'numeric'});
+  const kv=(rows)=>`<table class="tbl num static"><tbody>${rows.map(r=>`<tr><td>${esc(r[0])}</td><td class="n"><b>${esc(r[1])}</b></td></tr>`).join('')}</tbody></table>`;
+  $('auditBody').innerHTML=
+   `<div class="sect">1. Key performance indicators</div><div class="tbl-wrap"><table class="tbl num static"><thead><tr><th>Measure</th><th class="n">Result</th><th class="n">Target</th><th class="n">Met?</th><th>ISO 9001 clause</th></tr></thead><tbody>${a.s1.map(r=>`<tr><td>${r[0]}</td><td class="n"><b>${r[1]}</b></td><td class="n">${r[2]}</td><td class="n">${r[3]==='Yes'?'<span class="badge badge-pass">Yes</span>':r[3]==='No'?'<span class="badge badge-fail">No</span>':'-'}</td><td>${r[4]}</td></tr>`).join('')}</tbody></table></div>
+    <div class="two-col"><div><div class="sect">2. Nonconformity and corrective action (8.7, 10.2)</div>${kv(a.s2)}</div><div><div class="sect">3. Record completeness (7.5)</div>${kv(a.s3)}</div></div>
+    <div class="sect">4. Monthly trend</div><div class="tbl-wrap"><table class="tbl num static"><thead><tr><th>Month</th><th class="n">Jobs completed</th><th class="n">On-time %</th><th class="n">First-pass yield</th><th class="n">NCRs raised</th></tr></thead><tbody>${a.s4.map(r=>`<tr><td>${mLbl(r.month)}</td><td class="n">${r.completed}</td><td class="n">${pct(r.otd)}</td><td class="n">${pct(r.fpy)}</td><td class="n">${r.ncrs}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function auditPdf(){
+  const a=auditData(); saveSetting('audit_comments',$('aComments').value); saveSetting('audit_reviewer',$('aReviewer').value);
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4'});
+  const W=210,H=297,ml=14,cw=W-28; const GOLD=[249,189,44],BLACK=[0,0,0],STEEL=[107,107,107],GREEN=[26,122,60],RED=[180,35,24];
+  doc.setFillColor(...BLACK); doc.rect(0,0,W,24,'F');
+  doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.text('QUALITY PERFORMANCE REPORT',ml,11);
+  doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(190,190,190); doc.text('Jenner Engineering Pty Ltd  |  ABN 27 632 194 373  |  13 David Muir Street, Slade Point QLD 4740',ml,18);
+  let y=30; doc.setFontSize(8);
+  [['Document','JEN-QMS-REP-001  (generated from JEN-QMS-REG-001)'],['Reporting period',fmtDate(a.from)+'  to  '+fmtDate(a.to)],['Prepared for','ISO 9001:2015 surveillance / management review (clauses 9.1.3, 9.3.2)'],['QMS manual','JEN-QMS-01']].forEach(([k,v])=>{ doc.setTextColor(...STEEL); doc.setFont('helvetica','bold'); doc.text(k,ml,y); doc.setTextColor(...BLACK); doc.setFont('helvetica','normal'); doc.text(v,ml+32,y); y+=4.6; });
+  const sect=t=>{ y+=3; doc.setTextColor(...BLACK); doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text(t,ml,y); doc.setDrawColor(...GOLD); doc.setLineWidth(.6); doc.line(ml,y+1.5,W-ml,y+1.5); y+=5; };
+  const table=(x0,widths,head,rows,rowH=5.2,aligns)=>{ let yy=y;
+    if(head){ doc.setFillColor(...BLACK); doc.rect(x0,yy,widths.reduce((s,w)=>s+w,0),rowH,'F'); doc.setTextColor(...GOLD); doc.setFontSize(7); doc.setFont('helvetica','bold'); let x=x0; head.forEach((h,i)=>{ const al=(aligns||[])[i]==='r'; doc.text(h, al?x+widths[i]-1.5:x+1.5, yy+3.6,{align:al?'right':'left'}); x+=widths[i]; }); yy+=rowH; }
+    rows.forEach((r,ri)=>{ doc.setFillColor(ri%2?246:255,ri%2?246:255,ri%2?246:255); doc.setDrawColor(225,225,225); doc.setLineWidth(.2); doc.rect(x0,yy,widths.reduce((s,w)=>s+w,0),rowH,'FD');
+      let x=x0; r.forEach((v,i)=>{ const al=(aligns||[])[i]==='r'; const s=String(v);
+        doc.setFont('helvetica', (i===1)?'bold':'normal'); doc.setFontSize(7.5);
+        doc.setTextColor(...(s==='Yes'?GREEN:s==='No'?RED:BLACK)); doc.text(doc.splitTextToSize(s,widths[i]-3)[0], al?x+widths[i]-1.5:x+1.5, yy+3.6,{align:al?'right':'left'}); x+=widths[i]; }); yy+=rowH; });
+    return yy; };
+  sect('1.  KEY PERFORMANCE INDICATORS');
+  y=table(ml,[62,24,20,16,60],['Measure','Result','Target','Met?','ISO 9001 clause'],a.s1,5.2,['l','r','r','r','l'])+2;
+  y+=3; doc.setTextColor(...BLACK); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text('2.  NONCONFORMITY (8.7, 10.2)',ml,y); doc.text('3.  RECORD COMPLETENESS (7.5)',ml+cw/2+3,y);
+  doc.setDrawColor(...GOLD); doc.setLineWidth(.6); doc.line(ml,y+1.5,ml+88,y+1.5); doc.line(ml+cw/2+3,y+1.5,W-ml,y+1.5); y+=5;
+  const y2=table(ml,[70,18],null,a.s2.map(r=>[r[0],r[1]]),5.2,['l','r']); const y3=table(ml+cw/2+3,[73,16],null,a.s3.map(r=>[r[0],r[1]]),5.2,['l','r']); y=Math.max(y2,y3)+2;
+  sect('4.  MONTHLY TREND');
+  const mLbl=m=>new Date(m+'T12:00:00').toLocaleDateString('en-AU',{month:'short',year:'numeric'});
+  y=table(ml,[40,35.5,35.5,35.5,35.5],['Month','Jobs completed','On-time %','First-pass yield','NCRs raised'],a.s4.map(r=>[mLbl(r.month),r.completed,pct(r.otd),pct(r.fpy),r.ncrs]),4.6,['l','r','r','r','r'])+2;
+  sect('5.  MANAGEMENT COMMENT, ANALYSIS AND ACTIONS (9.1.3, 9.3.3)');
+  const com=$('aComments').value.trim(); const boxH=Math.max(20, H-y-38);
+  doc.setDrawColor(200,200,200); doc.setLineWidth(.3); doc.rect(ml,y,cw,boxH);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...BLACK);
+  if(com) doc.text(doc.splitTextToSize(com,cw-6).slice(0,Math.floor((boxH-4)/3.6)),ml+3,y+5,{lineHeightFactor:1.3});
+  y+=boxH+8;
+  doc.setTextColor(...STEEL); doc.setFontSize(7); doc.setFont('helvetica','bold');
+  doc.text('REVIEWED BY (NAME / POSITION)',ml,y); doc.text('DATE',ml+95,y); doc.text('SIGNATURE',ml+130,y);
+  doc.setTextColor(...BLACK); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.text($('aReviewer').value||'',ml,y+6); doc.text($('aDate').value?fmtDate($('aDate').value):'',ml+95,y+6);
+  doc.setDrawColor(150,150,150); doc.line(ml,y+8,ml+88,y+8); doc.line(ml+95,y+8,ml+125,y+8); doc.line(ml+130,y+8,W-ml,y+8);
+  doc.setTextColor(150,150,150); doc.setFontSize(6.5);
+  doc.text('Source: Job Register and NCR Register, JEN-QMS-REG-001 (Jenner QMS app). Job data from the SprintSuite Job Card; records before July 2026 migrated from the archived Jenner QMS web app.',W/2,H-7,{align:'center',maxWidth:cw});
+  doc.save(`JEN-QMS-REP-001 Quality Report ${a.to}.pdf`);
+}
+
+// ═══ WEBSITE ═══
+function webFigures(){
+  const from=setting('web_from','2026-04-01'), to=today(), k=kpis(from,to);
+  return {k, label:setting('web_label','Since April 2026'), stmt:setting('web_statement','Quality management system aligned to ISO 9001:2015')};
+}
+function embedCode(){
+  const {k,label,stmt}=webFigures();
+  const card=(v,t)=>`<div style='flex:1 1 180px;background:#171717;border-top:4px solid #FABE2E;border-radius:6px;padding:18px 20px'><div style='font-size:34px;font-weight:700;color:#FABE2E;line-height:1.1'>${esc(v)}</div><div style='font-size:14px;color:#ffffff;margin-top:6px'>${esc(t)}</div><div style='font-size:11px;color:#b3b3b3;margin-top:4px'>${esc(label)}</div></div>`;
+  const p=x=>x===null?'—':Math.round(x*100)+'%';
+  return `<div style='font-family:Century Gothic,Arial,sans-serif;display:flex;flex-wrap:wrap;gap:12px;max-width:980px;margin:0 auto'>`+
+    card(k.jobsCompleted.toLocaleString('en-AU'),'Jobs completed')+card(p(k.otd),'On-time delivery')+card(p(k.fpy),'First-pass yield')+
+    `<div style='flex:1 1 180px;background:#FABE2E;border-radius:6px;padding:18px 20px;color:#171717'><div style='font-size:12px;font-weight:700;letter-spacing:1px'>QUALITY ASSURED</div><div style='font-size:22px;font-weight:700;margin-top:4px'>ISO 9001</div><div style='font-size:12px;margin-top:6px'>${esc(stmt)}</div></div></div>`;
+}
+function renderWeb(){
+  if(!DATA.loaded) return;
+  const {k}=webFigures(), code=embedCode();
+  $('wPreview').innerHTML=code; $('wCode').value=code;
+  const el=$('wCheck');
+  el.textContent = `Figures from ${fmtDate(setting('web_from','2026-04-01'))} to today: ${k.jobsCompleted} jobs completed, on-time delivery based on ${k.deliveries} deliveries, first-pass yield based on ${k.relLines} released job lines.` + (k.deliveries<20?' Check before publishing: a percentage based on only a handful of deliveries can swing a long way.':'');
+  el.className='status-line '+(k.deliveries<20?'status-warn':'status-ok');
+}
+async function copyCode(){
+  const t=$('wCode'); try{ await navigator.clipboard.writeText(t.value); }catch(_){ t.select(); document.execCommand('copy'); }
+  $('wCopied').textContent='✓ Copied'; setTimeout(()=>$('wCopied').textContent='',2500);
 }
 </script>
 </body>
