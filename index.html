@@ -99,6 +99,14 @@ textarea{resize:vertical;min-height:64px}
 .result-toggle .pass.active{background:var(--green);color:var(--white)}
 .result-toggle .fail.active{background:var(--red);color:var(--white)}
 .result-toggle button:hover:not(.active){background:var(--grey)}
+.result-toggle .na.active{background:var(--steel);color:var(--white)}
+.checks{border:1.5px solid var(--border);border-radius:4px;margin-bottom:14px}
+.check-row{display:flex;align-items:center;gap:10px;padding:6px 10px;border-bottom:1px solid var(--border)}
+.check-row:last-child{border-bottom:none}
+.check-row .lbl{flex:1;font-size:13px;font-weight:700}
+.check-row .result-toggle{width:230px;flex-shrink:0}
+.check-row .result-toggle button{padding:6px;font-size:12px}
+@media(max-width:600px){.check-row{flex-wrap:wrap}.check-row .result-toggle{width:100%}}
 
 /* JOB DETAILS BOX */
 .job-box{background:var(--grey);border:1px solid var(--border);border-radius:4px;padding:14px;margin-bottom:14px}
@@ -271,9 +279,11 @@ textarea{resize:vertical;min-height:64px}
             <input type="text" id="fHeat" placeholder="e.g. H24-0091 (if applicable)">
           </div>
         </div>
+        <label>Job Card Checks</label>
+        <div class="checks" id="checksBox"></div>
         <div class="form-row fr2">
           <div>
-            <label>Inspection Result <span style="color:var(--red)">*</span></label>
+            <label>Overall Inspection Result <span style="color:var(--red)">*</span></label>
             <div class="result-toggle" style="margin-top:4px">
               <button class="pass" id="btnPass" onclick="setResult('PASS')">✓ PASS</button>
               <button class="fail" id="btnFail" onclick="setResult('FAIL')">✗ FAIL</button>
@@ -405,6 +415,7 @@ window.onload = () => {
     show('screenLogin');
   }
   document.getElementById('fDate').value = today();
+  renderChecks();
   setDates();
 };
 
@@ -494,6 +505,31 @@ function handleFiles(files) {
   reader.readAsDataURL(file);
 }
 
+const AI_PROMPT = `You are reading a scanned Jenner Engineering job card (printed from SprintSuite, with handwritten marks).
+Return ONLY a valid JSON object with these keys:
+{
+  "job_no": "the job number printed large at the top, e.g. P.26.0702",
+  "customer": "the Client name",
+  "description": "the job title or Description",
+  "material": "the Material row",
+  "po_number": "Purchase Order Numbers row",
+  "quantity": "Quantity Ordered row",
+  "date": "the End Date in YYYY-MM-DD format",
+  "checks": {
+    "pre_start": "01 - PRE START CHECK",
+    "correct_material": "02 - CORRECT MATERIAL",
+    "correct_drawing": "03 - CORRECT DRAWING",
+    "in_process": "04 - IN-PROCESS INSPECTION",
+    "final_dimension": "05 - FINAL DIMENSION CHECK",
+    "final_visual": "06 - FINAL VISUAL AND QUALITY CHECK"
+  },
+  "signed": true or false (is there a handwritten signature or initials on the card)
+}
+For each check, answer exactly "PASS", "FAIL", "N/A" or "" (blank).
+The printed options are circled by hand. A circled PASS or a circled Yes = "PASS". A circled FAIL or a circled No = "FAIL".
+Handwritten N/A = "N/A". If nothing is circled or written for that row, use "".
+If a field is not visible, use an empty string. Return only the JSON object.`;
+
 async function readWithAI(b64, mime) {
   document.getElementById('cardUpload').style.display = 'none';
   document.getElementById('cardCoc').style.display = 'block';
@@ -507,73 +543,61 @@ async function readWithAI(b64, mime) {
   try {
     const res = await fetch(SB_URL+'/functions/v1/digitise-jobpack', {
       method: 'POST',
-      headers: {
-        'Authorization': 'Bearer '+SB_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ data: b64, mimeType: mime, extractFields: true })
+      headers: { 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY },
+      body: JSON.stringify({ prompt: AI_PROMPT, mime, b64 })
     });
-
-    if (!res.ok) throw new Error('Edge function error: '+res.status);
-    const json = await res.json();
-
-    // Try to parse structured fields from the response
-    const fields = json.fields || json.result || json;
+    let out = {};
+    try { out = await res.json(); } catch(_) {}
+    if (!res.ok) throw new Error((out && out.error) || ('Edge function error: '+res.status));
+    const raw = out.text || out.result || '{}';
+    const fields = typeof raw === 'string' ? JSON.parse(raw.replace(/```json|```/g,'').trim()) : raw;
     fillFields(fields);
     aiStatus.classList.remove('show');
-    aiOk.textContent = '✓ Job card read successfully — please check the fields below and correct anything that looks wrong.';
+    const n = CHECKS.filter(c => checkVals[c.key]).length;
+    aiOk.textContent = '✓ Job card read — '+n+' of 6 checks picked up. Check every field and tick below, and correct anything that looks wrong.';
     aiOk.classList.add('show');
   } catch(e) {
-    // Fallback: try calling Anthropic directly via edge function with a different payload
-    try {
-      await readWithFallback(b64, mime);
-    } catch(e2) {
-      aiStatus.classList.remove('show');
-      aiErr.textContent = 'AI could not read the file. Please fill in the fields manually. ('+e.message+')';
-      aiErr.classList.add('show');
-    }
+    aiStatus.classList.remove('show');
+    aiErr.textContent = 'AI could not read the file. Please fill in the fields manually. ('+e.message+')';
+    aiErr.classList.add('show');
   }
 }
 
-async function readWithFallback(b64, mime) {
-  // Try direct Anthropic call through Supabase edge function proxy
-  const prompt = `You are reading a scanned engineering job card or work order. Extract these fields and return ONLY valid JSON with these keys:
-{
-  "job_no": "job number or work order number",
-  "customer": "customer or client name",
-  "description": "description of work to be done or part description",
-  "material": "material specification if visible",
-  "date": "date on the document in YYYY-MM-DD format if visible"
+// ─── JOB CARD CHECKS ───
+const CHECKS = [
+  {key:'pre_start',        label:'01 · Pre start check',               yes:'PASS', no:'FAIL'},
+  {key:'correct_material', label:'02 · Correct material',              yes:'YES',  no:'NO'},
+  {key:'correct_drawing',  label:'03 · Correct drawing',               yes:'YES',  no:'NO'},
+  {key:'in_process',       label:'04 · In-process inspection',         yes:'PASS', no:'FAIL'},
+  {key:'final_dimension',  label:'05 · Final dimension check',         yes:'PASS', no:'FAIL'},
+  {key:'final_visual',     label:'06 · Final visual & quality check',  yes:'PASS', no:'FAIL'}
+];
+let checkVals = {};
+function renderChecks() {
+  document.getElementById('checksBox').innerHTML = CHECKS.map(c => `
+    <div class="check-row">
+      <span class="lbl">${c.label}</span>
+      <div class="result-toggle">
+        <button class="pass${checkVals[c.key]==='PASS'?' active':''}" onclick="setCheck('${c.key}','PASS')">✓ ${c.yes}</button>
+        <button class="fail${checkVals[c.key]==='FAIL'?' active':''}" onclick="setCheck('${c.key}','FAIL')">✗ ${c.no}</button>
+        <button class="na${checkVals[c.key]==='N/A'?' active':''}" onclick="setCheck('${c.key}','N/A')">N/A</button>
+      </div>
+    </div>`).join('');
 }
-If a field is not visible, use an empty string. Return only the JSON object, nothing else.`;
-
-  const contentBlock = mime.startsWith('image/')
-    ? { type:'image', source:{ type:'base64', media_type:mime, data:b64 } }
-    : { type:'document', source:{ type:'base64', media_type:'application/pdf', data:b64 } };
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 500,
-      system: prompt,
-      messages: [{ role:'user', content:[contentBlock, { type:'text', text:'Extract the job card fields as JSON.' }] }]
-    })
-  });
-
-  if (!res.ok) throw new Error('API error '+res.status);
-  const data = await res.json();
-  const text = data.content?.find(b=>b.type==='text')?.text || '{}';
-  const cleaned = text.replace(/```json|```/g,'').trim();
-  const fields = JSON.parse(cleaned);
-  fillFields(fields);
-
-  const aiStatus = document.getElementById('aiStatus');
-  const aiOk = document.getElementById('aiOk');
-  aiStatus.classList.remove('show');
-  aiOk.textContent = '✓ Job card read — please check the fields and correct anything that needs changing.';
-  aiOk.classList.add('show');
+function setCheck(k, v) {
+  checkVals[k] = (checkVals[k] === v) ? '' : v;
+  renderChecks(); autoResult();
+}
+function autoResult() {
+  const vals = CHECKS.map(c => checkVals[c.key] || '');
+  if (vals.includes('FAIL')) setResult('FAIL');
+  else if (vals.every(v => v === 'PASS' || v === 'N/A') && vals.includes('PASS')) setResult('PASS');
+}
+function checkText(c) {
+  const v = checkVals[c.key] || '';
+  if (v === 'PASS') return c.yes;
+  if (v === 'FAIL') return c.no;
+  return v || 'Not recorded';
 }
 
 function fillFields(f) {
@@ -582,7 +606,19 @@ function fillFields(f) {
   if (f.customer)  document.getElementById('fCustomer').value = f.customer;
   if (f.description) document.getElementById('fDesc').value  = f.description;
   if (f.material)  document.getElementById('fMaterial').value = f.material;
-  if (f.date)      document.getElementById('fDate').value     = f.date;
+  if (f.date && /^\d{4}-\d{2}-\d{2}$/.test(f.date)) document.getElementById('fDate').value = f.date;
+  const extra = [];
+  if (f.po_number) extra.push('Customer PO: '+f.po_number);
+  if (f.quantity)  extra.push('Qty: '+f.quantity);
+  if (extra.length && !document.getElementById('fRemarks').value) document.getElementById('fRemarks').value = extra.join('  ·  ');
+  if (f.checks && typeof f.checks === 'object') {
+    CHECKS.forEach(c => {
+      let v = String(f.checks[c.key] || '').toUpperCase().trim();
+      if (v === 'YES') v = 'PASS'; if (v === 'NO') v = 'FAIL'; if (v === 'NA') v = 'N/A';
+      checkVals[c.key] = ['PASS','FAIL','N/A'].includes(v) ? v : '';
+    });
+    renderChecks(); autoResult();
+  }
 }
 
 // ─── MANUAL JOB SEARCH ───
@@ -618,7 +654,7 @@ function resetCoc() {
   document.getElementById('searchResults').innerHTML='';
   ['fJobNo','fCustomer','fDesc','fMaterial','fHeat','fRemarks'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('fDate').value=today();
-  cocResult=null;
+  cocResult=null; checkVals={}; renderChecks();
   document.getElementById('btnPass').classList.remove('active');
   document.getElementById('btnFail').classList.remove('active');
   ['aiStatus','aiOk','aiErr'].forEach(id=>{
@@ -717,24 +753,44 @@ async function genCoc() {
     doc.text(rl,ml+3,y+12); y+=rh+4;
   }
 
+  // Job card checks
+  doc.setTextColor(...STEEL); doc.setFontSize(7); doc.setFont('helvetica','bold');
+  doc.text('IN-PROCESS INSPECTION CHECKS (JOB CARD)',ml,y+3); y+=5;
+  const colW=cw/2, rowH=7;
+  CHECKS.forEach((c,i)=>{
+    const cx = ml + (i%2)*colW, cy = y + Math.floor(i/2)*rowH;
+    doc.setFillColor(i%4<2?245:255, i%4<2?245:255, i%4<2?245:255); doc.setDrawColor(220,220,220); doc.setLineWidth(.2);
+    doc.rect(cx,cy,colW,rowH,'FD');
+    doc.setTextColor(...BLACK); doc.setFontSize(8); doc.setFont('helvetica','normal');
+    doc.text(c.label.replace('·','-'),cx+2.5,cy+4.7);
+    const v=checkVals[c.key]||'';
+    doc.setFont('helvetica','bold');
+    doc.setTextColor(...(v==='PASS'?[26,122,60]:v==='FAIL'?[180,35,24]:STEEL));
+    doc.text(checkText(c),cx+colW-2.5,cy+4.7,{align:'right'});
+  });
+  y += Math.ceil(CHECKS.length/2)*rowH + 5;
+
   // Result
   const rCol = cocResult==='PASS' ? [26,122,60] : [180,35,24];
   doc.setFillColor(...rCol);
-  doc.roundedRect(ml,y,cw,18,2,2,'F');
+  doc.roundedRect(ml,y,cw,14,2,2,'F');
   doc.setTextColor(...WHITE); doc.setFontSize(13); doc.setFont('helvetica','bold');
-  doc.text('INSPECTION RESULT: '+cocResult,W/2,y+12,{align:'center'});
-  y+=24;
+  doc.text('INSPECTION RESULT: '+cocResult,W/2,y+9.5,{align:'center'});
+  y+=19;
 
   // Rule
-  doc.setDrawColor(...GOLD); doc.setLineWidth(.5); doc.line(ml,y,W-mr,y); y+=7;
+  doc.setDrawColor(...GOLD); doc.setLineWidth(.5); doc.line(ml,y,W-mr,y); y+=5;
 
   // Certification statement
   doc.setFillColor(254,242,213); doc.setDrawColor(...GOLD); doc.setLineWidth(.3);
-  doc.roundedRect(ml,y,cw,22,2,2,'FD');
+  doc.roundedRect(ml,y,cw,14,2,2,'FD');
   doc.setTextColor(...BLACK); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
   const stmt='We hereby certify that the goods described above have been manufactured, inspected and tested in accordance with the applicable specifications and drawing requirements. All inspection records are retained and available upon request.';
-  doc.text(doc.splitTextToSize(stmt,cw-10),W/2,y+7,{align:'center',lineHeightFactor:1.4});
-  y+=28;
+  doc.text(doc.splitTextToSize(stmt,cw-10),W/2,y+5.5,{align:'center',lineHeightFactor:1.4});
+  y+=19;
+
+  // Keep signature + stamp together on one page
+  if (y + 62 > H - 14) { doc.addPage(); y = 20; }
 
   // Signature block
   const sx1=ml, sx2=ml+cw/2+4, sw=cw/2-4;
