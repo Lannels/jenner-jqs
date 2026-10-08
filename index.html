@@ -238,7 +238,7 @@ textarea{resize:vertical;min-height:64px}
   <div class="hdr">
     <div class="hdr-logo"><span class="j">J</span><span class="rest">ENNER ENGINEERING — Quality Management System</span></div>
     <div class="hdr-right">
-      <span class="hdr-ver">v4.0 · JEN-QMS-REG-001</span>
+      <span class="hdr-ver">v4.1 · JEN-QMS-REG-001</span>
       <button class="btn-out" onclick="loadAll(true)">Refresh</button>
       <button class="btn-out" onclick="doLogout()">Sign Out</button>
     </div>
@@ -250,6 +250,7 @@ textarea{resize:vertical;min-height:64px}
     <div class="tab" data-tab="ncr" onclick="switchTab('ncr')">NCR Register</div>
     <div class="tab" data-tab="audit" onclick="switchTab('audit')">Audit Report</div>
     <div class="tab" data-tab="web" onclick="switchTab('web')">Website</div>
+    <div class="tab" data-tab="sig" onclick="switchTab('sig')">Signatures</div>
   </div>
   <div class="banner" id="dbBanner"></div>
 
@@ -464,6 +465,17 @@ textarea{resize:vertical;min-height:64px}
       </div>
     </div>
   </div>
+
+  <!-- ═══ SIGNATURES ═══ -->
+  <div id="tabSig" class="content narrow" style="display:none">
+    <div class="card">
+      <div class="card-hdr"><h2>Electronic signatures</h2></div>
+      <div class="card-body">
+        <div class="alert alert-info show">Upload a photo or scan of each signature: black or blue pen on plain white paper. The white background is removed and the image is cropped automatically. The signature then prints on every CoC certified by that person, and on the Audit Report when they are the reviewer.</div>
+        <div class="two-col" id="sigCards"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <datalist id="dlCustomers"></datalist>
@@ -633,7 +645,7 @@ function showApp(){
   loadAll();
 }
 function switchTab(t){
-  const map={dash:'tabDash',coc:'tabCoc',reg:'tabReg',ncr:'tabNcr',audit:'tabAudit',web:'tabWeb'};
+  const map={dash:'tabDash',coc:'tabCoc',reg:'tabReg',ncr:'tabNcr',audit:'tabAudit',web:'tabWeb',sig:'tabSig'};
   Object.entries(map).forEach(([k,id])=>$(id).style.display = k===t?'block':'none');
   document.querySelectorAll('#tabs .tab').forEach(el=>el.classList.toggle('active', el.dataset.tab===t));
   renderTab(t);
@@ -646,6 +658,7 @@ function renderTab(t){
   if(t==='ncr') renderNcrs();
   if(t==='audit') renderAudit();
   if(t==='web') renderWeb();
+  if(t==='sig') renderSigs();
 }
 
 // ─── DATA ───
@@ -1087,11 +1100,12 @@ function cocPdf(jobNo, opts={}){
   doc.setFillColor(254,242,213); doc.setDrawColor(...GOLD); doc.setLineWidth(.3); doc.roundedRect(ml,y,cw,15,2,2,'FD');
   doc.setTextColor(...BLACK); doc.setFontSize(8); doc.setFont('helvetica','normal');
   doc.text(doc.splitTextToSize('We certify that the parts listed on this certificate have been manufactured and inspected in accordance with the Jenner Engineering quality management system (JEN-QMS-01), and conform to the applicable drawing, customer requirements and final inspection status recorded for this job.',cw-8),ml+4,y+5,{lineHeightFactor:1.35});
-  y+=22;
+  y+=26;
   if(y>H-40){ doc.addPage(); y=24; }
   const by=L.coc_by||val('fCocBy')||'Carol Norris';
-  doc.setTextColor(...STEEL); doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.text('CERTIFIED BY',ml,y); doc.text('SIGNATURE',ml+cw/2+4,y);
+  doc.setTextColor(...STEEL); doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.text('CERTIFIED BY',ml,y); doc.setFont('helvetica','normal'); doc.text('Signature',ml+cw/2+4,y+16); doc.setFont('helvetica','bold');
   doc.setTextColor(...BLACK); doc.setFontSize(11); doc.text(by,ml,y+7); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...STEEL); doc.text(titleFor(by)||'Jenner Engineering Pty Ltd',ml,y+12);
+  drawSig(doc, sigFor(by), ml+cw/2+6, y+11.5, 70, 16);
   doc.setDrawColor(150,150,150); doc.setLineWidth(.3); doc.line(ml+cw/2+4,y+12,W-mr,y+12);
   doc.setDrawColor(...GOLD); doc.setLineWidth(.4); doc.line(ml,H-13,W-mr,H-13);
   doc.setTextColor(150,150,150); doc.setFontSize(7);
@@ -1291,15 +1305,16 @@ function auditPdf(){
   const mLbl=m=>new Date(m+'T12:00:00').toLocaleDateString('en-AU',{month:'short',year:'numeric'});
   y=table(ml,[40,35.5,35.5,35.5,35.5],['Month','Jobs completed','On-time %','First-pass yield','NCRs raised'],a.s4.map(r=>[mLbl(r.month),r.completed,pct(r.otd),pct(r.fpy),r.ncrs]),4.6,['l','r','r','r','r'])+2;
   sect('5.  MANAGEMENT COMMENT, ANALYSIS AND ACTIONS (9.1.3, 9.3.3)');
-  const com=$('aComments').value.trim(); const boxH=Math.max(20, H-y-38);
+  const com=$('aComments').value.trim(); const boxH=Math.max(20, H-y-44);
   doc.setDrawColor(200,200,200); doc.setLineWidth(.3); doc.rect(ml,y,cw,boxH);
   doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...BLACK);
   if(com) doc.text(doc.splitTextToSize(com,cw-6).slice(0,Math.floor((boxH-4)/3.6)),ml+3,y+5,{lineHeightFactor:1.3});
   y+=boxH+8;
   doc.setTextColor(...STEEL); doc.setFontSize(7); doc.setFont('helvetica','bold');
-  doc.text('REVIEWED BY (NAME / POSITION)',ml,y); doc.text('DATE',ml+95,y); doc.text('SIGNATURE',ml+130,y);
+  doc.text('REVIEWED BY (NAME / POSITION)',ml,y+12); doc.text('DATE',ml+95,y+12); doc.text('SIGNATURE',ml+130,y+12);
   doc.setTextColor(...BLACK); doc.setFont('helvetica','normal'); doc.setFontSize(9);
   doc.text($('aReviewer').value||'',ml,y+6); doc.text($('aDate').value?fmtDate($('aDate').value):'',ml+95,y+6);
+  drawSig(doc, sigFor($('aReviewer').value), ml+131, y+7.5, 50, 13);
   doc.setDrawColor(150,150,150); doc.line(ml,y+8,ml+88,y+8); doc.line(ml+95,y+8,ml+125,y+8); doc.line(ml+130,y+8,W-ml,y+8);
   doc.setTextColor(150,150,150); doc.setFontSize(6.5);
   doc.text('Source: Job Register and NCR Register, JEN-QMS-REG-001 (Jenner QMS app). Job data from the SprintSuite Job Card; records before July 2026 migrated from the archived Jenner QMS web app.',W/2,H-7,{align:'center',maxWidth:cw});
@@ -1327,6 +1342,49 @@ function renderWeb(){
   el.textContent = `Figures from ${fmtDate(setting('web_from','2026-04-01'))} to today: ${k.jobsCompleted} jobs completed, on-time delivery based on ${k.deliveries} deliveries, first-pass yield based on ${k.relLines} released job lines.` + (k.deliveries<20?' Check before publishing: a percentage based on only a handful of deliveries can swing a long way.':'');
   el.className='status-line '+(k.deliveries<20?'status-warn':'status-ok');
 }
+// ═══ SIGNATURES ═══
+const SIGNERS=[{key:'sig_colin',name:'Colin Norris',title:'Managing Director',match:/colin/i},{key:'sig_carol',name:'Carol Norris',title:'Administration & Finance Director',match:/carol/i}];
+function sigFor(name){ const s=SIGNERS.find(x=>x.match.test(name||'')); return s?setting(s.key,''):''; }
+function renderSigs(){
+  $('sigCards').innerHTML=SIGNERS.map(s=>{ const img=setting(s.key,'');
+    return `<div style="border:1.5px solid var(--border);border-radius:6px;padding:16px">
+      <div style="font-size:14px;font-weight:800">${s.name}</div><div style="font-size:11px;color:var(--steel);margin-bottom:10px">${s.title}</div>
+      <div style="height:90px;border-bottom:1.5px solid #999;display:flex;align-items:flex-end;justify-content:center;margin-bottom:12px">
+        ${img?`<img src="${img}" style="max-height:84px;max-width:100%">`:'<span style="color:#aaa;font-size:12px;margin-bottom:30px">No signature uploaded</span>'}</div>
+      <input type="file" id="f_${s.key}" accept="image/*" style="display:none" onchange="uploadSig('${s.key}',this.files[0])">
+      <div class="btn-group" style="margin-top:0"><button class="btn btn-primary btn-sm" onclick="$('f_${s.key}').click()">${img?'Replace':'Upload'} signature</button>
+      ${img?`<button class="btn btn-outline btn-sm" onclick="removeSig('${s.key}')">Remove</button>`:''}</div></div>`; }).join('');
+}
+function uploadSig(key,file){
+  if(!file) return;
+  const img=new Image(), url=URL.createObjectURL(file);
+  img.onload=async()=>{
+    const sc=Math.min(1,1400/img.width); const w=Math.round(img.width*sc), h=Math.round(img.height*sc);
+    const c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d'); x.drawImage(img,0,0,w,h);
+    const d=x.getImageData(0,0,w,h), px=d.data;
+    let sum=0,n=0; for(let i=0;i<px.length;i+=40){ sum+=(px[i]+px[i+1]+px[i+2])/3; n++; } const paper=sum/n;
+    const cut=Math.min(paper-35,200); let minX=w,minY=h,maxX=0,maxY=0;
+    for(let y=0;y<h;y++) for(let xx=0;xx<w;xx++){ const i=(y*w+xx)*4, l=(px[i]+px[i+1]+px[i+2])/3;
+      if(l>cut){ px[i+3]=0; } else { const a=Math.min(255,Math.round((cut-l)/cut*255*2.2)); px[i+3]=a; if(a>60){ if(xx<minX)minX=xx; if(xx>maxX)maxX=xx; if(y<minY)minY=y; if(y>maxY)maxY=y; } } }
+    if(maxX<=minX||maxY<=minY){ alert('No signature found in that image. Use dark pen on white paper.'); return; }
+    x.putImageData(d,0,0);
+    const pad=10; minX=Math.max(0,minX-pad); minY=Math.max(0,minY-pad); maxX=Math.min(w-1,maxX+pad); maxY=Math.min(h-1,maxY+pad);
+    const cw=maxX-minX+1, ch=maxY-minY+1, s2=Math.min(1,700/cw);
+    const o=document.createElement('canvas'); o.width=Math.round(cw*s2); o.height=Math.round(ch*s2);
+    o.getContext('2d').drawImage(c,minX,minY,cw,ch,0,0,o.width,o.height);
+    const data=o.toDataURL('image/png'); URL.revokeObjectURL(url);
+    await saveSetting(key,data); renderSigs();
+  };
+  img.onerror=()=>alert('That file could not be opened as an image. Use a PNG or JPG.');
+  img.src=url;
+}
+async function removeSig(key){ if(!confirm('Remove this signature?')) return; await saveSetting(key,''); renderSigs(); }
+function drawSig(doc,data,x,yBottom,maxW,maxH){
+  if(!data) return;
+  try{ const p=doc.getImageProperties(data); let w=maxW, h=w*p.height/p.width; if(h>maxH){ h=maxH; w=h*p.width/p.height; }
+    doc.addImage(data,'PNG',x,yBottom-h,w,h); }catch(e){ console.warn('signature not drawn',e); }
+}
+
 async function copyCode(){
   const t=$('wCode'); try{ await navigator.clipboard.writeText(t.value); }catch(_){ t.select(); document.execCommand('copy'); }
   $('wCopied').textContent='✓ Copied'; setTimeout(()=>$('wCopied').textContent='',2500);
