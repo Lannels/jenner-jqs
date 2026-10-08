@@ -214,9 +214,9 @@ textarea{resize:vertical;min-height:64px}
 
         <!-- UPLOAD ZONE -->
         <div class="upload-zone" id="dropZone" onclick="document.getElementById('pdfFile').click()"
-             ondragover="e=>{e.preventDefault();this.classList.add('drag')}"
+             ondragover="event.preventDefault();this.classList.add('drag')"
              ondragleave="this.classList.remove('drag')"
-             ondrop="e=>{e.preventDefault();this.classList.remove('drag');handleFiles(e.dataTransfer.files)}">
+             ondrop="event.preventDefault();this.classList.remove('drag');handleFiles(event.dataTransfer.files)">
           <input type="file" id="pdfFile" accept=".pdf,image/*" onchange="handleFiles(this.files)">
           <div class="icon">📄</div>
           <h3>Drop scanned job card here or click to browse</h3>
