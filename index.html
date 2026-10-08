@@ -160,7 +160,7 @@ textarea{resize:vertical;min-height:64px}
 <body>
 
 <!-- SETUP SCREEN -->
-<div class="overlay" id="screenSetup">
+<div class="overlay" id="screenSetup" style="display:none">
   <div class="box">
     <div class="box-logo">
       <div><span class="j">J</span><span class="rest">ENNER ENGINEERING</span></div>
@@ -388,15 +388,16 @@ textarea{resize:vertical;min-height:64px}
 // ─── CONFIG ───
 const SB_URL = 'https://nnxepgxqakeoruafbkcg.supabase.co';
 const PWD    = 'jenner2025';
-let SB_KEY   = '';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ueGVwZ3hxYWtlb3J1YWZia2NnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4OTI4NDgsImV4cCI6MjA5MTQ2ODg0OH0.B4-h4GBv0d6tUW0abFsMkyGjnO1iZ8ENtYgdZr_eXTE';
+let SB_KEY   = ANON_KEY;
 let cocResult= null;
 let vclicks  = 0;
 let editNcrId= null;
 
 // ─── INIT ───
 window.onload = () => {
-  SB_KEY = localStorage.getItem('jqms_key') || '';
-  if (!SB_KEY) {
+  SB_KEY = ANON_KEY;
+  if (false) {
     show('screenSetup');
   } else if (sessionStorage.getItem('jqms_auth') === '1') {
     showApp();
