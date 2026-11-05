@@ -703,7 +703,7 @@ function fillSettingsInputs(){
 // Records dated before the "Measuring from" date stay in the database but are left out of everything in the app
 const START_DEFAULT='2026-10-01';
 function measureFrom(){ return setting('measure_from',START_DEFAULT); }
-function regDate(r){ return r.job_opened||r.required_date||r.release_date||r.coc_date||r.actual_delivery||null; }
+function regDate(r){ return r.actual_delivery||r.release_date||r.coc_date||r.job_opened||r.required_date||null; } // a job counts from when it was delivered/released, so jobs opened before the start date but finished after it still report
 function applyStart(){
   const s=measureFrom();
   DATA.reg=(DATA.allReg||[]).filter(r=>{ const d=regDate(r); return !d || d>=s; });
@@ -722,9 +722,9 @@ function saveTargets(){
   renderDash();
 }
 function fillLists(){
-  const cust=new Set(BASE_CUSTOMERS); DATA.reg.forEach(r=>r.customer&&cust.add(r.customer));
+  const cust=new Set(BASE_CUSTOMERS); DATA.allReg.forEach(r=>r.customer&&cust.add(r.customer));
   $('dlCustomers').innerHTML=[...cust].sort((a,b)=>a.localeCompare(b)).map(c=>`<option value="${esc(c)}">`).join('');
-  const staff=new Set(BASE_STAFF); DATA.reg.forEach(r=>{['operator','released_by','coc_by'].forEach(k=>r[k]&&staff.add(r[k]));});
+  const staff=new Set(BASE_STAFF); DATA.allReg.forEach(r=>{['operator','released_by','coc_by'].forEach(k=>r[k]&&staff.add(r[k]));});
   $('dlStaff').innerHTML=[...staff].sort().map(c=>`<option value="${esc(c)}">`).join('');
 }
 
@@ -803,7 +803,7 @@ function trend(toDate){
 }
 function byCustomer(from,to){
   const names=new Set(); DATA.reg.forEach(r=>r.customer&&names.add(r.customer)); DATA.ncrs.forEach(n=>n.customer&&names.add(n.customer));
-  const custOf = n => n.customer || (DATA.reg.find(r=>(r.job_no||'').toUpperCase()===(n.job_no||'').toUpperCase())||{}).customer;
+  const custOf = n => n.customer || (DATA.allReg.find(r=>(r.job_no||'').toUpperCase()===(n.job_no||'').toUpperCase())||{}).customer;
   const rows=[];
   names.forEach(c=>{
     const lines=DATA.reg.filter(r=>r.customer===c);
@@ -945,7 +945,7 @@ function fillFromAI(f){
   }
   // already in the register?
   const jn=($('fJobNo').value||'').trim().toUpperCase();
-  const ex=DATA.reg.filter(r=>(r.job_no||'').trim().toUpperCase()===jn);
+  const ex=DATA.allReg.filter(r=>(r.job_no||'').trim().toUpperCase()===jn);
   if(ex.length){ const r=ex.find(x=>x.released!=='Y')||ex[0]; editRegId=r.id;
     ['fOperator:operator','fDrawing:drawing','fActual:actual_delivery'].forEach(p=>{const [id,k]=p.split(':'); if(!$(id).value&&r[k]) $(id).value=r[k];});
     showEditNote(r, true); }
@@ -959,7 +959,7 @@ function showEditNote(r, fromAi){
 async function searchJob(){
   const q=$('jobSearch').value.trim().toLowerCase(); const el=$('searchResults');
   if(!q){ el.innerHTML=''; return; }
-  const hits=DATA.reg.filter(r=>[r.job_no,r.customer,r.part_desc,r.customer_ref].some(v=>(v||'').toLowerCase().includes(q))).slice(-12).reverse();
+  const hits=DATA.allReg.filter(r=>[r.job_no,r.customer,r.part_desc,r.customer_ref].some(v=>(v||'').toLowerCase().includes(q))).slice(-12).reverse();
   if(!hits.length){ el.innerHTML='<p style="color:var(--steel);font-size:12px;padding:8px 0">No jobs found. Use Blank entry to type it in.</p>'; return; }
   el.innerHTML=hits.map(r=>`<div onclick="loadLine(${r.id})" style="border:1.5px solid var(--border);border-radius:4px;padding:10px 14px;margin-top:8px;cursor:pointer" onmouseover="this.style.borderColor='var(--gold)';this.style.background='var(--gold-tint)'" onmouseout="this.style.borderColor='var(--border)';this.style.background=''">
     <strong style="font-size:13px">${esc(r.job_no)}</strong> <span style="color:var(--steel);font-size:12px;margin-left:8px">${esc(r.customer||'')} — ${esc((r.part_desc||'').slice(0,70))}</span>
@@ -970,7 +970,7 @@ function newBlank(){
   $('cardUpload').style.display='none'; $('cardCoc').style.display='block';
 }
 function loadLine(id){
-  const r=DATA.reg.find(x=>x.id===id); if(!r) return;
+  const r=DATA.allReg.find(x=>x.id===id); if(!r) return;
   newBlank(); editRegId=id;
   const m={fJobNo:'job_no',fCustomer:'customer',fRef:'customer_ref',fDesc:'part_desc',fMaterial:'material',fDrawing:'drawing',fHeat:'heat_no',fOperator:'operator',fQtyO:'qty_ordered',fQtyS:'qty_supplied',fOpened:'job_opened',fRequired:'required_date',fActual:'actual_delivery'};
   Object.entries(m).forEach(([id,k])=>$(id).value=r[k]??'');
@@ -1009,14 +1009,14 @@ function updateCocStatus(){
   if(v.includes('FAIL')) msg='CHECK: a FAIL is recorded on the job card. Raise an NCR before releasing.';
   else if(blanks) msg=`CHECK: ${blanks} of the 6 checks ${blanks===1?'is':'are'} not recorded. Every check needs PASS or N/A before the CoC.`;
   else { msg='OK to issue — all checks recorded with no fails.'; ok=true; }
-  const r=editRegId?DATA.reg.find(x=>x.id===editRegId):null;
+  const r=editRegId?DATA.allReg.find(x=>x.id===editRegId):null;
   el.textContent = msg + ((r&&r.coc_no)?`  CoC ${r.coc_no} already issued for this line; issuing again reprints it.`:`  Next CoC number: ${nextCocNo()}.`);
   el.className='status-line '+(ok?'status-ok':'status-warn');
 }
 function nextCocNo(){
   const t=new Date(); const y1=t.getMonth()>=6?t.getFullYear():t.getFullYear()-1;
   const pre=`JEN-CoC-${y1}${String(y1+1).slice(2)}-`;
-  let max=0; DATA.reg.forEach(r=>{ if(r.coc_no&&r.coc_no.startsWith(pre)){ const n=parseInt(r.coc_no.slice(pre.length),10); if(n>max) max=n; }});
+  let max=0; DATA.allReg.forEach(r=>{ if(r.coc_no&&r.coc_no.startsWith(pre)){ const n=parseInt(r.coc_no.slice(pre.length),10); if(n>max) max=n; }});
   return pre+String(max+1).padStart(4,'0');
 }
 function formLine(){
@@ -1033,9 +1033,9 @@ async function saveLine(release){
   if(release && !cocResult){ alert('Please select an overall PASS or FAIL.'); return; }
   const v=STAGES.map(s=>checkVals[s.key]||'');
   if(release && (v.includes('FAIL')||v.includes('')) && !confirm('Not every check is recorded as PASS or N/A.\n\nRelease the job and issue the CoC anyway?')) return;
-  let existing = editRegId ? DATA.reg.find(r=>r.id===editRegId) : null;
+  let existing = editRegId ? DATA.allReg.find(r=>r.id===editRegId) : null;
   if(!existing){
-    const same=DATA.reg.filter(r=>(r.job_no||'').trim().toUpperCase()===d.job_no.toUpperCase());
+    const same=DATA.allReg.filter(r=>(r.job_no||'').trim().toUpperCase()===d.job_no.toUpperCase());
     if(same.length && confirm(`${d.job_no} is already in the register (${same.length} line${same.length>1?'s':''}).\n\nOK = update the existing entry\nCancel = add this as a new job line`)) existing=same.find(r=>r.released!=='Y')||same[0];
   }
   if(release){
@@ -1063,7 +1063,7 @@ async function saveLine(release){
 
 // ─── COC PDF (all lines of the job, like the CoC tab in the spreadsheet) ───
 function cocPdf(jobNo, opts={}){
-  const lines=DATA.reg.filter(r=>(r.job_no||'').trim().toUpperCase()===jobNo.trim().toUpperCase());
+  const lines=DATA.allReg.filter(r=>(r.job_no||'').trim().toUpperCase()===jobNo.trim().toUpperCase());
   if(!lines.length){ alert('Job not found in the register.'); return; }
   const L=lines.find(r=>r.coc_no)||lines[0];
   const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4'});
@@ -1161,7 +1161,7 @@ function renderReg(){
 }
 const REG_FIELDS={rJob:'job_no',rCust:'customer',rRef:'customer_ref',rOp:'operator',rPart:'part_desc',rMat:'material',rDrw:'drawing',rQo:'qty_ordered',rQs:'qty_supplied',rOpened:'job_opened',rReq:'required_date',rAct:'actual_delivery',rHrs:'hours',rRel:'released',rRelBy:'released_by',rRelDate:'release_date',rHeat:'heat_no',rCoc:'coc_no',rCocDate:'coc_date',rCocBy:'coc_by',rSrc:'source',rNotes:'notes'};
 function openReg(id){
-  const r=id?DATA.reg.find(x=>x.id===id):null; modalRegId=r?r.id:null;
+  const r=id?DATA.allReg.find(x=>x.id===id):null; modalRegId=r?r.id:null;
   $('regTitle').textContent=r?`Job line — ${r.job_no}`:'Add job line';
   Object.entries(REG_FIELDS).forEach(([el,k])=>$(el).value = r ? (r[k]??'') : (k==='released'?'N':k==='source'?'SprintSuite':''));
   $('rStages').innerHTML=STAGES.map(s=>`<div><label>${s.label}</label><select id="rs_${s.key}"><option value="">— not recorded</option><option value="PASS">${s.yes}</option><option value="FAIL">${s.no}</option><option value="N/A">N/A</option></select></div>`).join('');
@@ -1184,11 +1184,11 @@ async function saveReg(){
   }catch(e){ alert('Could not save: '+e.message); }
 }
 async function deleteReg(){
-  const r=DATA.reg.find(x=>x.id===modalRegId); if(!r) return;
+  const r=DATA.allReg.find(x=>x.id===modalRegId); if(!r) return;
   if(!confirm(`Delete this job line for ${r.job_no}? This cannot be undone.`)) return;
   try{ await sb(`qms_register?id=eq.${r.id}`,'DELETE'); closeModal('regModal'); await loadAll(); }catch(e){ alert('Could not delete: '+e.message); }
 }
-function cocFromModal(){ const r=DATA.reg.find(x=>x.id===modalRegId); if(r){ if(!r.coc_no){ alert('This line has no CoC number yet. Open it from Release & CoC to issue one.'); return; } cocPdf(r.job_no,{heat:r.heat_no}); } }
+function cocFromModal(){ const r=DATA.allReg.find(x=>x.id===modalRegId); if(r){ if(!r.coc_no){ alert('This line has no CoC number yet. Open it from Release & CoC to issue one.'); return; } cocPdf(r.job_no,{heat:r.heat_no}); } }
 function csv(rows){ return '﻿'+rows.map(r=>r.map(v=>{ v=v===null||v===undefined?'':String(v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }).join(',')).join('\r\n'); }
 function download(name,text){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); }
 function exportReg(){
@@ -1199,7 +1199,7 @@ function exportReg(){
 
 // ═══ NCR REGISTER ═══
 const isClosedN = n => (n.status||'').toUpperCase()==='CLOSED';
-function ncrCust(n){ return n.customer || (DATA.reg.find(r=>(r.job_no||'').toUpperCase()===(n.job_no||'').trim().toUpperCase())||{}).customer || ''; }
+function ncrCust(n){ return n.customer || (DATA.allReg.find(r=>(r.job_no||'').toUpperCase()===(n.job_no||'').trim().toUpperCase())||{}).customer || ''; }
 function ncrDays(n){ if(!n.date_raised) return null; return daysBetween(n.date_raised, isClosedN(n)&&n.date_closed?n.date_closed:today()); }
 function ncrOver(n){ return !isClosedN(n) && n.target_close && n.target_close<today(); }
 function renderNcrs(){
@@ -1228,7 +1228,7 @@ function openNcr(id,preset){
     if(preset){ Object.entries(preset).forEach(([k,v])=>$(k).value=v); } }
   $('ncrModal').classList.add('open');
 }
-function ncrJobChanged(){ const j=$('nJob').value.trim().toUpperCase(); const r=DATA.reg.find(x=>(x.job_no||'').toUpperCase()===j); if(r&&!$('nCust').value) $('nCust').value=r.customer||''; }
+function ncrJobChanged(){ const j=$('nJob').value.trim().toUpperCase(); const r=DATA.allReg.find(x=>(x.job_no||'').toUpperCase()===j); if(r&&!$('nCust').value) $('nCust').value=r.customer||''; }
 async function saveNcr(){
   const d={}; Object.entries(NCR_FIELDS).forEach(([el,k])=>{ const v=$(el).value.trim(); d[k]=v===''?null:v; });
   if(!d.description){ alert('Please describe the nonconformity.'); return; }
