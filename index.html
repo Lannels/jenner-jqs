@@ -268,12 +268,13 @@ textarea{resize:vertical;min-height:64px}
           <button class="btn btn-outline btn-sm" onclick="setPeriod('month')">This month</button>
           <div class="fg" style="min-width:110px;max-width:130px"><label>On-time target %</label><input type="number" id="tOtd" min="0" max="100" onchange="saveTargets()"></div>
           <div class="fg" style="min-width:110px;max-width:130px"><label>First-pass target %</label><input type="number" id="tFpy" min="0" max="100" onchange="saveTargets()"></div>
+          <div class="fg" style="min-width:140px;max-width:160px"><label>Measuring from</label><input type="date" id="tStart" onchange="saveStart()" title="Jobs and NCRs dated before this are kept in the database but left out of all counts, lists and reports"></div>
         </div>
       </div>
     </div>
     <div class="kpi-grid" id="kpiGrid"></div>
     <div class="card">
-      <div class="card-hdr"><h2>Monthly trend — 12 months ending in the “Period to” month</h2></div>
+      <div class="card-hdr"><h2>Monthly trend — up to 12 months ending in the “Period to” month</h2></div>
       <div class="card-body">
         <div class="chart-grid" style="margin-bottom:18px">
           <div class="chart-box" id="chartJobs"></div>
@@ -670,7 +671,8 @@ async function loadAll(){
       sbAll('qms_ncrs','select=*&order=id.asc'),
       sbAll('qms_settings','select=*')
     ]);
-    DATA.reg=reg; DATA.ncrs=ncrs; DATA.settings={}; sets.forEach(s=>DATA.settings[s.key]=s.value); DATA.loaded=true;
+    DATA.settings={}; sets.forEach(s=>DATA.settings[s.key]=s.value);
+    DATA.allReg=reg; DATA.allNcrs=ncrs; applyStart(); DATA.loaded=true;
     recalc(); fillLists(); fillSettingsInputs(); renderTab(currentTab());
   } catch(e) {
     b.innerHTML = /qms_register|qms_settings|PGRST2|does not exist|relation/i.test(e.message)
@@ -689,12 +691,29 @@ async function saveSetting(k,v){
 function fillSettingsInputs(){
   $('tOtd').value = Math.round(Number(setting('target_otd',0.9))*100);
   $('tFpy').value = Math.round(Number(setting('target_fpy',0.98))*100);
-  $('wFrom').value = setting('web_from','2026-04-01');
-  $('wLabel').value = setting('web_label','Since April 2026');
+  $('tStart').value = measureFrom();
+  if(!$('pFrom').value || $('pFrom').value<measureFrom()) $('pFrom').value=measureFrom();
+  $('wFrom').value = webFrom();
+  $('wLabel').value = webLabel();
   $('wStmt').value = setting('web_statement','Quality management system aligned to ISO 9001:2015');
   $('aComments').value = setting('audit_comments','');
   $('aReviewer').value = setting('audit_reviewer','');
   if(!$('aDate').value) $('aDate').value = today();
+}
+// Records dated before the "Measuring from" date stay in the database but are left out of everything in the app
+const START_DEFAULT='2026-10-01';
+function measureFrom(){ return setting('measure_from',START_DEFAULT); }
+function regDate(r){ return r.job_opened||r.required_date||r.release_date||r.coc_date||r.actual_delivery||null; }
+function applyStart(){
+  const s=measureFrom();
+  DATA.reg=(DATA.allReg||[]).filter(r=>{ const d=regDate(r); return !d || d>=s; });
+  DATA.ncrs=(DATA.allNcrs||[]).filter(n=>!n.date_raised || n.date_raised>=s);
+}
+async function saveStart(){
+  const v=$('tStart').value; if(!/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
+  await saveSetting('measure_from',v);
+  if($('pFrom').value && $('pFrom').value<v) $('pFrom').value=v;
+  applyStart(); recalc(); fillLists(); renderTab(currentTab());
 }
 function saveTargets(){
   const o=Number($('tOtd').value)/100, f=Number($('tFpy').value)/100;
@@ -772,8 +791,10 @@ function kpis(from,to){
 }
 function trend(toDate){
   const end=toDate.slice(0,7)+'-01', rows=[];
+  const first=measureFrom().slice(0,7)+'-01';
   for(let i=-11;i<=0;i++){
     const m=addMonths(end,i), me=monthEnd(m);
+    if(m<first) continue;
     const k=kpis(m,me);
     const opened = distinct(DATA.reg.filter(r=>inR(r.job_opened,m,me)));
     rows.push({month:m, opened, completed:k.jobsCompleted, onTime:k.onTime, late:k.late, otd:k.otd, fpy:k.fpy, ncrs:k.ncrRaised});
@@ -797,7 +818,7 @@ function byCustomer(from,to){
 }
 
 // ─── DASHBOARD ───
-function period(){ return {from:$('pFrom').value||fyStart(), to:$('pTo').value||today()}; }
+function period(){ let from=$('pFrom').value||fyStart(); if(DATA.loaded && from<measureFrom()){ from=measureFrom(); $('pFrom').value=from; } return {from, to:$('pTo').value||today()}; }
 function periodChanged(){ try{ localStorage.setItem('jqms_period', JSON.stringify(period())); }catch(_){} renderDash(); }
 function setPeriod(w){
   const t=today();
@@ -1322,9 +1343,11 @@ function auditPdf(){
 }
 
 // ═══ WEBSITE ═══
+function webFrom(){ const w=setting('web_from',measureFrom()); return w<measureFrom()?measureFrom():w; }
+function webLabel(){ const w=setting('web_from',''); return (!w||w<measureFrom()) ? 'Since '+new Date(webFrom()+'T12:00:00').toLocaleDateString('en-AU',{month:'long',year:'numeric'}) : setting('web_label','Since '+new Date(webFrom()+'T12:00:00').toLocaleDateString('en-AU',{month:'long',year:'numeric'})); }
 function webFigures(){
-  const from=setting('web_from','2026-04-01'), to=today(), k=kpis(from,to);
-  return {k, label:setting('web_label','Since April 2026'), stmt:setting('web_statement','Quality management system aligned to ISO 9001:2015')};
+  const from=webFrom(), to=today(), k=kpis(from,to);
+  return {k, label:webLabel(), stmt:setting('web_statement','Quality management system aligned to ISO 9001:2015')};
 }
 function embedCode(){
   const {k,label,stmt}=webFigures();
@@ -1339,7 +1362,7 @@ function renderWeb(){
   const {k}=webFigures(), code=embedCode();
   $('wPreview').innerHTML=code; $('wCode').value=code;
   const el=$('wCheck');
-  el.textContent = `Figures from ${fmtDate(setting('web_from','2026-04-01'))} to today: ${k.jobsCompleted} jobs completed, on-time delivery based on ${k.deliveries} deliveries, first-pass yield based on ${k.relLines} released job lines.` + (k.deliveries<20?' Check before publishing: a percentage based on only a handful of deliveries can swing a long way.':'');
+  el.textContent = `Figures from ${fmtDate(webFrom())} to today: ${k.jobsCompleted} jobs completed, on-time delivery based on ${k.deliveries} deliveries, first-pass yield based on ${k.relLines} released job lines.` + (k.deliveries<20?' Check before publishing: a percentage based on only a handful of deliveries can swing a long way.':'');
   el.className='status-line '+(k.deliveries<20?'status-warn':'status-ok');
 }
 // ═══ SIGNATURES ═══
