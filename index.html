@@ -88,6 +88,8 @@ textarea{resize:vertical;min-height:64px}
 .upload-zone .icon{font-size:32px;margin-bottom:8px}
 .upload-zone h3{font-size:14px;font-weight:700;color:var(--black);margin-bottom:4px}
 .upload-zone p{font-size:12px;color:var(--steel)}
+.upload-zone.sm{padding:18px}
+.upload-zone.sm h3{font-size:13px}
 
 /* AI READING STATUS */
 .ai-status{background:var(--gold-tint);border:1px solid var(--gold);border-radius:4px;padding:10px 14px;font-size:12px;font-weight:600;color:var(--black);display:none;align-items:center;gap:8px;margin-bottom:14px}
@@ -314,8 +316,11 @@ textarea{resize:vertical;min-height:64px}
         </div>
         <div id="searchResults"></div>
         <div style="text-align:center;color:var(--steel);font-size:12px;margin:14px 0;font-weight:600">— OR UPLOAD A COMPLETED NCR FORM —</div>
-        <div style="display:flex;gap:10px;align-items:center"><button class="btn btn-outline" onclick="$('ncrFile').click()">⬆ Upload NCR form (JEN-QMS-FRM-001)</button>
-          <span style="font-size:12px;color:var(--steel)">Fills in the NCR Register entry, then brings the job here with the NCR details.</span></div>
+        <div class="upload-zone sm" onclick="$('ncrFile').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="if(!this.contains(event.relatedTarget))this.classList.remove('drag')" ondrop="event.preventDefault();this.classList.remove('drag');handleNcrFile(event.dataTransfer.files)">
+          <div class="icon">📄</div>
+          <h3>Drop a completed NCR form (JEN-QMS-FRM-001) here, or click to browse</h3>
+          <p>Fills in the NCR Register entry, then brings the job here with the NCR details</p>
+        </div>
       </div>
     </div>
 
@@ -416,6 +421,11 @@ textarea{resize:vertical;min-height:64px}
         <input type="file" id="ncrFile" accept=".pdf,image/*" style="display:none" onchange="handleNcrFile(this.files)"></div>
       <div class="card-body" style="padding-bottom:0">
         <div class="alert" id="ncrAlert"></div>
+        <div class="upload-zone sm" style="margin-bottom:14px" onclick="$('ncrFile').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="if(!this.contains(event.relatedTarget))this.classList.remove('drag')" ondrop="event.preventDefault();this.classList.remove('drag');handleNcrFile(event.dataTransfer.files)">
+          <div class="icon">📄</div>
+          <h3>Drop a completed NCR form here, or click to browse</h3>
+          <p>Scanned handwritten form or the typed PDF — the details are read and filled in for you</p>
+        </div>
         <div class="toolbar">
           <div class="grow"><label>Search</label><input type="text" id="ncrQ" placeholder="NCR no, job, customer, description…" oninput="renderNcrs()"></div>
           <div class="fg"><label>Show</label>
@@ -1249,8 +1259,9 @@ Rules:
 }
 
 function handleNcrFile(files){
-  if(!files||!files.length) return;
-  const file=files[0]; $('ncrFile').value='';
+  files=[...(files||[])]; $('ncrFile').value='';
+  if(!files.length) return;
+  const file=files.find(f=>/pdf/i.test(f.type)||/\.pdf$/i.test(f.name))||files[0];
   readNcrForm(file);
 }
 async function readNcrForm(file){
@@ -1389,6 +1400,10 @@ function applyNcrToCoc(f, ncrNo){
   const ok=$('aiOk'); ok.innerHTML=`✓ NCR <b>${esc(ncrNo||'')}</b> saved and its details added to this job${r?'':' (job not found in the register — new entry started)'}. ${st&&st[1]?'The '+esc(st[0].replace(/ Check$/,''))+' check is marked FAIL, the ':'The '}overall result is set from the re-inspection and the CoC remark is filled in. Check everything before you release.`;
   ok.classList.add('show');
 }
+
+// A file dropped outside a drop zone would otherwise open in the browser and leave the app
+window.addEventListener('dragover',e=>e.preventDefault());
+window.addEventListener('drop',e=>e.preventDefault());
 
 // ═══ NCR REGISTER ═══
 const isClosedN = n => (n.status||'').toUpperCase()==='CLOSED';
