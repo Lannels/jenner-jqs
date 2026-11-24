@@ -91,6 +91,13 @@ textarea{resize:vertical;min-height:64px}
 .upload-zone p{font-size:12px;color:var(--steel)}
 .upload-zone.sm{padding:18px}
 .upload-zone.sm h3{font-size:13px}
+.jn-row{display:flex;align-items:center;gap:12px;padding:9px 12px;border:1px solid var(--border);border-top:none;font-size:12px;background:#fff}
+.jn-row:first-child{border-top:1px solid var(--border);border-radius:6px 6px 0 0}
+.jn-row:last-child{border-radius:0 0 6px 6px}
+.jn-row:only-child{border-radius:6px}
+.jn-row .grow{flex:1;min-width:0}
+.jn-row .sub{color:var(--steel);font-size:11px;margin-top:2px}
+.jn-empty{font-size:12px;color:var(--steel);padding:10px 12px;border:1px dashed var(--border);border-radius:6px}
 .mail-box{border:1px solid var(--border);border-radius:6px;margin-bottom:16px;background:#fff}
 .mail-hdr{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;background:var(--grey);border-bottom:1px solid var(--border);flex-wrap:wrap}
 .mail-hdr h3{font-size:13px;font-weight:700;color:var(--black);margin:0}
@@ -351,7 +358,7 @@ textarea{resize:vertical;min-height:64px}
 
         <div class="subhead">Job</div>
         <div class="form-row fr3">
-          <div><label>Job Number <span style="color:var(--red)">*</span></label><input type="text" id="fJobNo" placeholder="e.g. P.26.0702"></div>
+          <div><label>Job Number <span style="color:var(--red)">*</span></label><input type="text" id="fJobNo" placeholder="e.g. P.26.0702" oninput="updateCocStatus()"></div>
           <div><label>Customer <span style="color:var(--red)">*</span></label><input type="text" id="fCustomer" list="dlCustomers" placeholder="Customer name"></div>
           <div><label>Customer Ref / PO</label><input type="text" id="fRef"></div>
         </div>
@@ -385,6 +392,11 @@ textarea{resize:vertical;min-height:64px}
           <div><label>Remarks on CoC (optional)</label><input type="text" id="fRemarks" placeholder="Any notes for the customer…"></div>
         </div>
 
+        <div class="subhead" style="display:flex;justify-content:space-between;align-items:center">Nonconformances (NCRs) on this job
+          <button class="btn btn-sm btn-outline" onclick="raiseJobNcr()">+ Add NCR for this job</button></div>
+        <div id="jobNcrs"></div>
+        <label style="display:flex;align-items:center;gap:8px;margin:10px 0 18px;font-size:12px;text-transform:none;letter-spacing:0;font-weight:600;color:var(--black)">
+          <input type="checkbox" id="fCocNcr" checked style="width:auto"> Show these NCRs on the Certificate of Conformance</label>
         <div class="subhead">Release &amp; Certificate</div>
         <div class="form-row fr3">
           <div><label>Released By</label><input type="text" id="fRelBy" list="dlStaff"></div>
@@ -1040,6 +1052,7 @@ function autoResult(){
 function setResult(r){ cocResult=r; $('btnPass').classList.toggle('active',r==='PASS'); $('btnFail').classList.toggle('active',r==='FAIL'); updateCocStatus(); }
 function stageText(s,v){ v=(v||'').toUpperCase(); return v==='PASS'?s.yes:v==='FAIL'?s.no:(v||'Not recorded'); }
 function updateCocStatus(){
+  renderJobNcrs();
   const v=STAGES.map(s=>checkVals[s.key]||''); const el=$('cocStatus');
   const blanks=v.filter(x=>x==='').length;
   let msg, ok=false;
@@ -1092,7 +1105,7 @@ async function saveLine(release){
     editRegId=row.id;
     if(release){
       try{ await sb('qms_cocs','POST',{coc_no:d.coc_no, job_no:d.job_no, customer:d.customer, description:d.part_desc, material:d.material, result:cocResult, date_issued:d.coc_date}); }catch(_){}
-      cocPdf(d.job_no, {heat:d.heat_no, remarks:val('fRemarks'), overall:cocResult});
+      cocPdf(d.job_no, {heat:d.heat_no, remarks:val('fRemarks'), overall:cocResult, ncrs:$('fCocNcr').checked});
       $('aiOk').textContent=`✓ ${d.job_no} released and saved to the register. CoC ${d.coc_no} downloaded.`;
     } else {
       $('aiOk').textContent=`✓ ${d.job_no} saved to the register (not released).`;
@@ -1146,6 +1159,23 @@ function cocPdf(jobNo, opts={}){
     if(heat){ doc.text('Heat / batch:',ml,y+3); doc.setFont('helvetica','normal'); doc.text(doc.splitTextToSize(heat,cw-25)[0],ml+20,y+3); y+=5; }
     if(opts.remarks){ doc.setFont('helvetica','bold'); doc.text('Remarks:',ml,y+3); doc.setFont('helvetica','normal'); const rl=doc.splitTextToSize(opts.remarks,cw-25).slice(0,3); doc.text(rl,ml+20,y+3); y+=rl.length*4+1; }
     y+=2; }
+  // nonconformances on this job
+  const jNcrs=opts.ncrs===false?[]:jobNcrList(jobNo).slice(0,4);
+  if(jNcrs.length){
+    doc.setTextColor(...STEEL); doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.text('NONCONFORMANCES RAISED ON THIS JOB',ml,y+3); y+=5;
+    const nc=[{h:'NCR no',w:26},{h:'Raised',w:20},{h:'Nonconformity',w:66},{h:'Disposition / action',w:50},{h:'Status',w:20}];
+    doc.setFillColor(...BLACK); doc.rect(ml,y,cw,6,'F'); doc.setTextColor(...GOLD); doc.setFontSize(6.5);
+    let nx=ml; nc.forEach(c=>{ doc.text(c.h,nx+1.5,y+4.1); nx+=c.w; }); y+=6;
+    jNcrs.forEach((n,i)=>{
+      const cells=[n.ncr_no||'—', fmtDate(n.date_raised), ncrSummary(n.description), ncrAction(n)||'—', isClosedN(n)?'Closed':'Open'];
+      doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+      const wr=cells.map((v,j)=>doc.splitTextToSize(String(v),nc[j].w-3).slice(0,2)); const h=Math.max(6.5,Math.max(...wr.map(w=>w.length))*3.4+3);
+      doc.setFillColor(i%2?248:255,i%2?248:255,i%2?248:255); doc.setDrawColor(220,220,220); doc.setLineWidth(.2); doc.rect(ml,y,cw,h,'FD');
+      nx=ml; wr.forEach((w,j)=>{ doc.setTextColor(...(j===4?(isClosedN(n)?GREEN:RED):BLACK)); doc.setFont('helvetica',j===4||j===0?'bold':'normal'); doc.text(w,nx+1.5,y+4.2); nx+=nc[j].w; });
+      y+=h;
+    });
+    y+=5;
+  }
   // inspection record (aggregate across lines)
   doc.setTextColor(...STEEL); doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.text('INSPECTION RECORD (JOB CARD CHECKS)',ml,y+3); y+=5;
   STAGES.forEach((s,i)=>{
@@ -1532,6 +1562,32 @@ async function mailEntered(kind){
   mailRender();
 }
 
+// ═══ NCRs ON THE JOB (Release & CoC step 2) ═══
+function jobNcrList(jobNo){ const j=String(jobNo||'').trim().toUpperCase(); return j?(DATA.allNcrs||[]).filter(n=>(n.job_no||'').trim().toUpperCase()===j).sort((a,b)=>(a.date_raised||'').localeCompare(b.date_raised||'')):[]; }
+function ncrSummary(t){ t=String(t||'').split(/\n/).map(x=>x.trim()).filter(Boolean); const main=t.find(x=>!/^(Part|Drawing|Qty|Quantity|Machinist)[^:]*:/i.test(x))||t[0]||''; return main.replace(/^[^:]{1,25}:\s*/,m=>/what is wrong|problem/i.test(m)?'':m); }
+function ncrAction(n){ return String(n.immediate_action||'').split(/\n/).map(x=>x.trim()).filter(x=>x&&!/^(Parts tagged|Customer notified)/i.test(x)).join('; ')||ncrSummary(n.corrective_action); }
+function renderJobNcrs(){
+  const box=$('jobNcrs'); if(!box) return;
+  const list=jobNcrList($('fJobNo').value);
+  box.innerHTML=list.length?list.map(n=>`<div class="jn-row"><div style="white-space:nowrap"><b>${esc(n.ncr_no||'—')}</b><div class="sub">${fmtDate(n.date_raised)}</div></div>
+      <div class="grow"><div>${esc(ncrSummary(n.description).slice(0,140))}</div><div class="sub">${esc(ncrAction(n)?ncrAction(n).slice(0,120):'No disposition recorded yet')}</div></div>
+      ${isClosedN(n)?'<span class="badge badge-closed">Closed</span>':'<span class="badge badge-open">Open</span>'}
+      <button class="btn btn-sm btn-outline" onclick="openNcr(${n.id})">Edit</button></div>`).join('')
+    :`<div class="jn-empty">No NCRs recorded for this job.${STAGES.some(s=>checkVals[s.key]==='FAIL')?' <b style="color:var(--red)">A check is marked FAIL — add an NCR before releasing.</b>':''}</div>`;
+}
+function raiseJobNcr(){
+  const jn=($('fJobNo').value||'').trim();
+  if(!jn){ alert('Enter the job number first.'); $('fJobNo').focus(); return; }
+  const fail=STAGES.find(s=>checkVals[s.key]==='FAIL');
+  const stageMap={s_pre_start:'Pre-Start Check',s_material:'Correct Material',s_drawing:'Correct Drawing',s_in_process:'In-Process Inspection',s_final_dim:'Final Dimension Check',s_final_visual:'Final Visual & Quality Check'};
+  const pre={nJob:jn.toUpperCase(), nCust:$('fCustomer').value.trim()};
+  if(fail) pre.nStage=stageMap[fail.key]; if($('fOperator').value.trim()) pre.nRaised=$('fOperator').value.trim();
+  const part=[$('fDesc').value.trim()&&('Part: '+$('fDesc').value.trim()), $('fDrawing').value.trim()&&('Drawing: '+$('fDrawing').value.trim())].filter(Boolean).join('\n');
+  if(part) pre.nDesc='\n'+part;
+  openNcr(null, pre);
+  setTimeout(()=>{ $('nDesc').focus(); $('nDesc').setSelectionRange(0,0); },50);
+}
+
 // ═══ NCR REGISTER ═══
 const isClosedN = n => (n.status||'').toUpperCase()==='CLOSED';
 function ncrCust(n){ return n.customer || (DATA.allReg.find(r=>(r.job_no||'').toUpperCase()===(n.job_no||'').trim().toUpperCase())||{}).customer || ''; }
@@ -1555,7 +1611,7 @@ function nextNcrNo(){
 const NCR_FIELDS={nNo:'ncr_no',nDate:'date_raised',nJob:'job_no',nCust:'customer',nType:'ncr_type',nStage:'stage',nRaised:'raised_by',nDesc:'description',nImm:'immediate_action',nRoot:'root_cause',nAct:'corrective_action',nBy:'action_by',nTarget:'target_close',nClosed:'date_closed',nEff:'effective',nStatus:'status'};
 function openNcr(id,preset,keepForm){
   if(!keepForm){ pendingNcrForm=null; $('nFormNote').classList.remove('show'); Object.keys(NCR_FIELDS).forEach(id=>$(id).classList.remove('chk-field')); }
-  const n=id?DATA.ncrs.find(x=>x.id===id):null; editNcrId=n?n.id:null;
+  const n=id?(DATA.allNcrs||DATA.ncrs).find(x=>x.id===id):null; editNcrId=n?n.id:null;
   $('ncrTitle').textContent=n?`Edit NCR — ${n.ncr_no||''}`:'Raise Non-Conformance Record';
   Object.entries(NCR_FIELDS).forEach(([el,k])=>$(el).value = n ? (n[k]??'') : '');
   if(n){ $('nStatus').value=isClosedN(n)?'CLOSED':'OPEN'; if(!n.customer) $('nCust').value=ncrCust(n); if(!n.ncr_type) $('nType').value='Internal';
@@ -1573,7 +1629,7 @@ async function saveNcr(){
   try{
     if(editNcrId) await sb(`qms_ncrs?id=eq.${editNcrId}`,'PATCH',d); else await sb('qms_ncrs','POST',d);
     closeModal('ncrModal'); await loadAll(); showNcrAlert('NCR '+(d.ncr_no||'')+' saved.','ok');
-    mailEntered('ncr');
+    mailEntered('ncr'); renderJobNcrs();
     if(pendingNcrForm){ const f=pendingNcrForm; pendingNcrForm=null; $('nFormNote').classList.remove('show'); applyNcrToCoc(f, d.ncr_no); }
   }catch(e){ alert('Could not save NCR: '+e.message); }
 }
