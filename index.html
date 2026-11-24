@@ -6,6 +6,7 @@
 <title>Jenner Engineering — QMS</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -311,6 +312,9 @@ textarea{resize:vertical;min-height:64px}
           <button class="btn btn-outline" onclick="newBlank()">Blank entry</button>
         </div>
         <div id="searchResults"></div>
+        <div style="text-align:center;color:var(--steel);font-size:12px;margin:14px 0;font-weight:600">— OR UPLOAD A COMPLETED NCR FORM —</div>
+        <div style="display:flex;gap:10px;align-items:center"><button class="btn btn-outline" onclick="$('ncrFile').click()">⬆ Upload NCR form (JEN-QMS-FRM-001)</button>
+          <span style="font-size:12px;color:var(--steel)">Fills in the NCR Register entry, then brings the job here with the NCR details.</span></div>
       </div>
     </div>
 
@@ -407,7 +411,8 @@ textarea{resize:vertical;min-height:64px}
   <div id="tabNcr" class="content" style="display:none">
     <div class="card">
       <div class="card-hdr"><h2>Nonconformance &amp; corrective action register · clauses 8.7, 10.2</h2>
-        <button class="btn btn-sm btn-gold" onclick="openNcr()">+ Raise NCR</button></div>
+        <div style="display:flex;gap:8px"><button class="btn btn-sm btn-outline" style="background:#fff" onclick="$('ncrFile').click()">⬆ Upload NCR form</button><button class="btn btn-sm btn-gold" onclick="openNcr()">+ Raise NCR</button></div>
+        <input type="file" id="ncrFile" accept=".pdf,image/*" style="display:none" onchange="handleNcrFile(this.files)"></div>
       <div class="card-body" style="padding-bottom:0">
         <div class="alert" id="ncrAlert"></div>
         <div class="toolbar">
@@ -540,6 +545,7 @@ textarea{resize:vertical;min-height:64px}
   <div class="modal wide">
     <div class="modal-hdr"><h3 id="ncrTitle">Raise Non-Conformance Record</h3><button class="modal-x" onclick="closeModal('ncrModal')">×</button></div>
     <div class="modal-body">
+      <div class="alert alert-info" id="nFormNote"></div>
       <div class="calc-strip" id="nCalc"></div>
       <div class="form-row fr4">
         <div><label>NCR No</label><input type="text" id="nNo"></div>
@@ -1006,7 +1012,11 @@ function updateCocStatus(){
   const v=STAGES.map(s=>checkVals[s.key]||''); const el=$('cocStatus');
   const blanks=v.filter(x=>x==='').length;
   let msg, ok=false;
-  if(v.includes('FAIL')) msg='CHECK: a FAIL is recorded on the job card. Raise an NCR before releasing.';
+  const jn=($('fJobNo').value||'').trim().toUpperCase();
+  const jobNcrs=jn?(DATA.allNcrs||[]).filter(n=>(n.job_no||'').trim().toUpperCase()===jn):[];
+  if(v.includes('FAIL')) msg = jobNcrs.length
+    ? `NCR ${jobNcrs.map(n=>n.ncr_no).filter(Boolean).join(', ')} recorded for the FAIL on this job. Release only once the parts have passed re-inspection.`
+    : 'CHECK: a FAIL is recorded on the job card. Raise an NCR before releasing.';
   else if(blanks) msg=`CHECK: ${blanks} of the 6 checks ${blanks===1?'is':'are'} not recorded. Every check needs PASS or N/A before the CoC.`;
   else { msg='OK to issue — all checks recorded with no fails.'; ok=true; }
   const r=editRegId?DATA.allReg.find(x=>x.id===editRegId):null;
@@ -1197,6 +1207,129 @@ function exportReg(){
   download(`JEN-QMS-REG-001 Job Register ${today()}.csv`, csv([h,...rows]));
 }
 
+// ═══ NCR FORM UPLOAD (JEN-QMS-FRM-001) ═══
+// Reads a completed NCR form. Typed (fillable) PDFs are read directly; scanned or handwritten forms go to the AI.
+let pendingNcrForm=null;
+const NCR_FORM_KEYS=['NCR_Number','Job_Number','Client','Date_Raised','Status','Part_Description','Drawing_Revision','Qty_Ordered','Qty_Affected','Raised_By','Machinist','Where_Found','Source','What_Is_Wrong','Cause','Cause_Details','Parts_Tagged','Disposition','Action_Taken','Customer_Notified','Customer_Notified_Date','Corrective_Action','Action_By','Due_Date','Time_Lost','Cost','Reinspection','Action_Effective','Closed_Out_Signature','Closed_Out_Date'];
+const NCR_AI_PROMPT = `You are reading a completed Jenner Engineering Non-Conformance Report form (JEN-QMS-FRM-001). It may be typed or handwritten and scanned.
+Return ONLY a valid JSON object with exactly these keys, each a string ("" if blank or unreadable):
+${NCR_FORM_KEYS.join(', ')}
+Rules:
+- NCR_Number: the digits written after the printed "NCR.26." (e.g. "0012"). Job_Number: the digits after the printed "P.26." (e.g. "0702").
+- Dates as DD/MM/YYYY.
+- Tick-box questions: give the ticked option exactly as printed, in capitals, spaces replaced by underscores:
+  Status OPEN or CLOSED; Where_Found PRE_START, MATERIAL, DRAWING, IN-PROCESS, FINAL_DIMENSION, FINAL_VISUAL or CUSTOMER_RETURN;
+  Source INTERNAL, SUPPLIER or CUSTOMER; Cause DRAWING, MATERIAL, SET-UP, MACHINING, MEASURING, SUPPLIER or OTHER;
+  Parts_Tagged YES or NO; Disposition REWORK, SCRAP, USE_AS_IS or RETURN_TO_SUPPLIER; Customer_Notified YES, NO or N-A;
+  Reinspection PASS or FAIL; Action_Effective YES or NO.
+- Closed_Out_Signature: the name if legible, "SIGNED" if only a signature is present, otherwise "".
+- Do not guess. Leave a field "" if you cannot read it.`;
+
+function handleNcrFile(files){
+  if(!files||!files.length) return;
+  const file=files[0]; $('ncrFile').value='';
+  readNcrForm(file);
+}
+async function readNcrForm(file){
+  switchTab('ncr');
+  const a=$('ncrAlert'); a.textContent='Reading the NCR form…'; a.className='alert alert-info show';
+  try{
+    let f=null;
+    if(/pdf/i.test(file.type)||/\.pdf$/i.test(file.name)) f=await ncrFieldsFromPdf(file);
+    const filled=f?NCR_FORM_KEYS.filter(k=>f[k]).length:0;
+    let how='typed form';
+    if(filled<3){ f=await ncrFieldsFromAI(file); how='scanned form (read by AI — check carefully)'; }
+    a.classList.remove('show');
+    openNcrFromForm(f, how);
+  }catch(e){
+    a.textContent='Could not read the NCR form. Use + Raise NCR and type it in. ('+e.message+')'; a.className='alert alert-err show';
+  }
+}
+async function ncrFieldsFromPdf(file){
+  if(!window.pdfjsLib) return null;
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const doc=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+  const objs=await doc.getFieldObjects(); if(!objs) return null;
+  const out={};
+  NCR_FORM_KEYS.forEach(k=>{
+    const list=objs[k]||[]; let v='';
+    list.forEach(o=>{ let x=(o.value===undefined||o.value===null)?'':String(o.value).replace(/^\//,'').trim(); if(x&&x!=='Off'&&!v) v=x; });
+    out[k]=v;
+  });
+  return out;
+}
+async function ncrFieldsFromAI(file){
+  const b64=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(file); });
+  const res=await fetch(SB_URL+'/functions/v1/digitise-jobpack',{method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},
+    body:JSON.stringify({prompt:NCR_AI_PROMPT, mime:file.type||'application/pdf', b64})});
+  let out={}; try{ out=await res.json(); }catch(_){}
+  if(!res.ok) throw new Error((out&&out.error)||('Edge function error: '+res.status));
+  const raw=out.text||out.result||'{}';
+  const f= typeof raw==='string' ? JSON.parse(raw.replace(/```json|```/g,'').trim()) : raw;
+  const o={}; NCR_FORM_KEYS.forEach(k=>o[k]=String(f[k]??'').trim()); return o;
+}
+function formDate(v){
+  v=String(v||'').trim(); if(!v) return '';
+  let m=v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/); if(m) return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');
+  m=v.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/);
+  if(m){ const y=m[3].length===2?'20'+m[3]:m[3]; return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'); }
+  const d=new Date(v); return isNaN(d)?'':iso(d);
+}
+const FORM_UP=v=>String(v||'').toUpperCase().replace(/\s+/g,'_');
+function formNcrNo(v){ v=String(v||'').trim(); if(!v) return ''; if(/^NCR/i.test(v)) return v.toUpperCase(); if(/^\d+$/.test(v)) return 'NCR.26.'+v; return 'NCR.'+v.replace(/^\.+/,''); }
+function formJobNo(v){ v=String(v||'').trim(); if(!v) return ''; if(/^P\./i.test(v)) return v.toUpperCase(); if(/^\d+$/.test(v)) return 'P.26.'+v; if(/^\d{2}\.\d+/.test(v)) return 'P.'+v; return v.toUpperCase(); }
+const FORM_STAGE={PRE_START:['Pre-Start Check','s_pre_start'],MATERIAL:['Correct Material','s_material'],DRAWING:['Correct Drawing','s_drawing'],'IN-PROCESS':['In-Process Inspection','s_in_process'],IN_PROCESS:['In-Process Inspection','s_in_process'],FINAL_DIMENSION:['Final Dimension Check','s_final_dim'],FINAL_VISUAL:['Final Visual & Quality Check','s_final_visual'],CUSTOMER_RETURN:['Other',null]};
+const FORM_NICE=v=>{ if(/^N[-\/]?A$/i.test(String(v||'').trim())) return 'N/A'; const t=String(v||'').replace(/_/g,' ').toLowerCase(); return t.charAt(0).toUpperCase()+t.slice(1); };
+function ncrFromForm(f){
+  const where=FORM_UP(f.Where_Found), src=FORM_UP(f.Source), stage=FORM_STAGE[where];
+  const type = (where==='CUSTOMER_RETURN'||src==='CUSTOMER') ? 'Customer complaint' : src==='SUPPLIER' ? 'Supplier' : 'Internal';
+  const line=(label,v)=>v?label+': '+v:'';
+  const join=arr=>arr.filter(Boolean).join('\n');
+  const qty = f.Qty_Affected ? (f.Qty_Affected+(f.Qty_Ordered?' of '+f.Qty_Ordered:'')+' affected') : '';
+  return {
+    nNo: formNcrNo(f.NCR_Number), nDate: formDate(f.Date_Raised), nJob: formJobNo(f.Job_Number), nCust: f.Client||'',
+    nType: type, nStage: stage?stage[0]:'', nRaised: f.Raised_By||'',
+    nDesc: join([f.What_Is_Wrong, line('Part',f.Part_Description), line('Drawing / Rev',f.Drawing_Revision), qty, line('Machinist',f.Machinist), where==='CUSTOMER_RETURN'?'Found: customer return':'']),
+    nImm: join([line('Parts tagged & set aside',FORM_NICE(f.Parts_Tagged)), line('Disposition',FORM_NICE(f.Disposition)), f.Action_Taken,
+                f.Customer_Notified?('Customer notified: '+FORM_NICE(f.Customer_Notified)+(f.Customer_Notified_Date?' ('+f.Customer_Notified_Date+')':'')):'']),
+    nRoot: join([f.Cause?FORM_NICE(f.Cause)+(f.Cause_Details?' — '+f.Cause_Details:''):f.Cause_Details]),
+    nAct: join([f.Corrective_Action, line('Re-inspection',FORM_UP(f.Reinspection)), line('Time lost (hours)',f.Time_Lost), f.Cost?'Cost (scrap / rework): $'+String(f.Cost).replace(/^\$/,''):'']),
+    nBy: f.Action_By||'', nTarget: formDate(f.Due_Date), nClosed: formDate(f.Closed_Out_Date),
+    nEff: FORM_UP(f.Action_Effective)==='YES'?'Y':FORM_UP(f.Action_Effective)==='NO'?'N':'',
+    nStatus: FORM_UP(f.Status)==='CLOSED'?'CLOSED':'OPEN'
+  };
+}
+function openNcrFromForm(f, how){
+  const p=ncrFromForm(f);
+  const ex=p.nNo ? DATA.allNcrs.find(n=>(n.ncr_no||'').trim().toUpperCase()===p.nNo) : null;
+  pendingNcrForm=f;
+  if(ex){ openNcr(ex.id,null,true); Object.entries(p).forEach(([k,v])=>{ if(v) $(k).value=v; }); }
+  else { openNcr(null,{},true); Object.entries(p).forEach(([k,v])=>{ if(v) $(k).value=v; }); if(!p.nCust) ncrJobChanged(); }
+  const note=$('nFormNote');
+  note.innerHTML=`Read from ${esc(how)}${ex?` — <b>${esc(p.nNo)}</b> is already in the register, so saving will update it`:''}. Check the details, then click <b>Save NCR</b>. The job will then open in Release &amp; CoC with the NCR details.`;
+  note.classList.add('show');
+}
+function applyNcrToCoc(f, ncrNo){
+  const jn=formJobNo(f.Job_Number);
+  const lines=jn?DATA.allReg.filter(r=>(r.job_no||'').trim().toUpperCase()===jn):[];
+  const r=lines.find(x=>x.released!=='Y')||lines[0];
+  if(r) loadLine(r.id); else { newBlank(); switchTab('coc'); }
+  const fill=(id,v)=>{ if(v&&!$(id).value) $(id).value=v; };
+  fill('fJobNo',jn); fill('fCustomer',f.Client); fill('fDesc',f.Part_Description); fill('fDrawing',f.Drawing_Revision); fill('fOperator',f.Machinist);
+  const q=parseFloat(f.Qty_Ordered); if(!isNaN(q)) fill('fQtyO',q);
+  const where=FORM_UP(f.Where_Found), st=FORM_STAGE[where];
+  if(st&&st[1]) checkVals[st[1]]='FAIL';
+  renderChecks(); autoResult();
+  const re=FORM_UP(f.Reinspection); if(re==='PASS'||re==='FAIL') setResult(re);
+  const disp=FORM_NICE(f.Disposition);
+  const rem=`Nonconformance ${ncrNo||formNcrNo(f.NCR_Number)} raised${st?' at '+st[0].replace('Other','customer return'):''}`+(disp?`; parts ${({Rework:'reworked',Scrap:'scrapped and replaced','Use as is':'accepted for use as is','Return to supplier':'returned to supplier'})[disp]||disp.toLowerCase()}`:'')+(re?` and re-inspected: ${re}`:'')+'.';
+  if(!$('fRemarks').value) $('fRemarks').value=rem;
+  updateCocStatus();
+  const ok=$('aiOk'); ok.innerHTML=`✓ NCR <b>${esc(ncrNo||'')}</b> saved and its details added to this job${r?'':' (job not found in the register — new entry started)'}. ${st&&st[1]?'The '+esc(st[0].replace(/ Check$/,''))+' check is marked FAIL, the ':'The '}overall result is set from the re-inspection and the CoC remark is filled in. Check everything before you release.`;
+  ok.classList.add('show');
+}
+
 // ═══ NCR REGISTER ═══
 const isClosedN = n => (n.status||'').toUpperCase()==='CLOSED';
 function ncrCust(n){ return n.customer || (DATA.allReg.find(r=>(r.job_no||'').toUpperCase()===(n.job_no||'').trim().toUpperCase())||{}).customer || ''; }
@@ -1218,7 +1351,8 @@ function nextNcrNo(){
   return pre+String(max+1).padStart(3,'0');
 }
 const NCR_FIELDS={nNo:'ncr_no',nDate:'date_raised',nJob:'job_no',nCust:'customer',nType:'ncr_type',nStage:'stage',nRaised:'raised_by',nDesc:'description',nImm:'immediate_action',nRoot:'root_cause',nAct:'corrective_action',nBy:'action_by',nTarget:'target_close',nClosed:'date_closed',nEff:'effective',nStatus:'status'};
-function openNcr(id,preset){
+function openNcr(id,preset,keepForm){
+  if(!keepForm){ pendingNcrForm=null; $('nFormNote').classList.remove('show'); }
   const n=id?DATA.ncrs.find(x=>x.id===id):null; editNcrId=n?n.id:null;
   $('ncrTitle').textContent=n?`Edit NCR — ${n.ncr_no||''}`:'Raise Non-Conformance Record';
   Object.entries(NCR_FIELDS).forEach(([el,k])=>$(el).value = n ? (n[k]??'') : '');
@@ -1237,6 +1371,7 @@ async function saveNcr(){
   try{
     if(editNcrId) await sb(`qms_ncrs?id=eq.${editNcrId}`,'PATCH',d); else await sb('qms_ncrs','POST',d);
     closeModal('ncrModal'); await loadAll(); showNcrAlert('NCR '+(d.ncr_no||'')+' saved.','ok');
+    if(pendingNcrForm){ const f=pendingNcrForm; pendingNcrForm=null; $('nFormNote').classList.remove('show'); applyNcrToCoc(f, d.ncr_no); }
   }catch(e){ alert('Could not save NCR: '+e.message); }
 }
 function showNcrAlert(msg,type){ const a=$('ncrAlert'); a.textContent=msg; a.className=`alert alert-${type} show`; setTimeout(()=>a.classList.remove('show'),5000); }
