@@ -81,6 +81,7 @@ textarea{resize:vertical;min-height:64px}
 .btn-group{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 
 /* ─── UPLOAD ZONE ─── */
+.chk-field{background:#FFF3CD!important;border-color:#E0A800!important}
 .upload-zone{border:2px dashed var(--border);border-radius:6px;padding:28px;text-align:center;cursor:pointer;transition:.15s;background:var(--grey)}
 .upload-zone:hover,.upload-zone.drag{border-color:var(--gold);background:var(--gold-tint)}
 .upload-zone input{display:none}
@@ -1211,19 +1212,41 @@ function exportReg(){
 // Reads a completed NCR form. Typed (fillable) PDFs are read directly; scanned or handwritten forms go to the AI.
 let pendingNcrForm=null;
 const NCR_FORM_KEYS=['NCR_Number','Job_Number','Client','Date_Raised','Status','Part_Description','Drawing_Revision','Qty_Ordered','Qty_Affected','Raised_By','Machinist','Where_Found','Source','What_Is_Wrong','Cause','Cause_Details','Parts_Tagged','Disposition','Action_Taken','Customer_Notified','Customer_Notified_Date','Corrective_Action','Action_By','Due_Date','Time_Lost','Cost','Reinspection','Action_Effective','Closed_Out_Signature','Closed_Out_Date'];
-const NCR_AI_PROMPT = `You are reading a completed Jenner Engineering Non-Conformance Report form (JEN-QMS-FRM-001). It may be typed or handwritten and scanned.
-Return ONLY a valid JSON object with exactly these keys, each a string ("" if blank or unreadable):
-${NCR_FORM_KEYS.join(', ')}
+function ncrAiPrompt(){
+  const staff=[...new Set([...BASE_STAFF, ...DATA.allReg.map(r=>r.operator).filter(Boolean)])].join(', ');
+  const cust=[...new Set([...BASE_CUSTOMERS, ...DATA.allReg.map(r=>r.customer).filter(Boolean)])].join(', ');
+  return `You are reading a scanned, HANDWRITTEN Jenner Engineering Non-Conformance Report (form JEN-QMS-FRM-001, one A4 page).
+Layout, top to bottom:
+- Top left: "NCR.26." printed, followed by a handwritten number. Next line: "Non-Conformance Report – Job No. P.26." followed by a handwritten number.
+- Client, Date Raised, Status (OPEN / CLOSED).
+- A two-column table: Part / Description; Drawing No. / Revision; Quantity Ordered; Quantity Affected; Raised By; Machinist;
+  01 Where found; 02 Source; 03 What is wrong (free text); 04 Cause (tick one, then free text underneath); 05 Parts tagged & set aside;
+  06 Disposition; Action Taken (free text); 07 Customer notified, with a Date; 08 Corrective action (free text); Action By; Due Date;
+  Time Lost (Hours); Cost (Scrap / Rework) $; 09 Re-inspection; 10 Action effective; 11 Closed out by – Signature and Date.
+Tick choices: each option has a small printed circle before its word. People mark a choice in different ways: a tick, a cross, a shaded or filled circle,
+a circle drawn around the word, or underlining. Any of these means that option is chosen. Ignore printed empty circles. If something is crossed out
+and another option marked, use the one not crossed out.
+
+Return ONLY a valid JSON object with these keys, each a string ("" if blank):
+${NCR_FORM_KEYS.join(', ')}, uncertain
 Rules:
-- NCR_Number: the digits written after the printed "NCR.26." (e.g. "0012"). Job_Number: the digits after the printed "P.26." (e.g. "0702").
-- Dates as DD/MM/YYYY.
-- Tick-box questions: give the ticked option exactly as printed, in capitals, spaces replaced by underscores:
+- NCR_Number: only the handwritten digits after "NCR.26." (e.g. "0012"). Job_Number: only the handwritten digits after "P.26." (e.g. "0702").
+- Dates: this is an Australian form, so dates are day/month/year. Return DD/MM/YYYY.
+- Quantities, Time_Lost and Cost: numbers only.
+- Tick choices: return the chosen option exactly as below, or "" if none is marked:
   Status OPEN or CLOSED; Where_Found PRE_START, MATERIAL, DRAWING, IN-PROCESS, FINAL_DIMENSION, FINAL_VISUAL or CUSTOMER_RETURN;
   Source INTERNAL, SUPPLIER or CUSTOMER; Cause DRAWING, MATERIAL, SET-UP, MACHINING, MEASURING, SUPPLIER or OTHER;
   Parts_Tagged YES or NO; Disposition REWORK, SCRAP, USE_AS_IS or RETURN_TO_SUPPLIER; Customer_Notified YES, NO or N-A;
   Reinspection PASS or FAIL; Action_Effective YES or NO.
-- Closed_Out_Signature: the name if legible, "SIGNED" if only a signature is present, otherwise "".
-- Do not guess. Leave a field "" if you cannot read it.`;
+  If two options are marked for a one-choice question, return "" and list that key in "uncertain".
+- Names (Raised_By, Machinist, Action_By): staff are usually one of: ${staff}. If the writing (including initials or a first name) clearly
+  matches one of these, return the full name as listed. Otherwise return what is written.
+- Client: usually one of: ${cust}. If it clearly matches, return the name as listed. Otherwise return what is written.
+- Free text: copy what is written, fixing only obvious spelling. Do not add anything that is not on the form.
+- Closed_Out_Signature: "SIGNED" if a signature is present, otherwise "".
+- "uncertain": a comma-separated list of the keys you could not read confidently (smudged, ambiguous digits, unclear tick). "" if none.
+- Do not guess. If you cannot read a field, return "" for it and list it in "uncertain".`;
+}
 
 function handleNcrFile(files){
   if(!files||!files.length) return;
@@ -1238,7 +1261,7 @@ async function readNcrForm(file){
     if(/pdf/i.test(file.type)||/\.pdf$/i.test(file.name)) f=await ncrFieldsFromPdf(file);
     const filled=f?NCR_FORM_KEYS.filter(k=>f[k]).length:0;
     let how='typed form';
-    if(filled<3){ f=await ncrFieldsFromAI(file); how='scanned form (read by AI — check carefully)'; }
+    if(filled<3){ a.textContent='Reading the handwriting on the scanned NCR form… this takes about 20 seconds.'; f=await ncrFieldsFromAI(file); how='scanned handwritten form'; }
     a.classList.remove('show');
     openNcrFromForm(f, how);
   }catch(e){
@@ -1258,16 +1281,36 @@ async function ncrFieldsFromPdf(file){
   });
   return out;
 }
+async function scanToJpeg(file){
+  // Turn page 1 of a scanned PDF, or a photo, into a clear JPEG about 200 dpi — smaller to send and easier for the AI to read
+  let canvas=document.createElement('canvas'), ctx=canvas.getContext('2d');
+  if(/pdf/i.test(file.type)||/\.pdf$/i.test(file.name)){
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const doc=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+    const page=await doc.getPage(1), v0=page.getViewport({scale:1}), sc=Math.min(2.8, 2200/Math.max(v0.width,v0.height));
+    const vp=page.getViewport({scale:sc}); canvas.width=vp.width; canvas.height=vp.height;
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    await page.render({canvasContext:ctx, viewport:vp}).promise;
+  } else {
+    const img=await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=URL.createObjectURL(file); });
+    const sc=Math.min(1, 2200/Math.max(img.width,img.height)); canvas.width=Math.round(img.width*sc); canvas.height=Math.round(img.height*sc);
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0,canvas.width,canvas.height);
+  }
+  return canvas.toDataURL('image/jpeg',0.88).split(',')[1];
+}
 async function ncrFieldsFromAI(file){
-  const b64=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(file); });
+  let b64, mime='image/jpeg';
+  try{ b64=await scanToJpeg(file); }
+  catch(_){ mime=file.type||'application/pdf'; b64=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(file); }); }
   const res=await fetch(SB_URL+'/functions/v1/digitise-jobpack',{method:'POST',
     headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},
-    body:JSON.stringify({prompt:NCR_AI_PROMPT, mime:file.type||'application/pdf', b64})});
+    body:JSON.stringify({prompt:ncrAiPrompt(), mime, b64})});
   let out={}; try{ out=await res.json(); }catch(_){}
   if(!res.ok) throw new Error((out&&out.error)||('Edge function error: '+res.status));
   const raw=out.text||out.result||'{}';
   const f= typeof raw==='string' ? JSON.parse(raw.replace(/```json|```/g,'').trim()) : raw;
-  const o={}; NCR_FORM_KEYS.forEach(k=>o[k]=String(f[k]??'').trim()); return o;
+  const o={}; NCR_FORM_KEYS.forEach(k=>o[k]=String(f[k]??'').trim());
+  o._uncertain=String(f.uncertain||'').split(/[,;]/).map(x=>x.trim()).filter(Boolean); o._ai=true; return o;
 }
 function formDate(v){
   v=String(v||'').trim(); if(!v) return '';
@@ -1306,8 +1349,25 @@ function openNcrFromForm(f, how){
   pendingNcrForm=f;
   if(ex){ openNcr(ex.id,null,true); Object.entries(p).forEach(([k,v])=>{ if(v) $(k).value=v; }); }
   else { openNcr(null,{},true); Object.entries(p).forEach(([k,v])=>{ if(v) $(k).value=v; }); if(!p.nCust) ncrJobChanged(); }
+  // highlight boxes to check: anything the AI was unsure of, plus key boxes left empty
+  const MAP={NCR_Number:['nNo','NCR number'],Job_Number:['nJob','job number'],Client:['nCust','client'],Date_Raised:['nDate','date raised'],Status:['nStatus','status'],
+    Where_Found:['nStage','where found'],Source:['nType','source'],What_Is_Wrong:['nDesc','what is wrong'],Part_Description:['nDesc','part'],Drawing_Revision:['nDesc','drawing'],
+    Qty_Ordered:['nDesc','quantity ordered'],Qty_Affected:['nDesc','quantity affected'],Machinist:['nDesc','machinist'],Raised_By:['nRaised','raised by'],
+    Cause:['nRoot','cause'],Cause_Details:['nRoot','cause details'],Parts_Tagged:['nImm','parts tagged'],Disposition:['nImm','disposition'],Action_Taken:['nImm','action taken'],
+    Customer_Notified:['nImm','customer notified'],Customer_Notified_Date:['nImm','date customer notified'],Corrective_Action:['nAct','corrective action'],
+    Reinspection:['nAct','re-inspection'],Time_Lost:['nAct','time lost'],Cost:['nAct','cost'],Action_By:['nBy','action by'],Due_Date:['nTarget','due date'],
+    Action_Effective:['nEff','action effective'],Closed_Out_Date:['nClosed','closed out date']};
+  Object.keys(NCR_FIELDS).forEach(id=>$(id).classList.remove('chk-field'));
+  const unsure=(f._uncertain||[]).filter(k=>MAP[k]);
+  const blanks=['NCR_Number','Job_Number','Date_Raised','What_Is_Wrong'].filter(k=>!f[k]);
+  [...unsure,...blanks].forEach(k=>{ const el=$(MAP[k][0]); el.classList.add('chk-field'); el.addEventListener('input',()=>el.classList.remove('chk-field'),{once:true}); });
+  const list=a=>[...new Set(a.map(k=>MAP[k][1]))].join(', ');
   const note=$('nFormNote');
-  note.innerHTML=`Read from ${esc(how)}${ex?` — <b>${esc(p.nNo)}</b> is already in the register, so saving will update it`:''}. Check the details, then click <b>Save NCR</b>. The job will then open in Release &amp; CoC with the NCR details.`;
+  note.innerHTML=`Filled in from the ${esc(how)}${ex?` — <b>${esc(p.nNo)}</b> is already in the register, so saving will update it`:''}.`
+    + (unsure.length?` <b>Could not read clearly: ${esc(list(unsure))}.</b>`:'')
+    + (blanks.length?` <b>Not found on the form: ${esc(list(blanks))}.</b>`:'')
+    + ((unsure.length||blanks.length)?' Those boxes are highlighted.':'')
+    + ` Compare with the paper form, then click <b>Save NCR</b>. The job will then open in Release &amp; CoC with the NCR details.`;
   note.classList.add('show');
 }
 function applyNcrToCoc(f, ncrNo){
@@ -1352,7 +1412,7 @@ function nextNcrNo(){
 }
 const NCR_FIELDS={nNo:'ncr_no',nDate:'date_raised',nJob:'job_no',nCust:'customer',nType:'ncr_type',nStage:'stage',nRaised:'raised_by',nDesc:'description',nImm:'immediate_action',nRoot:'root_cause',nAct:'corrective_action',nBy:'action_by',nTarget:'target_close',nClosed:'date_closed',nEff:'effective',nStatus:'status'};
 function openNcr(id,preset,keepForm){
-  if(!keepForm){ pendingNcrForm=null; $('nFormNote').classList.remove('show'); }
+  if(!keepForm){ pendingNcrForm=null; $('nFormNote').classList.remove('show'); Object.keys(NCR_FIELDS).forEach(id=>$(id).classList.remove('chk-field')); }
   const n=id?DATA.ncrs.find(x=>x.id===id):null; editNcrId=n?n.id:null;
   $('ncrTitle').textContent=n?`Edit NCR — ${n.ncr_no||''}`:'Raise Non-Conformance Record';
   Object.entries(NCR_FIELDS).forEach(([el,k])=>$(el).value = n ? (n[k]??'') : '');
