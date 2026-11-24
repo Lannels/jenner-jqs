@@ -921,9 +921,13 @@ Dates on the card are Australian (day/month/year). If a field is not visible, us
 
 function handleFiles(files){
   if(!files||!files.length) return;
-  const file=files[0], reader=new FileReader();
-  reader.onload = e => readWithAI(e.target.result.split(',')[1], file.type||'application/pdf');
-  reader.readAsDataURL(file);
+  const file=files[0]; $('pdfFile').value='';
+  // Send page 1 as a JPEG: the AI rejects some scanner PDFs (Apeos C2560) as "not valid", and a picture reads just as well
+  scanToJpeg(file).then(b64=>readWithAI(b64,'image/jpeg')).catch(()=>{
+    const reader=new FileReader();
+    reader.onload = e => readWithAI(e.target.result.split(',')[1], file.type||'application/pdf');
+    reader.readAsDataURL(file);
+  });
 }
 async function readWithAI(b64, mime){
   newBlank();
