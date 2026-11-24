@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -90,6 +91,14 @@ textarea{resize:vertical;min-height:64px}
 .upload-zone p{font-size:12px;color:var(--steel)}
 .upload-zone.sm{padding:18px}
 .upload-zone.sm h3{font-size:13px}
+.mail-box{border:1px solid var(--border);border-radius:6px;margin-bottom:16px;background:#fff}
+.mail-hdr{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;background:var(--grey);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.mail-hdr h3{font-size:13px;font-weight:700;color:var(--black);margin:0}
+.mail-row{display:flex;align-items:center;gap:12px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:12px}
+.mail-row:last-child{border-bottom:none}
+.mail-row .grow{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mail-msg{padding:10px 14px;font-size:12px;color:var(--steel)}
+.mail-msg:empty{display:none}
 
 /* AI READING STATUS */
 .ai-status{background:var(--gold-tint);border:1px solid var(--gold);border-radius:4px;padding:10px 14px;font-size:12px;font-weight:600;color:var(--black);display:none;align-items:center;gap:8px;margin-bottom:14px}
@@ -299,6 +308,11 @@ textarea{resize:vertical;min-height:64px}
       <div class="card-hdr"><h2>Step 1 — Load the job</h2></div>
       <div class="card-body">
         <div class="alert alert-info show">Upload the scanned SprintSuite Job Card and the AI fills in the job and the six checks. Or find a job already in the register, or start a blank entry.</div>
+        <div class="mail-box">
+          <div class="mail-hdr"><h3>Scans waiting in Outlook — <span id="mailFolderName">QMS Forms to enter</span></h3>
+            <div style="display:flex;gap:8px"><button class="btn btn-sm btn-outline" id="mailBtn" onclick="mailConnect()">Connect Outlook</button></div></div>
+          <div id="mailList"></div><div class="mail-msg" id="mailMsg"></div>
+        </div>
         <div class="upload-zone" id="dropZone" onclick="document.getElementById('pdfFile').click()"
              ondragover="event.preventDefault();this.classList.add('drag')"
              ondragleave="this.classList.remove('drag')"
@@ -661,6 +675,7 @@ function showApp(){
   $('pFrom').value = saved?.from || fyStart();
   $('pTo').value   = saved?.to   || today();
   loadAll();
+  mailInit();
 }
 function switchTab(t){
   const map={dash:'tabDash',coc:'tabCoc',reg:'tabReg',ncr:'tabNcr',audit:'tabAudit',web:'tabWeb',sig:'tabSig'};
@@ -919,8 +934,9 @@ The printed options are circled by hand. A circled PASS or a circled Yes = "PASS
 Handwritten N/A = "N/A". If nothing is circled or written for that row, use "".
 Dates on the card are Australian (day/month/year). If a field is not visible, use an empty string. Return only the JSON object.`;
 
-function handleFiles(files){
+function handleFiles(files, fromMail){
   if(!files||!files.length) return;
+  if(!fromMail) mailCurrent=null;
   const file=files[0]; $('pdfFile').value='';
   // Send page 1 as a JPEG: the AI rejects some scanner PDFs (Apeos C2560) as "not valid", and a picture reads just as well
   scanToJpeg(file).then(b64=>readWithAI(b64,'image/jpeg')).catch(()=>{
@@ -1082,6 +1098,7 @@ async function saveLine(release){
       $('aiOk').textContent=`✓ ${d.job_no} saved to the register (not released).`;
     }
     $('aiOk').classList.add('show'); $('aiErr').classList.remove('show'); showEditNote(row,false); updateCocStatus();
+    mailEntered('job');
     window.scrollTo({top:0,behavior:'smooth'});
   }catch(e){ alert('Could not save: '+e.message); }
 }
@@ -1263,7 +1280,7 @@ Rules:
 }
 
 function handleNcrFile(files){
-  files=[...(files||[])]; $('ncrFile').value='';
+  files=[...(files||[])]; $('ncrFile').value=''; mailCurrent=null;
   if(!files.length) return;
   const file=files.find(f=>/pdf/i.test(f.type)||/\.pdf$/i.test(f.name))||files[0];
   readNcrForm(file);
@@ -1409,6 +1426,112 @@ function applyNcrToCoc(f, ncrNo){
 window.addEventListener('dragover',e=>e.preventDefault());
 window.addEventListener('drop',e=>e.preventDefault());
 
+// ═══ OUTLOOK LINK — scans emailed by the Apeos into Inbox › "QMS Forms to enter" ═══
+// Signs in to Microsoft 365 in the browser (Mail.ReadWrite), lists the scans waiting, reads one when Enter is clicked,
+// and moves the email to Inbox › "QMS Forms entered" once the job card or NCR has been saved.
+const MAIL_SCOPES=['Mail.ReadWrite'], GRAPH='https://graph.microsoft.com/v1.0';
+let msalApp=null, mailAcct=null, mailItems=[], mailCurrent=null;
+const mailCfg=()=>({clientId:setting('ms_client_id',''), inFolder:setting('mail_in_folder','QMS Forms to enter'), doneFolder:setting('mail_done_folder','QMS Forms entered')});
+function mailSay(t){ $('mailMsg').innerHTML=t; }
+async function mailInit(){
+  for(let i=0;i<40&&!DATA.loaded;i++) await new Promise(r=>setTimeout(r,250));
+  const c=mailCfg(); $('mailFolderName').textContent=c.inFolder;
+  if(!c.clientId){ mailSetupNote(); return; }
+  try{
+    msalApp=new msal.PublicClientApplication({auth:{clientId:c.clientId, authority:'https://login.microsoftonline.com/'+setting('ms_tenant','jennerengineering.com.au'), redirectUri:location.origin+location.pathname},
+      cache:{cacheLocation:'localStorage'}});
+    await msalApp.initialize(); await msalApp.handleRedirectPromise();
+    mailAcct=msalApp.getAllAccounts()[0]||null;
+  }catch(e){ mailSay('Could not start the Outlook link: '+esc(e.message)); return; }
+  if(mailAcct){ $('mailBtn').textContent='Refresh'; mailRefresh(); }
+  else mailSay('Click <b>Connect Outlook</b> and sign in as carol@jennerengineering.com.au to see the scans waiting.');
+}
+function mailSetupNote(){
+  mailSay(`The Outlook link is not set up yet. Paste the Microsoft <b>Application (client) ID</b> here:
+    <span style="display:inline-flex;gap:6px;margin-left:6px"><input type="text" id="msCid" placeholder="00000000-0000-0000-0000-000000000000" style="width:300px"><button class="btn btn-sm btn-primary" onclick="mailSaveCid()">Save</button></span>`);
+}
+async function mailSaveCid(){ const v=$('msCid').value.trim(); if(!/^[0-9a-f-]{36}$/i.test(v)){ alert('That does not look like an Application (client) ID.'); return; } await saveSetting('ms_client_id',v); mailInit(); }
+async function mailConnect(){
+  if(!msalApp){ mailInit(); return; }
+  if(!mailAcct){
+    try{ const r=await msalApp.loginPopup({scopes:MAIL_SCOPES, prompt:'select_account'}); mailAcct=r.account; $('mailBtn').textContent='Refresh'; }
+    catch(e){ mailSay('Sign-in did not finish: '+esc(e.message)); return; }
+  }
+  mailRefresh();
+}
+async function mailToken(){
+  try{ return (await msalApp.acquireTokenSilent({scopes:MAIL_SCOPES, account:mailAcct})).accessToken; }
+  catch(_){ return (await msalApp.acquireTokenPopup({scopes:MAIL_SCOPES, account:mailAcct})).accessToken; }
+}
+async function graph(path, method='GET', body=null){
+  const res=await fetch(GRAPH+path,{method, headers:{'Authorization':'Bearer '+await mailToken(), ...(body?{'Content-Type':'application/json'}:{})}, body:body?JSON.stringify(body):null});
+  if(!res.ok){ let m=res.status+''; try{ m=(await res.json()).error.message; }catch(_){} throw new Error(m); }
+  return res.status===204?null:res.json();
+}
+async function mailFolderId(name, create){
+  const q=encodeURIComponent(`displayName eq '${name.replace(/'/g,"''")}'`);
+  const r=await graph(`/me/mailFolders/inbox/childFolders?$filter=${q}&$select=id`);
+  if(r.value.length) return r.value[0].id;
+  if(!create) return null;
+  return (await graph('/me/mailFolders/inbox/childFolders','POST',{displayName:name})).id;
+}
+async function mailRefresh(){
+  const c=mailCfg(); mailSay('Checking Outlook…');
+  try{
+    const fid=await mailFolderId(c.inFolder,false);
+    if(!fid){ $('mailList').innerHTML=''; mailSay(`There is no folder called “${esc(c.inFolder)}” under the Inbox of ${esc(mailAcct.username)}.`); return; }
+    const msgs=(await graph(`/me/mailFolders/${fid}/messages?$select=id,subject,receivedDateTime,hasAttachments&$orderby=receivedDateTime asc&$top=50`)).value.filter(m=>m.hasAttachments);
+    mailItems=[];
+    for(const m of msgs){
+      const atts=(await graph(`/me/messages/${m.id}/attachments?$select=id,name,contentType,size`)).value
+        .filter(a=>/pdf|image\//i.test(a.contentType||'')||/\.(pdf|jpe?g|png|tiff?)$/i.test(a.name||''));
+      atts.forEach(a=>mailItems.push({msgId:m.id, attId:a.id, name:a.name, type:a.contentType, received:m.receivedDateTime, subject:m.subject, count:atts.length}));
+    }
+    mailRender();
+  }catch(e){ mailSay('Could not read Outlook: '+esc(e.message)); }
+}
+function mailDoneSet(){ try{ return new Set(JSON.parse(localStorage.getItem('jqms_mail_done')||'[]')); }catch(_){ return new Set(); } }
+function mailRender(){
+  const done=mailDoneSet(), rows=mailItems.filter(i=>!done.has(i.attId));
+  $('mailList').innerHTML=rows.map((i,k)=>`<div class="mail-row"><span style="color:var(--steel);white-space:nowrap">${fmtDate(i.received.slice(0,10))} ${new Date(i.received).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})}</span>
+    <span class="grow" title="${esc(i.name)}">${esc(i.name)}</span><button class="btn btn-sm btn-gold" onclick="mailEnter('${i.attId}')">Enter</button></div>`).join('');
+  mailSay(rows.length?'':'No scans waiting. New scans appear here when you click Refresh or reopen the app.');
+}
+async function mailEnter(attId){
+  const it=mailItems.find(i=>i.attId===attId); if(!it) return;
+  mailSay('Opening '+esc(it.name)+'…');
+  try{
+    const a=await graph(`/me/messages/${it.msgId}/attachments/${attId}`);
+    const bytes=Uint8Array.from(atob(a.contentBytes),ch=>ch.charCodeAt(0));
+    const file=new File([bytes], a.name||'scan.pdf', {type:a.contentType||'application/pdf'});
+    mailSay('Working out whether '+esc(it.name)+' is a job card or an NCR form…');
+    const kind=await scanKind(file);
+    mailCurrent={...it, kind}; mailSay('');
+    if(kind==='ncr') readNcrForm(file); else handleFiles([file], true);
+  }catch(e){ mailSay('Could not open the scan: '+esc(e.message)); }
+}
+async function scanKind(file){
+  try{ if(/pdf/i.test(file.type)){ const f=await ncrFieldsFromPdf(file); if(f&&NCR_FORM_KEYS.filter(k=>f[k]).length>=3) return 'ncr'; } }catch(_){}
+  try{
+    const b64=await scanToJpeg(file);
+    const res=await fetch(SB_URL+'/functions/v1/digitise-jobpack',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},
+      body:JSON.stringify({mime:'image/jpeg', b64, prompt:'This is a scanned form from Jenner Engineering. If it is a Non-Conformance Report (it says "Non-Conformance Report" and has an NCR number), reply {"type":"ncr"}. If it is a SprintSuite job card (a job number like P.26.0796 with a Field / Value table of checks), reply {"type":"job"}. Reply with JSON only.'})});
+    const out=await res.json(); const t=String(out.text||out.result||'');
+    return /"ncr"/i.test(t)?'ncr':'job';
+  }catch(_){ return 'job'; }
+}
+async function mailEntered(kind){
+  if(!mailCurrent||mailCurrent.kind!==kind) return;
+  const it=mailCurrent; mailCurrent=null;
+  const done=mailDoneSet(); done.add(it.attId); localStorage.setItem('jqms_mail_done',JSON.stringify([...done].slice(-500)));
+  const left=mailItems.filter(i=>i.msgId===it.msgId && !done.has(i.attId)).length;
+  if(!left){
+    try{ const dest=await mailFolderId(mailCfg().doneFolder,true); await graph(`/me/messages/${it.msgId}/move`,'POST',{destinationId:dest}); }
+    catch(e){ mailRender(); mailSay('Saved, but the email could not be moved to “'+esc(mailCfg().doneFolder)+'”: '+esc(e.message)); return; }
+  }
+  mailRender();
+}
+
 // ═══ NCR REGISTER ═══
 const isClosedN = n => (n.status||'').toUpperCase()==='CLOSED';
 function ncrCust(n){ return n.customer || (DATA.allReg.find(r=>(r.job_no||'').toUpperCase()===(n.job_no||'').trim().toUpperCase())||{}).customer || ''; }
@@ -1450,6 +1573,7 @@ async function saveNcr(){
   try{
     if(editNcrId) await sb(`qms_ncrs?id=eq.${editNcrId}`,'PATCH',d); else await sb('qms_ncrs','POST',d);
     closeModal('ncrModal'); await loadAll(); showNcrAlert('NCR '+(d.ncr_no||'')+' saved.','ok');
+    mailEntered('ncr');
     if(pendingNcrForm){ const f=pendingNcrForm; pendingNcrForm=null; $('nFormNote').classList.remove('show'); applyNcrToCoc(f, d.ncr_no); }
   }catch(e){ alert('Could not save NCR: '+e.message); }
 }
